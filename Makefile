@@ -1,6 +1,7 @@
 include config.mak
 
-.PHONY: host-musl lkl sgx-lkl-musl-config sgx-lkl-musl sgx-lkl tools clean enclave-debug-key
+.PHONY: host-musl lkl sgx-lkl-musl-config sgx-lkl-musl sgx-lkl tools clean enclave-debug-key \
+  numactl-autogen numactl-config dpdk
 
 # boot memory reserved for LKL/kernel (in MB)
 BOOT_MEM=12 # Default in LKL is 64
@@ -31,6 +32,37 @@ host-musl ${HOST_MUSL_CC}: | ${HOST_MUSL}/.git ${HOST_MUSL_BUILD}
 	ln -fs ${LINUX_HEADERS_INC}/asm-generic/ ${HOST_MUSL_BUILD}/include/asm-generic
 	# Fix musl-gcc for gcc version that have been built with --enable-default-pie
 	gcc -v 2>&1 | grep "\-\-enable-default-pie" > /dev/null && sed -i 's/"$$@"/-fpie -pie "\$$@"/g' ${HOST_MUSL_BUILD}/bin/musl-gcc || true
+
+numactl-autogen: | ${NUMACTL}.git
+	cd ${NUMACTL}; [ -f configure ] || ./autogen.sh
+
+numactl-config: numactl-autogen ${HOST_MUSL_CC}
+	+cd ${NUMACTL}; [ -f Makefile ] || \
+    CFLAGS="$(MUSL_CFLAGS)" CC=${HOST_MUSL_CC} ./configure --prefix=${NUMACTL_BUILD}
+
+numactl: numactl-config
+	make -C ${NUMACTL} -j$(nproc) install
+
+DPDK_VERSION=17.02
+RTE_SDK=$(CURDIR)/lkl/tools/lkl/dpdk-${DPDK_VERSION}
+RTE_TARGET=x86_64-native-linuxapp-gcc
+DPDK_FLAGS=-Wno-error \
+  -Wno-error=implicit-function-declaration \
+  -Wno-error=nested-externs \
+  -Wno-error=implicit-fallthrough \
+  -Wno-error=pointer-to-int-cast
+
+${RTE_SDK}:
+	mkdir -p ${RTE_SDK}
+
+${DPKG}/build/.config:
+	make -j1 -C ${DPDK} RTE_SDK=${DPDK} T=${RTE_TARGET} config
+	cat ${CURDIR}/src/dpdk/defconfig >> ${DPDK}/build/.config
+
+dpdk: ${DPKG}/build/.config ${HOST_MUSL_CC} numactl | ${DPDK}/.git ${RTE_SDK}
+	make -j`tools/ncore.sh` -C ${DPDK} WERROR_FLAGS= CC=${HOST_MUSL_CC} RTE_SDK=${DPDK} V=1 T=${RTE_TARGET} \
+    EXTRA_CFLAGS="$(MUSL_CFLAGS) -lc ${DPDK_FLAGS} -I${NUMACTL_BUILD}/include -include ${CURDIR}/src/dpdk/uint.h" \
+    EXTRA_LDFLAGS="-L${NUMACTL_BUILD}/lib"
 
 # LKL's static library and include/ header directory
 lkl ${LIBLKL}: ${HOST_MUSL_CC} | ${LKL}/.git ${LKL_BUILD} src/lkl/override/defconfig
@@ -100,7 +132,7 @@ ${BUILD_DIR} ${TOOLS_BUILD} ${LKL_BUILD} ${HOST_MUSL_BUILD} ${SGX_LKL_MUSL_BUILD
 	@mkdir -p $@
 
 # Submodule initialisation (one-shot after git clone)
-${HOST_MUSL}/.git ${LKL}/.git ${SGX_LKL_MUSL}/.git:
+${HOST_MUSL}/.git ${LKL}/.git ${SGX_LKL_MUSL}/.git ${DPDK}/.git ${NUMACTL}.git:
 	[ "$(FORCE_SUBMODULES_VERSION)" = "true" ] || git submodule update --init $($@:.git=)
 
 clean:
@@ -110,5 +142,8 @@ clean:
 	+${MAKE} -C ${LKL} clean || true
 	+${MAKE} -C ${LKL}/tools/lkl clean || true
 	+${MAKE} -C src LIB_SGX_LKL_BUILD_DIR="$(BUILD_DIR)" clean || true
+	+${MAKE} -C ${NUMACTL} clean || true
+	+${MAKE} -C ${DPDK} clean || true
 	rm -f ${HOST_MUSL}/config.mak
 	rm -f ${SGX_LKL_MUSL}/config.mak
+	rm -f ${NUMACTL}/{configure,Makefile}

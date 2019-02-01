@@ -7,3 +7,9 @@
 [submodule "sgx-lkl-musl"]
 	path = sgx-lkl-musl
 	url = https://github.com/lsds/sgx-lkl-musl.git
+[submodule "dpdk"]
+	path = dpdk
+	url = https://github.com/DPDK/dpdk
+[submodule "numactl"]
+	path = numactl
+	url = https://github.com/numactl/numactl
