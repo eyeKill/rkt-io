@@ -19,14 +19,18 @@ GDB_SGX_PLUGIN_PATH=$GDB_SGX_PLUGIN_PATH
 SGX_LIBRARY_PATH=$SGX_LIBRARY_PATH
 GDB_PLUGIN=$GDB_PLUGIN
 
-if [ -f /usr/local/bin/gdb ]
+if command -v gdb
 then
-    GDB=/usr/local/bin/gdb
+    GDB=gdb
 elif [ -f /usr/bin/gdb ]
 then
     GDB=/usr/bin/gdb
+elif [ -f /usr/local/bin/gdb ]
+then
+    GDB=/usr/local/bin/gdb
 else
-    GDB=gdb
+    echo "No gdb found!"
+    exit 1
 fi
 
 for arg in "\$@"
@@ -43,7 +47,6 @@ if [[ ! -z "\$SGX_LKL_RUN" ]]; then
         echo "Warning: \$SGX_LKL_RUN not compiled with DEBUG=true. Debug symbols might be missing."
     fi
 fi
-
 export PYTHONPATH=\$GDB_SGX_PLUGIN_PATH
 LD_PRELOAD=\$SGX_LIBRARY_PATH/libsgx_ptrace.so \$GDB -iex "directory \$GDB_SGX_PLUGIN_PATH" -iex "source \$GDB_SGX_PLUGIN_PATH/gdb_sgx_plugin.py" -iex "set environment LD_PRELOAD" -iex "add-auto-load-safe-path /usr/lib" -iex "source \$GDB_PLUGIN" "\$@"
 EOF
