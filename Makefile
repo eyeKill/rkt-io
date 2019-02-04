@@ -44,28 +44,25 @@ numactl: numactl-config
 	make -C ${NUMACTL} -j$(nproc) install
 
 DPDK_VERSION=17.02
-RTE_SDK=$(CURDIR)/lkl/tools/lkl/dpdk-${DPDK_VERSION}
 RTE_TARGET=x86_64-native-linuxapp-gcc
+DPDK_CONFIG=${DPDK_BUILD}/.config
 DPDK_FLAGS=-Wno-error \
   -Wno-error=implicit-function-declaration \
   -Wno-error=nested-externs \
   -Wno-error=implicit-fallthrough \
   -Wno-error=pointer-to-int-cast
 
-${RTE_SDK}:
-	mkdir -p ${RTE_SDK}
+dpdk-config ${DPDK_CONFIG}: ${CURDIR}/src/dpdk/defconfig
+	make -j1 -C ${DPDK} RTE_SDK=${DPDK} T=${RTE_TARGET} O=${DPDK_BUILD} config
+	cat ${DPDK_BUILD}/.config.orig ${CURDIR}/src/dpdk/defconfig > ${DPDK_BUILD}/.config
 
-${DPKG}/build/.config:
-	make -j1 -C ${DPDK} RTE_SDK=${DPDK} T=${RTE_TARGET} config
-	cat ${CURDIR}/src/dpdk/defconfig >> ${DPDK}/build/.config
-
-dpdk: ${DPKG}/build/.config ${HOST_MUSL_CC} numactl | ${DPDK}/.git ${RTE_SDK}
-	make -j`tools/ncore.sh` -C ${DPDK} WERROR_FLAGS= CC=${HOST_MUSL_CC} RTE_SDK=${DPDK} V=1 T=${RTE_TARGET} \
+dpdk ${DPDK_BUILD}/lib/librte_pmd_ixgbe.a: ${DPDK_CONFIG} ${HOST_MUSL_CC} numactl | ${DPDK}/.git ${RTE_SDK}
+	make -j`tools/ncore.sh` -C ${DPDK_BUILD} WERROR_FLAGS= CC=${HOST_MUSL_CC} RTE_SDK=${DPDK} V=1 \
     EXTRA_CFLAGS="$(MUSL_CFLAGS) -lc ${DPDK_FLAGS} -I${NUMACTL_BUILD}/include -include ${CURDIR}/src/dpdk/uint.h" \
     EXTRA_LDFLAGS="-L${NUMACTL_BUILD}/lib"
 
 # LKL's static library and include/ header directory
-lkl ${LIBLKL}: ${HOST_MUSL_CC} | ${LKL}/.git ${LKL_BUILD} src/lkl/override/defconfig
+lkl ${LIBLKL}: ${DPDK_BUILD}/lib/librte_pmd_ixgbe.a ${HOST_MUSL_CC} | ${LKL}/.git ${LKL_BUILD} src/lkl/override/defconfig
 	# Override lkl's defconfig with our own
 	cp -Rv src/lkl/override/defconfig ${LKL}/arch/lkl/defconfig
 	cp -Rv src/lkl/override/include/uapi/asm-generic/stat.h ${LKL}/include/uapi/asm-generic/stat.h
@@ -73,7 +70,7 @@ lkl ${LIBLKL}: ${HOST_MUSL_CC} | ${LKL}/.git ${LKL_BUILD} src/lkl/override/defco
 	sed -i 's/static unsigned long mem_size = .*;/static unsigned long mem_size = ${BOOT_MEM} \* 1024 \* 1024;/g' lkl/arch/lkl/kernel/setup.c
 	# Disable loading of kernel symbols for debugging/panics
 	grep -q -F 'CONFIG_KALLSYMS=n' ${LKL}/arch/lkl/defconfig || echo 'CONFIG_KALLSYMS=n' >> ${LKL}/arch/lkl/defconfig
-	+DESTDIR=${LKL_BUILD} ${MAKE} -C ${LKL}/tools/lkl -j`tools/ncore.sh` CC=${HOST_MUSL_CC} PREFIX="" \
+	+DESTDIR=${LKL_BUILD} ${MAKE} DPDK=yes V=1 RTE_SDK=${DPDK_BUILD} RTE_TARGET= -C ${LKL}/tools/lkl -j`tools/ncore.sh` CC=${HOST_MUSL_CC} PREFIX="" \
 		${LKL}/tools/lkl/liblkl.a
 	mkdir -p ${LKL_BUILD}/lib
 	cp ${LKL}/tools/lkl/liblkl.a $(LKL_BUILD)/lib
@@ -143,7 +140,6 @@ clean:
 	+${MAKE} -C ${LKL}/tools/lkl clean || true
 	+${MAKE} -C src LIB_SGX_LKL_BUILD_DIR="$(BUILD_DIR)" clean || true
 	+${MAKE} -C ${NUMACTL} clean || true
-	+${MAKE} -C ${DPDK} clean || true
 	rm -f ${HOST_MUSL}/config.mak
 	rm -f ${SGX_LKL_MUSL}/config.mak
 	rm -f ${NUMACTL}/{configure,Makefile}

@@ -26,6 +26,7 @@ HOST_MUSL_CC ?= ${HOST_MUSL_BUILD}/bin/musl-gcc
 SGX_LKL_MUSL ?= $(ROOT_DIR)/sgx-lkl-musl
 SGX_LKL_MUSL_BUILD ?= ${BUILD_DIR}/sgx-lkl-musl
 DPDK ?= $(ROOT_DIR)/dpdk
+DPDK_BUILD ?= ${BUILD_DIR}/dpdk
 NUMACTL ?= $(ROOT_DIR)/numactl
 NUMACTL_BUILD ?= ${BUILD_DIR}/numactl
 # Headers not exported by LKL and built by a custom tool's output cat to the file instead
