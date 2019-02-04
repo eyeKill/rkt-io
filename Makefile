@@ -1,7 +1,7 @@
 include config.mak
 
 .PHONY: host-musl lkl sgx-lkl-musl-config sgx-lkl-musl sgx-lkl tools clean enclave-debug-key \
-  numactl-autogen numactl-config dpdk
+	numactl-autogen numactl-config dpdk bear
 
 # boot memory reserved for LKL/kernel (in MB)
 BOOT_MEM=12 # Default in LKL is 64
@@ -38,28 +38,31 @@ numactl-autogen: | ${NUMACTL}.git
 
 numactl-config: numactl-autogen ${HOST_MUSL_CC}
 	+cd ${NUMACTL}; [ -f Makefile ] || \
-    CFLAGS="$(MUSL_CFLAGS)" CC=${HOST_MUSL_CC} ./configure --prefix=${NUMACTL_BUILD}
+		CFLAGS="$(MUSL_CFLAGS)" CC=${HOST_MUSL_CC} ./configure --prefix=${NUMACTL_BUILD}
 
 numactl: numactl-config
 	make -C ${NUMACTL} -j$(nproc) install
 
-DPDK_VERSION=17.02
-RTE_TARGET=x86_64-native-linuxapp-gcc
-DPDK_CONFIG=${DPDK_BUILD}/.config
-DPDK_FLAGS=-Wno-error \
-  -Wno-error=implicit-function-declaration \
-  -Wno-error=nested-externs \
-  -Wno-error=implicit-fallthrough \
-  -Wno-error=pointer-to-int-cast
+DPDK_VERSION = 17.02
+RTE_TARGET = x86_64-native-linuxapp-gcc
+DPDK_CONFIG = ${DPDK_BUILD}/.config
+DPDK_FLAGS = -Wno-error \
+		-Wno-error=implicit-function-declaration \
+		-Wno-error=nested-externs \
+		-Wno-error=implicit-fallthrough \
+		-Wno-error=pointer-to-int-cast
+
+# when compiling with BEAR the build seems to fail at some point also the overall build is still fine
+DPDK_BEAR_HACK ?= no
 
 dpdk-config ${DPDK_CONFIG}: ${CURDIR}/src/dpdk/override/defconfig
 	make -j1 -C ${DPDK} RTE_SDK=${DPDK} T=${RTE_TARGET} O=${DPDK_BUILD} config
 	cat ${DPDK_BUILD}/.config.orig ${CURDIR}/src/dpdk/override/defconfig > ${DPDK_BUILD}/.config
 
 dpdk ${DPDK_BUILD}/lib/librte_pmd_ixgbe.a: ${DPDK_CONFIG} ${HOST_MUSL_CC} numactl | ${DPDK}/.git ${RTE_SDK}
-	make -j`tools/ncore.sh` -C ${DPDK_BUILD} WERROR_FLAGS= CC=${HOST_MUSL_CC} RTE_SDK=${DPDK} V=1 \
-    EXTRA_CFLAGS="$(MUSL_CFLAGS) -lc ${DPDK_FLAGS} -I${NUMACTL_BUILD}/include -include ${CURDIR}/src/dpdk/override/uint.h" \
-    EXTRA_LDFLAGS="-L${NUMACTL_BUILD}/lib"
+	+make -j`tools/ncore.sh` -C ${DPDK_BUILD} WERROR_FLAGS= CC=${HOST_MUSL_CC} RTE_SDK=${DPDK} V=1 \
+		EXTRA_CFLAGS="$(MUSL_CFLAGS) -lc ${DPDK_FLAGS} -I${NUMACTL_BUILD}/include -include ${CURDIR}/src/dpdk/override/uint.h" \
+		EXTRA_LDFLAGS="-L${NUMACTL_BUILD}/lib" || test ${DPDK_BEAR_HACK} == "yes"
 
 # Since load-dpdk-driver may require root,
 # we don't want to build the kernel modules here and
@@ -143,6 +146,10 @@ ${BUILD_DIR} ${TOOLS_BUILD} ${LKL_BUILD} ${HOST_MUSL_BUILD} ${SGX_LKL_MUSL_BUILD
 # Submodule initialisation (one-shot after git clone)
 ${HOST_MUSL}/.git ${LKL}/.git ${SGX_LKL_MUSL}/.git ${DPDK}/.git ${NUMACTL}.git:
 	[ "$(FORCE_SUBMODULES_VERSION)" = "true" ] || git submodule update --init $($@:.git=)
+
+compdb:
+	${MAKE} clean
+	bear ${MAKE} DPDK_BEAR_HACK=yes
 
 clean:
 	rm -rf ${BUILD_DIR}
