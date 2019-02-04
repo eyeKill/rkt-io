@@ -61,6 +61,18 @@ dpdk ${DPDK_BUILD}/lib/librte_pmd_ixgbe.a: ${DPDK_CONFIG} ${HOST_MUSL_CC} numact
     EXTRA_CFLAGS="$(MUSL_CFLAGS) -lc ${DPDK_FLAGS} -I${NUMACTL_BUILD}/include -include ${CURDIR}/src/dpdk/uint.h" \
     EXTRA_LDFLAGS="-L${NUMACTL_BUILD}/lib"
 
+# Since load-dpdk-driver may require root,
+# we don't want to build the kernel modules here and
+# ask the user to run make instead
+${DPDK_BUILD}/kmod/%.ko:
+	$(error "Kernel module $@ not found, run `make dpdk` first")
+
+load-dpdk-driver: ${DPDK_BUILD}/kmod/igb_uio.ko ${DPDK_BUILD}/kmod/rte_kni.ko
+	rmmod rte_kni || true
+	rmmod igb_uio || true
+	insmod ${DPDK_BUILD}/kmod/rte_kni.ko
+	insmod ${DPDK_BUILD}/kmod/igb_uio.ko
+
 # LKL's static library and include/ header directory
 lkl ${LIBLKL}: ${DPDK_BUILD}/lib/librte_pmd_ixgbe.a ${HOST_MUSL_CC} | ${LKL}/.git ${LKL_BUILD} src/lkl/override/defconfig
 	# Override lkl's defconfig with our own

@@ -31,7 +31,7 @@ following packages are required to build SGX-LKL:
 Install these with:
 
 ```
-sudo apt-get install make gcc bc python xutils-dev bison flex
+sudo apt-get install make gcc bc python xutils-dev bison flex linux-headers-$(uname -r)
 ```
 
 Compilation has been tested with versions 5.4 and 7.3 of gcc. Older versions might lead
@@ -371,3 +371,13 @@ dependencies are available to perf due to the in-enclave linking/loading.
 
 Take a look in the [wiki](https://github.com/lsds/sgx-lkl/wiki/Debugging) for
 further debugging options.
+
+DPDK
+----
+
+Running `make` will also build the kernel modules for dpdk in `build/dpdk/kmod`.
+To load them run as root:
+
+```
+make load-dpdk-driver
+```
