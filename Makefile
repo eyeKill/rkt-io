@@ -56,7 +56,7 @@ DPDK_FLAGS = -Wno-error \
 DPDK_BEAR_HACK ?= no
 
 dpdk-config ${DPDK_CONFIG}: ${CURDIR}/src/dpdk/override/defconfig
-	make -j1 -C ${DPDK} RTE_SDK=${DPDK} T=${RTE_TARGET} O=${DPDK_BUILD} config
+	make -j1 -C ${DPDK} PATH=${NUMACTL_BUILD}/bin:$$PATH RTE_SDK=${DPDK} T=${RTE_TARGET} O=${DPDK_BUILD} config
 	cat ${DPDK_BUILD}/.config.orig ${CURDIR}/src/dpdk/override/defconfig > ${DPDK_BUILD}/.config
 
 dpdk ${DPDK_BUILD}/lib/librte_pmd_ixgbe.a: ${DPDK_CONFIG} ${HOST_MUSL_CC} numactl | ${DPDK}/.git ${RTE_SDK}
