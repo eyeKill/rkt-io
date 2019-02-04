@@ -52,13 +52,13 @@ DPDK_FLAGS=-Wno-error \
   -Wno-error=implicit-fallthrough \
   -Wno-error=pointer-to-int-cast
 
-dpdk-config ${DPDK_CONFIG}: ${CURDIR}/src/dpdk/defconfig
+dpdk-config ${DPDK_CONFIG}: ${CURDIR}/src/dpdk/override/defconfig
 	make -j1 -C ${DPDK} RTE_SDK=${DPDK} T=${RTE_TARGET} O=${DPDK_BUILD} config
-	cat ${DPDK_BUILD}/.config.orig ${CURDIR}/src/dpdk/defconfig > ${DPDK_BUILD}/.config
+	cat ${DPDK_BUILD}/.config.orig ${CURDIR}/src/dpdk/override/defconfig > ${DPDK_BUILD}/.config
 
 dpdk ${DPDK_BUILD}/lib/librte_pmd_ixgbe.a: ${DPDK_CONFIG} ${HOST_MUSL_CC} numactl | ${DPDK}/.git ${RTE_SDK}
 	make -j`tools/ncore.sh` -C ${DPDK_BUILD} WERROR_FLAGS= CC=${HOST_MUSL_CC} RTE_SDK=${DPDK} V=1 \
-    EXTRA_CFLAGS="$(MUSL_CFLAGS) -lc ${DPDK_FLAGS} -I${NUMACTL_BUILD}/include -include ${CURDIR}/src/dpdk/uint.h" \
+    EXTRA_CFLAGS="$(MUSL_CFLAGS) -lc ${DPDK_FLAGS} -I${NUMACTL_BUILD}/include -include ${CURDIR}/src/dpdk/override/uint.h" \
     EXTRA_LDFLAGS="-L${NUMACTL_BUILD}/lib"
 
 # Since load-dpdk-driver may require root,
