@@ -26,12 +26,13 @@ https://01.org/intel-software-guard-extensions/downloads) is required. We have
 tested SGX-LKL with driver versions 1.9 and 2.0. SGX-LKL also provides a
 simulation mode for which no SGX-enabled CPU is needed. Furthermore the
 following packages are required to build SGX-LKL:
-`make`, `gcc`, `bc`, `python`, `xutils-dev` (for `makedepend`), `bison`, `flex`.
+`make`, `gcc`, `bc`, `python`, `xutils-dev` (for `makedepend`), `bison`, `flex`,
+`autoconf`, `automake`, `libtool` and `linux-headers` for the installed kernel.
 
 Install these with:
 
 ```
-sudo apt-get install make gcc bc python xutils-dev bison flex linux-headers-$(uname -r)
+sudo apt-get install make gcc bc python xutils-dev bison flex autoconf automake libtool linux-headers-$(uname -r)
 ```
 
 Compilation has been tested with versions 5.4 and 7.3 of gcc. Older versions might lead
@@ -379,5 +380,25 @@ Running `make` will also build the kernel modules for dpdk in `build/dpdk/kmod`.
 To load them run as root:
 
 ```
-make load-dpdk-driver
+root> make load-dpdk-driver
+```
+
+After that you need to bind an interface to dpdk:
+
+```
+# Get the NIC's PCI address
+root> ./dpdk/usertools/dpdk_devbind.py --status
+# disable your NIC
+root> ifconfig eth0 down
+# Unbind your NIC driver
+root> ./dpdk/usertools/dpdk_devbind.py -u 0000:03:00.0
+# Bind your NIC driver to DPDK
+root> ./dpdk/usertools/dpdk_devbind.py -b igb_uio 0000:03:00.0
+```
+
+You will also need to configure hugetables.
+DPDK provides an option in an interactive script for that.
+
+```
+root> ./dpdk/usertools/dpdk-setup.sh
 ```

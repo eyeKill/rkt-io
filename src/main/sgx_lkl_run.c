@@ -85,6 +85,9 @@ extern unsigned long hw_exceptions;
 static const char* DEFAULT_IPV4_ADDR = "10.0.1.1";
 static const char* DEFAULT_IPV4_GW = "10.0.1.254";
 static const int   DEFAULT_IPV4_MASK = 24;
+static const char* DEFAULT_DPDK_IPV4_ADDR = "10.0.2.1";
+static const char* DEFAULT_DPDK_IPV4_GW = "10.0.2.254";
+static const int   DEFAULT_DPDK_IPV4_MASK = 24;
 static const char* DEFAULT_HOSTNAME = "lkl";
 
 /* The default heap size will only be used if no heap size is specified and
@@ -524,6 +527,43 @@ static void register_net(enclave_config_t* encl, const char* tapstr, const char*
     encl->net_ip4 = ip4;
     encl->net_gw4 = gw4;
     encl->net_mask4 = mask4;
+}
+
+void register_dpdk(enclave_dpdk_config_t *dpdk, unsigned char *macstr,
+                  const char *ip4str, const char *mask4str, const char *gw4str,
+                  int offload) {
+  if (macstr == NULL || strlen(macstr) == 0) {
+    if (getenv_bool("SGXLKL_VERBOSE", 0))
+      printf("[    SGX-LKL   ] No mac address for DPDK device specified, skip "
+             "setting up DPDK.\n");
+    return;
+  }
+  // Read IPv4 addr if there is one
+  if (ip4str == NULL)
+    ip4str = DEFAULT_DPDK_IPV4_ADDR;
+  struct in_addr ip4 = {0};
+  if (inet_pton(AF_INET, ip4str, &ip4) != 1)
+    sgxlkl_fail("Invalid IPv4 address %s\n", ip4str);
+
+  // Read IPv4 gateway if there is one
+  if (gw4str == NULL)
+    gw4str = DEFAULT_DPDK_IPV4_GW;
+  struct in_addr gw4 = {0};
+  if (gw4str != NULL && strlen(gw4str) > 0 &&
+      inet_pton(AF_INET, gw4str, &gw4) != 1) {
+    sgxlkl_fail("Invalid IPv4 gateway %s\n", ip4str);
+  }
+
+  // Read IPv4 mask str if there is one
+  int mask4 = (mask4str == NULL ? DEFAULT_IPV4_MASK : atoi(mask4str));
+  if (mask4 < 1 || mask4 > 32)
+    sgxlkl_fail("Invalid IPv4 mask %s\n", mask4str);
+
+  dpdk->mac_address = macstr;
+  dpdk->net_mask4 = mask4;
+  dpdk->net_ip4 = ip4;
+  dpdk->net_gw4 = gw4;
+  dpdk->offload = offload;
 }
 
 static void register_queues(enclave_config_t* encl) {
@@ -1076,6 +1116,9 @@ int main(int argc, char *argv[], char *envp[]) {
     set_tls(&encl);
     register_hds(&encl, root_hd);
     register_net(&encl, getenv("SGXLKL_TAP"), getenv("SGXLKL_IP4"), getenv("SGXLKL_MASK4"), getenv("SGXLKL_GW4"), getenv("SGXLKL_HOSTNAME"));
+    register_dpdk(&encl.dpdk, getenv("SGXLKL_DPDK_MAC"),
+                      getenv("SGXLKL_DPDK_IP4"), getenv("SGXLKL_DPDK_MASK4"),
+                      getenv("SGXLKL_DPDK_GW4"), getenv_bool);
     register_queues(&encl);
 
 #ifndef SGXLKL_HW
@@ -1232,4 +1275,3 @@ int main(int argc, char *argv[], char *envp[]) {
     exit(sim_exit_code);
 #endif
 }
-

@@ -61,7 +61,7 @@ dpdk-config ${DPDK_CONFIG}: ${CURDIR}/src/dpdk/override/defconfig
 
 dpdk ${DPDK_BUILD}/lib/librte_pmd_ixgbe.a: ${DPDK_CONFIG} ${HOST_MUSL_CC} numactl | ${DPDK}/.git ${RTE_SDK}
 	+make -j`tools/ncore.sh` -C ${DPDK_BUILD} WERROR_FLAGS= CC=${HOST_MUSL_CC} RTE_SDK=${DPDK} V=1 \
-		EXTRA_CFLAGS="$(MUSL_CFLAGS) -lc ${DPDK_FLAGS} -I${NUMACTL_BUILD}/include -include ${CURDIR}/src/dpdk/override/uint.h" \
+		EXTRA_CFLAGS="$(MUSL_CFLAGS) -UDEBUG -lc ${DPDK_FLAGS} -I${NUMACTL_BUILD}/include -include ${CURDIR}/src/dpdk/override/uint.h" \
 		EXTRA_LDFLAGS="-L${NUMACTL_BUILD}/lib" || test ${DPDK_BEAR_HACK} == "yes"
 
 # Since load-dpdk-driver may require root,
@@ -76,6 +76,10 @@ load-dpdk-driver: ${DPDK_BUILD}/kmod/igb_uio.ko ${DPDK_BUILD}/kmod/rte_kni.ko
 	insmod ${DPDK_BUILD}/kmod/rte_kni.ko
 	insmod ${DPDK_BUILD}/kmod/igb_uio.ko
 
+fix-dpkg-permissions:
+	sudo chown `id -u` \
+		/mnt/huge /dev/uio* /sys/class/uio/uio*/device/{config,resource*} \
+
 # LKL's static library and include/ header directory
 lkl ${LIBLKL}: ${DPDK_BUILD}/lib/librte_pmd_ixgbe.a ${HOST_MUSL_CC} | ${LKL}/.git ${LKL_BUILD} src/lkl/override/defconfig
 	# Override lkl's defconfig with our own
@@ -85,11 +89,11 @@ lkl ${LIBLKL}: ${DPDK_BUILD}/lib/librte_pmd_ixgbe.a ${HOST_MUSL_CC} | ${LKL}/.gi
 	sed -i 's/static unsigned long mem_size = .*;/static unsigned long mem_size = ${BOOT_MEM} \* 1024 \* 1024;/g' lkl/arch/lkl/kernel/setup.c
 	# Disable loading of kernel symbols for debugging/panics
 	grep -q -F 'CONFIG_KALLSYMS=n' ${LKL}/arch/lkl/defconfig || echo 'CONFIG_KALLSYMS=n' >> ${LKL}/arch/lkl/defconfig
-	+DESTDIR=${LKL_BUILD} ${MAKE} DPDK=yes V=1 RTE_SDK=${DPDK_BUILD} RTE_TARGET= -C ${LKL}/tools/lkl -j`tools/ncore.sh` CC=${HOST_MUSL_CC} PREFIX="" \
+	+DESTDIR=${LKL_BUILD} ${MAKE} dpdk=yes V=1 RTE_SDK=${DPDK_BUILD} RTE_TARGET= -C ${LKL}/tools/lkl -j`tools/ncore.sh` CC=${HOST_MUSL_CC} PREFIX="" \
 		${LKL}/tools/lkl/liblkl.a
 	mkdir -p ${LKL_BUILD}/lib
 	cp ${LKL}/tools/lkl/liblkl.a $(LKL_BUILD)/lib
-	+DESTDIR=${LKL_BUILD} ${MAKE} -C ${LKL}/tools/lkl -j`tools/ncore.sh` CC=${HOST_MUSL_CC} PREFIX="" \
+	+DESTDIR=${LKL_BUILD} ${MAKE} dpdk=yes -C ${LKL}/tools/lkl -j`tools/ncore.sh` CC=${HOST_MUSL_CC} PREFIX="" \
 		TARGETS="" headers_install
 	# Bugfix, prefix symbol that collides with musl's one
 	find ${LKL_BUILD}/include/ -type f -exec sed -i 's/struct ipc_perm/struct lkl_ipc_perm/' {} \;
@@ -119,8 +123,21 @@ sgx-lkl-musl-config:
 		--disable-shared \
 		--enable-sgx-hw=${HW_MODE}
 
+RTE_TARGET ?= build
+DPDK_LIBS = -lrte_pmd_vmxnet3_uio -lrte_pmd_ixgbe -lrte_pmd_e1000
+DPDK_LIBS += -lrte_pmd_virtio
+DPDK_LIBS += -lrte_timer -lrte_hash -lrte_mbuf -lrte_ethdev -lrte_eal
+DPDK_LIBS += -lrte_mempool -lrte_ring -lrte_pmd_ring
+DPDK_LIBS += -lrte_kvargs -lrte_net  -lrte_bus_vdev -lrte_cmdline
+DPDK_LIBS += -lrte_bus_pci -lrte_pci
+DPDK_LIBS += -lnuma
+LKL_LDFLAGS += -L$(DPDK_BUILD)/lib
+LKL_LDFLAGS += -L$(NUMACTL_BUILD)/lib
+LKL_LDFLAGS +=-Wl,--whole-archive $(DPDK_LIBS) -Wl,--no-whole-archive -lm -ldl
+LDFLAGS="${LKL_LDFLAGS}"
+
 sgx-lkl-musl: ${LIBLKL} ${LKL_SGXMUSL_HEADERS} sgx-lkl-musl-config sgx-lkl $(ENCLAVE_DEBUG_KEY) | ${SGX_LKL_MUSL_BUILD}
-	+${MAKE} -C ${SGX_LKL_MUSL} CFLAGS="$(MUSL_CFLAGS)"
+	+${MAKE} -C ${SGX_LKL_MUSL} CFLAGS="$(MUSL_CFLAGS) ${LDFLAGS}"
 	cp $(SGX_LKL_MUSL)/lib/libsgxlkl.so $(BUILD_DIR)/libsgxlkl.so
 # This way the debug info will be automatically picked up when debugging with gdb. TODO: Fix...
 	@if [ "$(HW_MODE)" = "yes" ]; then objcopy --only-keep-debug $(BUILD_DIR)/libsgxlkl.so $(BUILD_DIR)/sgx-lkl-run.debug; fi

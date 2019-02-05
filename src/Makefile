@@ -16,7 +16,7 @@ musl_srcdir = $(SGX_LKL_MUSL)/src
 sgxlkl_toolsdir = ../tools
 
 CC = gcc
-CROSS_COMPILE = 
+CROSS_COMPILE =
 RANLIB  = $(CROSS_COMPILE)ranlib
 
 ifeq ($(HW_MODE),yes)

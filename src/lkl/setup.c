@@ -63,6 +63,14 @@ static void lkl_prestart_disks(struct enclave_disk_config *disks, size_t num_dis
 	}
 }
 
+static void lkl_prestart_dpdk(enclave_dpdk_config_t* config) {
+    struct lkl_netdev *netdev = lkl_netdev_dpdk_create("dpdk", config->offload, config->mac_address);
+	if (netdev == NULL) {
+		fprintf(stderr, "Error: unable to register netdev\n");
+		exit(2);
+	}
+}
+
 static int lkl_prestart_net(enclave_config_t* encl)
 {
 	struct lkl_netdev *netdev = sgxlkl_register_netdev_fd(encl->net_fd);
@@ -619,6 +627,9 @@ void __lkl_start_init(enclave_config_t* encl)
 	int net_dev_id = -1;
 	if (encl->net_fd != 0)
 		net_dev_id = lkl_prestart_net(encl);
+
+    if (encl->dpdk.mac_address)
+        lkl_prestart_dpdk(&encl->dpdk);
 
 	// Start kernel threads (synchronous, doesn't return before kernel is ready)
 	const char *lkl_cmdline = getenv("SGXLKL_CMDLINE");

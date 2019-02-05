@@ -45,6 +45,14 @@ typedef struct enclave_disk_config {
     int enc;
 } enclave_disk_config_t;
 
+typedef struct enclave_dpdk_config {
+    struct in_addr net_ip4;
+    struct in_addr net_gw4;
+    unsigned char* mac_address;
+    int net_mask4;
+    int offload;
+} enclave_dpdk_config_t;
+
 /* Untrusted config provided by the user */
 typedef struct enclave_config {
     void *syscallpage;
@@ -60,6 +68,7 @@ typedef struct enclave_config {
     int net_fd;
     struct in_addr net_ip4;
     struct in_addr net_gw4;
+    struct enclave_dpdk_config dpdk;
     int net_mask4;
     char hostname[32];
     char **argv;
