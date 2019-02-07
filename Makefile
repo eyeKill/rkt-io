@@ -1,7 +1,7 @@
 include config.mak
 
 .PHONY: host-musl lkl sgx-lkl-musl-config sgx-lkl-musl sgx-lkl tools clean enclave-debug-key \
-	numactl-autogen numactl-config dpdk bear
+	numactl numactl-autogen numactl-config dpdk compdb
 
 # boot memory reserved for LKL/kernel (in MB)
 BOOT_MEM=12 # Default in LKL is 64
@@ -38,9 +38,15 @@ numactl-autogen: | ${NUMACTL}.git
 
 numactl-config: numactl-autogen ${HOST_MUSL_CC}
 	+cd ${NUMACTL}; [ -f Makefile ] || \
-		CFLAGS="$(MUSL_CFLAGS)" CC=${HOST_MUSL_CC} ./configure --prefix=${NUMACTL_BUILD}
+		CFLAGS="$(MUSL_CFLAGS)" CC=${HOST_MUSL_CC} ./configure --disable-shared --prefix=${NUMACTL_BUILD}
 
-numactl: numactl-config
+numactl-patch ${NUMACTL}/.patched:
+  # numactl uses symbol versioning and requires version scripts when beeing linked as a static library
+  # into libsgxlkl.so. Since their scripst mess up our exported symbols, we simply assume the latest version.
+	sed -i -e 's!__asm__.*symver.*!!g;s!_v2!!g' ${NUMACTL}/*.c
+	touch ${NUMACTL}/.patched
+
+numactl: ${NUMACTL}/.patched numactl-config
 	make -C ${NUMACTL} -j$(nproc) install
 
 DPDK_VERSION = 17.02
