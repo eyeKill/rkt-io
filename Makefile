@@ -46,7 +46,7 @@ define dpdk_build
 ${NUMACTL_BUILD}:
 	mkdir -p ${NUMACTL_BUILD}
 
-numactl-config-$(1) ${NUMACTL_BUILD}/Makefile : ${NUMACTL_BUILD} ${NUMACTL}/configure ${HOST_MUSL_CC}
+numactl-config-$(1) ${NUMACTL_BUILD}/Makefile : ${NUMACTL}/configure ${HOST_MUSL_CC} | ${NUMACTL_BUILD}
 	cd ${NUMACTL_BUILD} && \
 	CFLAGS="${DPDK_EXTRA_CFLAGS}" CC=${DPDK_CC} ${NUMACTL}/configure --disable-shared --prefix=${NUMACTL_BUILD}
 
@@ -59,9 +59,9 @@ dpdk-config-$(1) ${DPDK_CONFIG}: ${CURDIR}/src/dpdk/override/defconfig ${NUMACTL
 
 # WARNING we currently disable thread local storage (-D__thread=) since there is no support
 # for it when running lkl. In particular this affects rte_errno and makes it thread-unsafe.
-dpdk-$(1) ${DPDK_BUILD}/lib/librte_pmd_ixgbe.a: ${DPDK_CONFIG} ${DPDK_CC} ${NUMACTL_BUILD}/lib/libnuma.a | ${DPDK}/.git ${RTE_SDK}
+dpdk-$(1) ${DPDK_BUILD}/lib/libdpdk.a: ${DPDK_CONFIG} ${DPDK_CC} ${NUMACTL_BUILD}/lib/libnuma.a | ${DPDK}/.git ${RTE_SDK}
 	+make -j`tools/ncore.sh` -C ${DPDK_BUILD} WERROR_FLAGS= CC=${DPDK_CC} RTE_SDK=${DPDK} V=1 \
-		EXTRA_CFLAGS="-Wno-error -UDEBUG -lc -I${NUMACTL_BUILD}/include ${DPDK_EXTRA_FLAGS}" \
+		EXTRA_CFLAGS="-Wno-error -UDEBUG -lc -I${NUMACTL_BUILD}/include ${DPDK_EXTRA_CFLAGS}" \
 		EXTRA_LDFLAGS="-L${NUMACTL_BUILD}/lib" || test ${DPDK_BEAR_HACK} == "yes"
 endef
 
@@ -73,7 +73,7 @@ NUMACTL_BUILD := ${NUMACTL_BUILD_NATIVE}
 DPDK_BUILD := ${DPDK_BUILD_NATIVE}
 DPDK_CONFIG = ${DPDK_BUILD}/.config
 DPDK_CC := ${CC}
-DPDK_CFLAGS := ${DPDK_CFLAGS_COMMON}
+DPDK_EXTRA_CFLAGS :=
 # pseudo target for default CC so we use add a dependency on our musl compiler in dpdk_build
 $(CC):
 	:
@@ -83,14 +83,14 @@ NUMACTL_BUILD := ${NUMACTL_BUILD_SGX}
 DPDK_BUILD := ${DPDK_BUILD_SGX}
 DPDK_CONFIG = ${DPDK_BUILD}/.config
 DPDK_CC := ${HOST_MUSL_CC}
-DPDK_CFLAGS := ${DPDK_CFLAGS_COMMON} ${MUSL_CFLAGS} -include ${CURDIR}/src/dpdk/override/uint.h
+DPDK_EXTRA_CFLAGS := ${MUSL_CFLAGS} -include ${CURDIR}/src/dpdk/override/uint.h
 $(eval $(call dpdk_build,sgx))
 
 undefine NUMACTL_BUILD
 undefine DPDK_BUILD
 undefine DPDK_CONFIG
 undefine DPDK_CC
-undefine DPDK_CFLAGS
+undefine DPDK_EXTRA_CFLAGS
 
 # Since load-dpdk-driver may require root,
 # we don't want to build the kernel modules here and
@@ -109,7 +109,7 @@ fix-dpkg-permissions:
 		/mnt/huge /dev/uio* /sys/class/uio/uio*/device/{config,resource*} \
 
 # LKL's static library and include/ header directory
-lkl ${LIBLKL}: ${DPDK_BUILD_SGX}/lib/librte_pmd_ixgbe.a ${HOST_MUSL_CC} | ${LKL}/.git ${LKL_BUILD} src/lkl/override/defconfig
+lkl ${LIBLKL}: ${DPDK_BUILD_SGX}/lib/libdpdk.a ${HOST_MUSL_CC} | ${LKL}/.git ${LKL_BUILD} src/lkl/override/defconfig
 	# Override lkl's defconfig with our own
 	cp -Rv src/lkl/override/defconfig ${LKL}/arch/lkl/defconfig
 	cp -Rv src/lkl/override/include/uapi/asm-generic/stat.h ${LKL}/include/uapi/asm-generic/stat.h
@@ -117,7 +117,7 @@ lkl ${LIBLKL}: ${DPDK_BUILD_SGX}/lib/librte_pmd_ixgbe.a ${HOST_MUSL_CC} | ${LKL}
 	sed -i 's/static unsigned long mem_size = .*;/static unsigned long mem_size = ${BOOT_MEM} \* 1024 \* 1024;/g' lkl/arch/lkl/kernel/setup.c
 	# Disable loading of kernel symbols for debugging/panics
 	grep -q -F 'CONFIG_KALLSYMS=n' ${LKL}/arch/lkl/defconfig || echo 'CONFIG_KALLSYMS=n' >> ${LKL}/arch/lkl/defconfig
-	+DESTDIR=${LKL_BUILD} ${MAKE} dpdk=yes V=1 RTE_SDK=${DPDK_BUILD_SGX}-sgx RTE_TARGET= -C ${LKL}/tools/lkl -j`tools/ncore.sh` CC=${HOST_MUSL_CC} PREFIX="" \
+	+DESTDIR=${LKL_BUILD} ${MAKE} dpdk=yes V=1 RTE_SDK=${DPDK_BUILD_SGX} RTE_TARGET= -C ${LKL}/tools/lkl -j`tools/ncore.sh` CC=${HOST_MUSL_CC} PREFIX="" \
 		${LKL}/tools/lkl/liblkl.a
 	mkdir -p ${LKL_BUILD}/lib
 	cp ${LKL}/tools/lkl/liblkl.a $(LKL_BUILD)/lib
@@ -157,11 +157,11 @@ DPDK_LIBS += -lrte_mempool
 DPDK_LIBS += -lrte_kvargs -lrte_net -lrte_cmdline
 DPDK_LIBS += -lrte_bus_pci -lrte_pci
 DPDK_LIBS += -lnuma
-SGX_LKL_MUSL_LDFLAGS += -L$(DPDK_BUILD_SGX)-sgx/lib
-SGX_LKL_MUSL_LDFLAGS += -L$(NUMACTL_BUILD)-sgx/lib
+SGX_LKL_MUSL_LDFLAGS += -L$(DPDK_BUILD_SGX)/lib
+SGX_LKL_MUSL_LDFLAGS += -L$(NUMACTL_BUILD_SGX)/lib
 SGX_LKL_MUSL_LDFLAGS += $(DPDK_LIBS)
 
-sgx-lkl-musl: ${LIBLKL} ${LKL_SGXMUSL_HEADERS} sgx-lkl-musl-config sgx-lkl $(ENCLAVE_DEBUG_KEY) | ${SGX_LKL_MUSL_BUILD}
+sgx-lkl-musl: ${LIBLKL} ${LKL_SGXMUSL_HEADERS} sgx-lkl-musl-config sgx-lkl $(ENCLAVE_DEBUG_KEY) ${DPDK_BUILD_SGX}/lib/libdpdk.a | ${SGX_LKL_MUSL_BUILD}
 	+${MAKE} -C ${SGX_LKL_MUSL} CFLAGS="$(MUSL_CFLAGS)" DPDK_FLAGS="${SGX_LKL_MUSL_LDFLAGS}"
 	cp $(SGX_LKL_MUSL)/lib/libsgxlkl.so $(BUILD_DIR)/libsgxlkl.so
 # This way the debug info will be automatically picked up when debugging with gdb. TODO: Fix...
