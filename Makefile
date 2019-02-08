@@ -1,7 +1,7 @@
 include config.mak
 
 .PHONY: host-musl lkl sgx-lkl-musl-config sgx-lkl-musl sgx-lkl tools clean enclave-debug-key \
-	numactl numactl-autogen numactl-config dpdk compdb
+	dpdk compdb
 
 # boot memory reserved for LKL/kernel (in MB)
 BOOT_MEM=12 # Default in LKL is 64
@@ -33,61 +33,83 @@ host-musl ${HOST_MUSL_CC}: | ${HOST_MUSL}/.git ${HOST_MUSL_BUILD}
 	# Fix musl-gcc for gcc version that have been built with --enable-default-pie
 	gcc -v 2>&1 | grep "\-\-enable-default-pie" > /dev/null && sed -i 's/"$$@"/-fpie -pie "\$$@"/g' ${HOST_MUSL_BUILD}/bin/musl-gcc || true
 
-numactl-autogen: | ${NUMACTL}.git
-	cd ${NUMACTL}; [ -f configure ] || ./autogen.sh
-
-numactl-config: numactl-autogen ${HOST_MUSL_CC}
-	+cd ${NUMACTL}; [ -f Makefile ] || \
-		CFLAGS="$(MUSL_CFLAGS)" CC=${HOST_MUSL_CC} ./configure --disable-shared --prefix=${NUMACTL_BUILD}
-
 numactl-patch ${NUMACTL}/.patched:
   # numactl uses symbol versioning and requires version scripts when beeing linked as a static library
   # into libsgxlkl.so. Since their scripst mess up our exported symbols, we simply assume the latest version.
 	sed -i -e 's!__asm__.*symver.*!!g;s!_v2!!g' ${NUMACTL}/*.c
 	touch ${NUMACTL}/.patched
 
-numactl: ${NUMACTL}/.patched numactl-config
-	make -C ${NUMACTL} -j$(nproc) install
+numactl-autogen-$(1) ${NUMACTL}/configure: | ${NUMACTL}.git
+	cd ${NUMACTL}; ./autogen.sh
 
-DPDK_VERSION = 17.02
+define dpdk_build
+${NUMACTL_BUILD}:
+	mkdir -p ${NUMACTL_BUILD}
+
+numactl-config-$(1) ${NUMACTL_BUILD}/Makefile : ${NUMACTL_BUILD} ${NUMACTL}/configure ${HOST_MUSL_CC}
+	cd ${NUMACTL_BUILD} && \
+	CFLAGS="${DPDK_EXTRA_CFLAGS}" CC=${DPDK_CC} ${NUMACTL}/configure --disable-shared --prefix=${NUMACTL_BUILD}
+
+numactl-$(1) ${NUMACTL_BUILD}/lib/libnuma.a: ${NUMACTL}/.patched ${NUMACTL_BUILD}/Makefile
+	make -C ${NUMACTL_BUILD} -j`tools/ncore.sh` install
+
+dpdk-config-$(1) ${DPDK_CONFIG}: ${CURDIR}/src/dpdk/override/defconfig ${NUMACTL_BUILD}/lib/libnuma.a
+	make -j1 -C ${DPDK} PATH=${NUMACTL_BUILD}/bin:$$(PATH) RTE_SDK=${DPDK} T=${RTE_TARGET} O=${DPDK_BUILD} config
+	cat ${DPDK_BUILD}/.config.orig ${CURDIR}/src/dpdk/override/defconfig > ${DPDK_BUILD}/.config
+
+# WARNING we currently disable thread local storage (-D__thread=) since there is no support
+# for it when running lkl. In particular this affects rte_errno and makes it thread-unsafe.
+dpdk-$(1) ${DPDK_BUILD}/lib/librte_pmd_ixgbe.a: ${DPDK_CONFIG} ${DPDK_CC} ${NUMACTL_BUILD}/lib/libnuma.a | ${DPDK}/.git ${RTE_SDK}
+	+make -j`tools/ncore.sh` -C ${DPDK_BUILD} WERROR_FLAGS= CC=${DPDK_CC} RTE_SDK=${DPDK} V=1 \
+		EXTRA_CFLAGS="-Wno-error -UDEBUG -lc -I${NUMACTL_BUILD}/include ${DPDK_EXTRA_FLAGS}" \
+		EXTRA_LDFLAGS="-L${NUMACTL_BUILD}/lib" || test ${DPDK_BEAR_HACK} == "yes"
+endef
+
 RTE_TARGET = x86_64-native-linuxapp-gcc
-DPDK_CONFIG = ${DPDK_BUILD}/.config
-DPDK_FLAGS = -Wno-error \
-		-Wno-error=implicit-function-declaration \
-		-Wno-error=nested-externs \
-		-Wno-error=implicit-fallthrough \
-		-Wno-error=pointer-to-int-cast
-
 # when compiling with BEAR the build seems to fail at some point also the overall build is still fine
 DPDK_BEAR_HACK ?= no
 
-dpdk-config ${DPDK_CONFIG}: ${CURDIR}/src/dpdk/override/defconfig
-	make -j1 -C ${DPDK} PATH=${NUMACTL_BUILD}/bin:$$PATH RTE_SDK=${DPDK} T=${RTE_TARGET} O=${DPDK_BUILD} config
-	cat ${DPDK_BUILD}/.config.orig ${CURDIR}/src/dpdk/override/defconfig > ${DPDK_BUILD}/.config
+NUMACTL_BUILD := ${NUMACTL_BUILD_NATIVE}
+DPDK_BUILD := ${DPDK_BUILD_NATIVE}
+DPDK_CONFIG = ${DPDK_BUILD}/.config
+DPDK_CC := ${CC}
+DPDK_CFLAGS := ${DPDK_CFLAGS_COMMON}
+# pseudo target for default CC so we use add a dependency on our musl compiler in dpdk_build
+$(CC):
+	:
+$(eval $(call dpdk_build,native))
 
-dpdk ${DPDK_BUILD}/lib/librte_pmd_ixgbe.a: ${DPDK_CONFIG} ${HOST_MUSL_CC} numactl | ${DPDK}/.git ${RTE_SDK}
-	+make -j`tools/ncore.sh` -C ${DPDK_BUILD} WERROR_FLAGS= CC=${HOST_MUSL_CC} RTE_SDK=${DPDK} V=1 \
-		EXTRA_CFLAGS="$(MUSL_CFLAGS) -UDEBUG -lc ${DPDK_FLAGS} -I${NUMACTL_BUILD}/include -include ${CURDIR}/src/dpdk/override/uint.h" \
-		EXTRA_LDFLAGS="-L${NUMACTL_BUILD}/lib" || test ${DPDK_BEAR_HACK} == "yes"
+NUMACTL_BUILD := ${NUMACTL_BUILD_SGX}
+DPDK_BUILD := ${DPDK_BUILD_SGX}
+DPDK_CONFIG = ${DPDK_BUILD}/.config
+DPDK_CC := ${HOST_MUSL_CC}
+DPDK_CFLAGS := ${DPDK_CFLAGS_COMMON} ${MUSL_CFLAGS} -include ${CURDIR}/src/dpdk/override/uint.h
+$(eval $(call dpdk_build,sgx))
+
+undefine NUMACTL_BUILD
+undefine DPDK_BUILD
+undefine DPDK_CONFIG
+undefine DPDK_CC
+undefine DPDK_CFLAGS
 
 # Since load-dpdk-driver may require root,
 # we don't want to build the kernel modules here and
 # ask the user to run make instead
-${DPDK_BUILD}/kmod/%.ko:
+${DPDK_BUILD_NATIVE}/kmod/%.ko:
 	$(error "Kernel module $@ not found, run `make dpdk` first")
 
-load-dpdk-driver: ${DPDK_BUILD}/kmod/igb_uio.ko ${DPDK_BUILD}/kmod/rte_kni.ko
+load-dpdk-driver: ${DPDK_BUILD_NATIVE}/kmod/igb_uio.ko ${DPDK_BUILD_NATIVE}/kmod/rte_kni.ko
 	rmmod rte_kni || true
 	rmmod igb_uio || true
-	insmod ${DPDK_BUILD}/kmod/rte_kni.ko
-	insmod ${DPDK_BUILD}/kmod/igb_uio.ko
+	insmod ${DPDK_BUILD_NATIVE}/kmod/rte_kni.ko
+	insmod ${DPDK_BUILD_NATIVE}/kmod/igb_uio.ko
 
 fix-dpkg-permissions:
 	sudo chown `id -u` \
 		/mnt/huge /dev/uio* /sys/class/uio/uio*/device/{config,resource*} \
 
 # LKL's static library and include/ header directory
-lkl ${LIBLKL}: ${DPDK_BUILD}/lib/librte_pmd_ixgbe.a ${HOST_MUSL_CC} | ${LKL}/.git ${LKL_BUILD} src/lkl/override/defconfig
+lkl ${LIBLKL}: ${DPDK_BUILD_SGX}/lib/librte_pmd_ixgbe.a ${HOST_MUSL_CC} | ${LKL}/.git ${LKL_BUILD} src/lkl/override/defconfig
 	# Override lkl's defconfig with our own
 	cp -Rv src/lkl/override/defconfig ${LKL}/arch/lkl/defconfig
 	cp -Rv src/lkl/override/include/uapi/asm-generic/stat.h ${LKL}/include/uapi/asm-generic/stat.h
@@ -95,7 +117,7 @@ lkl ${LIBLKL}: ${DPDK_BUILD}/lib/librte_pmd_ixgbe.a ${HOST_MUSL_CC} | ${LKL}/.gi
 	sed -i 's/static unsigned long mem_size = .*;/static unsigned long mem_size = ${BOOT_MEM} \* 1024 \* 1024;/g' lkl/arch/lkl/kernel/setup.c
 	# Disable loading of kernel symbols for debugging/panics
 	grep -q -F 'CONFIG_KALLSYMS=n' ${LKL}/arch/lkl/defconfig || echo 'CONFIG_KALLSYMS=n' >> ${LKL}/arch/lkl/defconfig
-	+DESTDIR=${LKL_BUILD} ${MAKE} dpdk=yes V=1 RTE_SDK=${DPDK_BUILD} RTE_TARGET= -C ${LKL}/tools/lkl -j`tools/ncore.sh` CC=${HOST_MUSL_CC} PREFIX="" \
+	+DESTDIR=${LKL_BUILD} ${MAKE} dpdk=yes V=1 RTE_SDK=${DPDK_BUILD_SGX}-sgx RTE_TARGET= -C ${LKL}/tools/lkl -j`tools/ncore.sh` CC=${HOST_MUSL_CC} PREFIX="" \
 		${LKL}/tools/lkl/liblkl.a
 	mkdir -p ${LKL_BUILD}/lib
 	cp ${LKL}/tools/lkl/liblkl.a $(LKL_BUILD)/lib
@@ -129,21 +151,18 @@ sgx-lkl-musl-config:
 		--disable-shared \
 		--enable-sgx-hw=${HW_MODE}
 
-RTE_TARGET ?= build
-DPDK_LIBS = -lrte_pmd_vmxnet3_uio -lrte_pmd_ixgbe -lrte_pmd_e1000
-DPDK_LIBS += -lrte_pmd_virtio
-DPDK_LIBS += -lrte_timer -lrte_hash -lrte_mbuf -lrte_ethdev -lrte_eal
-DPDK_LIBS += -lrte_mempool -lrte_ring -lrte_pmd_ring
-DPDK_LIBS += -lrte_kvargs -lrte_net  -lrte_bus_vdev -lrte_cmdline
+DPDK_LIBS = -lrte_pmd_i40e
+DPDK_LIBS += -lrte_hash -lrte_mbuf -lrte_ethdev -lrte_eal
+DPDK_LIBS += -lrte_mempool
+DPDK_LIBS += -lrte_kvargs -lrte_net -lrte_cmdline
 DPDK_LIBS += -lrte_bus_pci -lrte_pci
 DPDK_LIBS += -lnuma
-LKL_LDFLAGS += -L$(DPDK_BUILD)/lib
-LKL_LDFLAGS += -L$(NUMACTL_BUILD)/lib
-LKL_LDFLAGS +=-Wl,--whole-archive $(DPDK_LIBS) -Wl,--no-whole-archive -lm -ldl
-LDFLAGS="${LKL_LDFLAGS}"
+SGX_LKL_MUSL_LDFLAGS += -L$(DPDK_BUILD_SGX)-sgx/lib
+SGX_LKL_MUSL_LDFLAGS += -L$(NUMACTL_BUILD)-sgx/lib
+SGX_LKL_MUSL_LDFLAGS += $(DPDK_LIBS)
 
 sgx-lkl-musl: ${LIBLKL} ${LKL_SGXMUSL_HEADERS} sgx-lkl-musl-config sgx-lkl $(ENCLAVE_DEBUG_KEY) | ${SGX_LKL_MUSL_BUILD}
-	+${MAKE} -C ${SGX_LKL_MUSL} CFLAGS="$(MUSL_CFLAGS) ${LDFLAGS}"
+	+${MAKE} -C ${SGX_LKL_MUSL} CFLAGS="$(MUSL_CFLAGS)" DPDK_FLAGS="${SGX_LKL_MUSL_LDFLAGS}"
 	cp $(SGX_LKL_MUSL)/lib/libsgxlkl.so $(BUILD_DIR)/libsgxlkl.so
 # This way the debug info will be automatically picked up when debugging with gdb. TODO: Fix...
 	@if [ "$(HW_MODE)" = "yes" ]; then objcopy --only-keep-debug $(BUILD_DIR)/libsgxlkl.so $(BUILD_DIR)/sgx-lkl-run.debug; fi
@@ -181,7 +200,6 @@ clean:
 	+${MAKE} -C ${LKL} clean || true
 	+${MAKE} -C ${LKL}/tools/lkl clean || true
 	+${MAKE} -C src LIB_SGX_LKL_BUILD_DIR="$(BUILD_DIR)" clean || true
-	+${MAKE} -C ${NUMACTL} clean || true
 	rm -f ${HOST_MUSL}/config.mak
 	rm -f ${SGX_LKL_MUSL}/config.mak
-	rm -f ${NUMACTL}/{configure,Makefile}
+	rm -f ${NUMACTL}/configure

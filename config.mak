@@ -26,9 +26,15 @@ HOST_MUSL_CC ?= ${HOST_MUSL_BUILD}/bin/musl-gcc
 SGX_LKL_MUSL ?= $(ROOT_DIR)/sgx-lkl-musl
 SGX_LKL_MUSL_BUILD ?= ${BUILD_DIR}/sgx-lkl-musl
 DPDK ?= $(ROOT_DIR)/dpdk
-DPDK_BUILD ?= ${BUILD_DIR}/dpdk
+DPDK_BUILD_PREFIX ?= ${BUILD_DIR}/dpdk
+DPDK_BUILD_NATIVE = ${DPDK_BUILD_PREFIX}-native
+DPDK_BUILD_SGX = ${DPDK_BUILD_PREFIX}-sgx
+
 NUMACTL ?= $(ROOT_DIR)/numactl
-NUMACTL_BUILD ?= ${BUILD_DIR}/numactl
+NUMACTL_BUILD_PREFIX ?= ${BUILD_DIR}/numactl
+NUMACTL_BUILD_NATIVE = ${NUMACTL_BUILD_PREFIX}-native
+NUMACTL_BUILD_SGX = ${NUMACTL_BUILD_PREFIX}-sgx
+
 # Headers not exported by LKL and built by a custom tool's output cat to the file instead
 LKL_SGXMUSL_HEADERS ?= ${LKL_BUILD}/include/lkl/bits.h ${LKL_BUILD}/include/lkl/syscalls.h
 # Location of enclave debug key (used for signing the enclave)
