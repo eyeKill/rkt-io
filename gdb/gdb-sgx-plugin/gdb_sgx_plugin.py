@@ -352,12 +352,11 @@ class CreateEnclaveBreakpoint(gdb.Breakpoint):
             return 0
         print (gdb_cmd)
         gdb.execute(gdb_cmd, False, True)
-        
-        tcs_num = int(gdb.parse_and_eval("get_tcs_num()"))
-        for i in range(tcs_num):
-            tcs_addr = gdb.parse_and_eval("get_tcs_addr(" + str(i) + ")")
-            gdb_cmd = "set *(unsigned int *)%#x = %#x" %(int(tcs_addr.cast(gdb.lookup_type('long'))) + 8, 1)
-            gdb.execute(gdb_cmd, False, True)
+
+        with open(os.environ["GDB_TCS_PATH"]) as f:
+            for line in f:
+                gdb_cmd = "set *(unsigned int *)%#x = %#x" %(int(line, 16) + 8, 1)
+                gdb.execute(gdb_cmd, False, True)
 
         self.enabled = False
         return False

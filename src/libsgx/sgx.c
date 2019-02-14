@@ -776,6 +776,20 @@ uintptr_t create_enclave_mem(char *p, int base_zero, void *base_zero_max) {
         exit(EXIT_FAILURE);
     }
 
+    char *path = getenv("GDB_TCS_PATH");
+    if (path) {
+        unsetenv("GDB_TCS_PATH");
+        FILE *f = fopen(path, "w");
+        if (!f) {
+            perror("fopen $GDB_TCS_PATH");
+            exit(EXIT_FAILURE);
+        }
+        for (int i = 0; i < tcs_max; i++) {
+            fprintf(f, "%p\n", threads[i].addr);
+        }
+        fclose(f);
+    }
+
     __gdb_hook_init_done();
 
     /* enable performance counters */
