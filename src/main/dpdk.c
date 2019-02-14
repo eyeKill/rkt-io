@@ -10,6 +10,7 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <assert.h>
+#include <fcntl.h>
 
 #include <rte_eal.h>
 #include <rte_ethdev.h>
@@ -51,21 +52,28 @@ int spawn_dpdk_helper(int *pipe_fd) {
     int pipefds[2];
     int r = pipe(pipefds);
     if (r < 0) {
-        fprintf(stderr, "[dpdk] pipe failed: %s\n", strerror(errno));
-        return r;
+        int saved_errno = errno;
+        fprintf(stderr, "[dpdk] pipe failed: %s\n", strerror(saved_errno));
+        return -saved_errno;
+    }
+    if (fcntl(pipefds[1], F_SETFD, FD_CLOEXEC) == -1) {
+        int saved_errno = errno;
+        fprintf(stderr, "[dpdk] failed to mark pipe fd as cloexec: %s", strerror(saved_errno));
+        return -saved_errno;
     }
 
-    r = putenv("XDG_RUNTIME_DIR=/var/run");
-    if (r < 0) {
-        fprintf(stderr, "[dpdk] putenv failed: %s\n", strerror(errno));
-        return r;
+    if (putenv("XDG_RUNTIME_DIR=/var/run") != 0) {
+        int saved_errno = errno;
+        fprintf(stderr, "[dpdk] putenv failed: %s\n", strerror(saved_errno));
+        return -saved_errno;
     }
 
     // the idea is to unlink mp_socket and wait for dpdk-setuid-helper to re-bind it.
     r = unlink(DPDK_MP_SOCKET);
     if (r != 0 && errno != ENOENT) {
-        fprintf(stderr, "[dpdk] Failed to remove /var/run/dpdk/rte/mp_socket: %s! Please remove it manually\n", strerror(errno));
-        return r;
+        int saved_errno = errno;
+        fprintf(stderr, "[dpdk] Failed to remove /var/run/dpdk/rte/mp_socket: %s! Please remove it manually\n", strerror(saved_errno));
+        return -saved_errno;
     }
 
     char* prog = "dpdk-setuid-helper";
@@ -82,7 +90,7 @@ int spawn_dpdk_helper(int *pipe_fd) {
     r = posix_spawnp(&pid, "dpdk-setuid-helper", NULL, NULL, argv, environ);
     if (r != 0) {
         fprintf(stderr, "[dpdk] failed to spawn dpdk-setuid-helper\n");
-        return r;
+        return -r;
     }
 
     while (1) {
@@ -149,14 +157,12 @@ int dpdk_initialize(enclave_config_t* encl, const char *ifparams)
 
     snprintf(poolname, RTE_MEMZONE_NAMESIZE, "%s%s", "tx-", ifparams);
     iface->txpool = rte_mempool_lookup(poolname);
-    fprintf(stderr, "lookup %s\n", poolname);
     if (!iface->txpool) {
         fprintf(stderr, "dpdk: failed to lookup tx pool: %s\n", poolname);
         return -ENOENT;
     }
     snprintf(poolname, RTE_MEMZONE_NAMESIZE, "%s%s", "rx-", ifparams);
     iface->rxpool = rte_mempool_lookup(poolname);
-    fprintf(stderr, "lookup %s\n", poolname);
     if (!iface->rxpool) {
         fprintf(stderr, "dpdk: failed to lookup rx pool: %s\n", poolname);
         return -ENOMEM;
