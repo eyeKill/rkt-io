@@ -38,6 +38,7 @@
 #include "mpmc_queue.h"
 #include "ring_buff.h"
 #include "sgxlkl_util.h"
+#include "dpdk.h"
 
 #include "lkl/linux/virtio_net.h"
 
@@ -109,6 +110,7 @@ static int __state_exiting = 0;
 static struct enclave_disk_config *encl_disks = 0;
 static size_t encl_disk_cnt = 0;
 
+static uid_t dpdk_setuid_helper_pipe = 0;
 
 static pthread_spinlock_t __stdout_print_lock = {0};
 static pthread_spinlock_t __stderr_print_lock = {0};
@@ -529,41 +531,53 @@ static void register_net(enclave_config_t* encl, const char* tapstr, const char*
     encl->net_mask4 = mask4;
 }
 
-void register_dpdk(enclave_dpdk_config_t *dpdk, unsigned char *macstr,
-                  const char *ip4str, const char *mask4str, const char *gw4str,
-                  int offload) {
-  if (macstr == NULL || strlen(macstr) == 0) {
-    if (getenv_bool("SGXLKL_VERBOSE", 0))
-      printf("[    SGX-LKL   ] No mac address for DPDK device specified, skip "
-             "setting up DPDK.\n");
-    return;
-  }
-  // Read IPv4 addr if there is one
-  if (ip4str == NULL)
-    ip4str = DEFAULT_DPDK_IPV4_ADDR;
-  struct in_addr ip4 = {0};
-  if (inet_pton(AF_INET, ip4str, &ip4) != 1)
-    sgxlkl_fail("Invalid IPv4 address %s\n", ip4str);
+void register_dpdk(enclave_config_t *encl, pid_t *dpdk_setuid_helper_pipe, const char *ip4str, const char *mask4str, const char *gw4str, const char *mtustr) {
+    // Read IPv4 addr if there is one
+    if (ip4str == NULL)
+        ip4str = DEFAULT_DPDK_IPV4_ADDR;
+    struct in_addr ip4 = {0};
+    if (inet_pton(AF_INET, ip4str, &ip4) != 1)
+        sgxlkl_fail("Invalid IPv4 address %s\n", ip4str);
 
-  // Read IPv4 gateway if there is one
-  if (gw4str == NULL)
-    gw4str = DEFAULT_DPDK_IPV4_GW;
-  struct in_addr gw4 = {0};
-  if (gw4str != NULL && strlen(gw4str) > 0 &&
-      inet_pton(AF_INET, gw4str, &gw4) != 1) {
-    sgxlkl_fail("Invalid IPv4 gateway %s\n", ip4str);
-  }
+    // Read IPv4 gateway if there is one
+    if (gw4str == NULL)
+        gw4str = DEFAULT_DPDK_IPV4_GW;
+    struct in_addr gw4 = {0};
+    if (gw4str != NULL && strlen(gw4str) > 0 &&
+        inet_pton(AF_INET, gw4str, &gw4) != 1) {
+        sgxlkl_fail("Invalid IPv4 gateway %s\n", ip4str);
+    }
 
-  // Read IPv4 mask str if there is one
-  int mask4 = (mask4str == NULL ? DEFAULT_IPV4_MASK : atoi(mask4str));
-  if (mask4 < 1 || mask4 > 32)
-    sgxlkl_fail("Invalid IPv4 mask %s\n", mask4str);
+    // Read IPv4 mask str if there is one
+    int mask4 = (mask4str == NULL ? DEFAULT_IPV4_MASK : atoi(mask4str));
+    if (mask4 < 1 || mask4 > 32)
+        sgxlkl_fail("Invalid IPv4 mask %s\n", mask4str);
 
-  dpdk->mac_address = macstr;
-  dpdk->net_mask4 = mask4;
-  dpdk->net_ip4 = ip4;
-  dpdk->net_gw4 = gw4;
-  dpdk->offload = offload;
+    int mtu = 0;
+    if (mtustr) {
+        mtu = atoi(mtu);
+        if (mtu < 1) {
+            sgxlkl_fail("Invalid mtu %s\n", mtustr);
+        }
+    }
+
+    // TODO add support for multiple interfaces
+    encl->num_dpdk_ifaces = 1;
+    encl->dpdk_ifaces = (struct enclave_dpdk_config *)malloc(
+        sizeof(struct enclave_dpdk_config) * encl->num_dpdk_ifaces);
+    int r = spawn_dpdk_helper(dpdk_setuid_helper_pipe);
+    if (r < 0) {
+        sgxlkl_fail("dpdk-setuid-helper failed: %s\n", strerror(-r));
+    };
+    r = dpdk_initialize(encl, "dpdk0");
+    if (r < 0) {
+        sgxlkl_fail("failed to initialize dpdk interface: %s\n", strerror(-r));
+    };
+    encl->dpdk_ifaces[0].net_dev_id = -1;
+    encl->dpdk_ifaces[0].net_mask4 = mask4;
+    encl->dpdk_ifaces[0].net_ip4 = ip4;
+    encl->dpdk_ifaces[0].net_gw4 = gw4;
+    encl->dpdk_ifaces[0].mtu = mtu;
 }
 
 static void register_queues(enclave_config_t* encl) {
@@ -1010,6 +1024,9 @@ static void sgxlkl_cleanup(void) {
     while (encl_disk_cnt) {
         close(encl_disks[--encl_disk_cnt].fd);
     }
+    if (dpdk_setuid_helper_pipe) {
+        close(dpdk_setuid_helper_pipe);
+    }
 }
 
 /* Determines path of libsgxlkl.so (lkl + musl) */
@@ -1116,9 +1133,13 @@ int main(int argc, char *argv[], char *envp[]) {
     set_tls(&encl);
     register_hds(&encl, root_hd);
     register_net(&encl, getenv("SGXLKL_TAP"), getenv("SGXLKL_IP4"), getenv("SGXLKL_MASK4"), getenv("SGXLKL_GW4"), getenv("SGXLKL_HOSTNAME"));
-    register_dpdk(&encl.dpdk, getenv("SGXLKL_DPDK_MAC"),
-                      getenv("SGXLKL_DPDK_IP4"), getenv("SGXLKL_DPDK_MASK4"),
-                      getenv("SGXLKL_DPDK_GW4"), getenv_bool);
+    register_dpdk(&encl,
+                  &dpdk_setuid_helper_pipe,
+                  getenv("SGXLKL_DPDK_IP4"),
+                  getenv("SGXLKL_DPDK_MASK4"),
+                  getenv("SGXLKL_DPDK_GW4"),
+                  getenv("SGXLKL_DPDK_MTU"));
+
     register_queues(&encl);
 
 #ifndef SGXLKL_HW

@@ -12,6 +12,7 @@
 #include <time.h>
 #include <lkl_host.h>
 #include "lkl/disk.h"
+#include "lkl/dpdk.h"
 #include "lkl/posix-host.h"
 #include "lkl/setup.h"
 #include "lkl/virtio_net.h"
@@ -63,14 +64,6 @@ static void lkl_prestart_disks(struct enclave_disk_config *disks, size_t num_dis
 	}
 }
 
-static void lkl_prestart_dpdk(enclave_dpdk_config_t* config) {
-    struct lkl_netdev *netdev = lkl_netdev_dpdk_create("dpdk", config->offload, config->mac_address);
-	if (netdev == NULL) {
-		fprintf(stderr, "Error: unable to register netdev\n");
-		exit(2);
-	}
-}
-
 static int lkl_prestart_net(enclave_config_t* encl)
 {
 	struct lkl_netdev *netdev = sgxlkl_register_netdev_fd(encl->net_fd);
@@ -106,11 +99,74 @@ static int lkl_prestart_net(enclave_config_t* encl)
 	return net_dev_id;
 }
 
+static void lkl_prestart_dpdk(enclave_config_t *encl) {
+	for (size_t i = 0; i < encl->num_dpdk_ifaces; i++) {
+		fprintf(stderr, "%s %s:%d\n", __func__, __FILE__, __LINE__);
+		struct enclave_dpdk_config *dpdk = &encl->dpdk_ifaces[i];
+		char mac[6];
+		struct lkl_netdev *netdev = sgxlkl_register_netdev_dpdk(dpdk, mac);
+		assert(netdev != NULL);
+
+		struct lkl_netdev_args netdev_args = {
+			.mac = mac, .offload = 0,
+			//.offload= (// Host and guest can handle TSOv4
+			//           BIT(LKL_VIRTIO_NET_F_GUEST_TSO4) |
+			//           // Host and guest can handle TSOv6
+			//           BIT(LKL_VIRTIO_NET_F_GUEST_TSO6) |
+			//           // Host can merge receive buffers
+			//           BIT(LKL_VIRTIO_NET_F_MRG_RXBUF)),
+		};
+
+		int net_dev_id = lkl_netdev_add(netdev, &netdev_args);
+		if (net_dev_id < 0) {
+			fprintf(stderr, "Error: unable to register netdev, %s\n",
+					lkl_strerror(net_dev_id));
+			exit(net_dev_id);
+		}
+		dpdk->net_dev_id = net_dev_id;
+	}
+}
+
+static void lkl_poststart_dpdk(enclave_config_t* encl) {
+	for (size_t i = 0; i < encl->num_dpdk_ifaces; i++) {
+		struct enclave_dpdk_config *dpdk = &encl->dpdk_ifaces[i];
+		int res = 0;
+		int ifidx = lkl_netdev_get_ifindex(dpdk->net_dev_id);
+		res = lkl_if_set_ipv4(ifidx, dpdk->net_ip4.s_addr, dpdk->net_mask4);
+		if (res < 0) {
+			fprintf(stderr, "Error: lkl_if_set_ipv4(): %s\n", lkl_strerror(res));
+			exit(res);
+		}
+		res = lkl_if_up(ifidx);
+		if (res < 0) {
+			fprintf(stderr, "Error: lkl_if_up(eth0): %s\n", lkl_strerror(res));
+			exit(res);
+		}
+		if (dpdk->net_gw4.s_addr > 0) {
+			res = lkl_set_ipv4_gateway(dpdk->net_gw4.s_addr);
+			if (res < 0) {
+				fprintf(stderr, "Error: lkl_set_ipv4_gateway(): %s\n",
+						lkl_strerror(res));
+				exit(res);
+			}
+		}
+
+		if (dpdk->mtu) {
+			lkl_if_set_mtu(ifidx, dpdk->mtu);
+		}
+		res = lkl_if_up(1);
+		if (res < 0) {
+			fprintf(stderr, "Error: lkl_if_up(1=lo): %s\n", lkl_strerror(res));
+			exit(res);
+		}
+	}
+}
+
 static void lkl_prepare_rootfs(const char* dirname, int perm)
 {
-	int err = lkl_sys_access(dirname, /*LKL_S_IRWXO*/ F_OK);
-	if (err < 0) {
-		if (err == -LKL_ENOENT)
+    int err = lkl_sys_access(dirname, /*LKL_S_IRWXO*/ F_OK);
+    if (err < 0) {
+        if (err == -LKL_ENOENT)
 			err = lkl_sys_mkdir(dirname, perm);
 		if (err < 0) {
 			fprintf(stderr, "Error: Unable to mkdir %s: %s\n",
@@ -623,13 +679,11 @@ void __lkl_start_init(enclave_config_t* encl)
 
 	lkl_prestart_disks(disks, num_disks);
 
-	// Register network tap if given one
-	int net_dev_id = -1;
-	if (encl->net_fd != 0)
-		net_dev_id = lkl_prestart_net(encl);
 
-    if (encl->dpdk.mac_address)
-        lkl_prestart_dpdk(&encl->dpdk);
+	// Register network tap if given one
+	//int net_dev_id = -1;
+	//if (encl->net_fd != 0)
+	//	net_dev_id = lkl_prestart_net(encl);
 
 	// Start kernel threads (synchronous, doesn't return before kernel is ready)
 	const char *lkl_cmdline = getenv("SGXLKL_CMDLINE");
@@ -681,8 +735,12 @@ void __lkl_start_init(enclave_config_t* encl)
 	putenv(shm_out_to_enc_addr);
 
 	// Set interface status/IP/routes
-	if (!sgxlkl_use_host_network)
-		lkl_poststart_net(encl, net_dev_id);
+	//if (!sgxlkl_use_host_network)
+	//	lkl_poststart_net(encl, net_dev_id);
+	//lkl_prestart_dpdk(encl);
+
+	//if (!sgxlkl_use_host_network)
+	//	lkl_poststart_dpdk(encl);
 
 	// Set hostname (provided through SGXLKL_HOSTNAME)
 	sethostname(encl->hostname, strlen(encl->hostname));

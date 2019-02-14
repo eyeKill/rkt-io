@@ -46,7 +46,7 @@ define dpdk_build
 ${NUMACTL_BUILD}:
 	mkdir -p ${NUMACTL_BUILD}
 
-numactl-config-$(1) ${NUMACTL_BUILD}/Makefile : ${NUMACTL}/configure ${HOST_MUSL_CC} | ${NUMACTL_BUILD}
+numactl-config-$(1) ${NUMACTL_BUILD}/Makefile : ${NUMACTL}/configure | ${DPDK_CC} ${NUMACTL_BUILD}
 	cd ${NUMACTL_BUILD} && \
 	CFLAGS="${DPDK_EXTRA_CFLAGS}" CC=${DPDK_CC} ${NUMACTL}/configure --disable-shared --prefix=${NUMACTL_BUILD}
 
@@ -56,12 +56,13 @@ numactl-$(1) ${NUMACTL_BUILD}/lib/libnuma.a: ${NUMACTL}/.patched ${NUMACTL_BUILD
 dpdk-config-$(1) ${DPDK_CONFIG}: ${CURDIR}/src/dpdk/override/defconfig ${NUMACTL_BUILD}/lib/libnuma.a
 	make -j1 -C ${DPDK} PATH=${NUMACTL_BUILD}/bin:$$(PATH) RTE_SDK=${DPDK} T=${RTE_TARGET} O=${DPDK_BUILD} config
 	cat ${DPDK_BUILD}/.config.orig ${CURDIR}/src/dpdk/override/defconfig > ${DPDK_BUILD}/.config
+	if [[ "$(DEBUG)" = "true" ]]; then echo 'CONFIG_RTE_LOG_DP_LEVEL=RTE_LOG_DEBUG' >> ${DPDK_BUILD}/.config; fi
 
 # WARNING we currently disable thread local storage (-D__thread=) since there is no support
 # for it when running lkl. In particular this affects rte_errno and makes it thread-unsafe.
-dpdk-$(1) ${DPDK_BUILD}/lib/libdpdk.a: ${DPDK_CONFIG} ${DPDK_CC} ${NUMACTL_BUILD}/lib/libnuma.a | ${DPDK}/.git ${RTE_SDK}
+dpdk-$(1) ${DPDK_BUILD}/lib/libdpdk.a: ${DPDK_CONFIG} ${NUMACTL_BUILD}/lib/libnuma.a | ${DPDK_CC} ${DPDK}/.git ${RTE_SDK}
 	+make -j`tools/ncore.sh` -C ${DPDK_BUILD} WERROR_FLAGS= CC=${DPDK_CC} RTE_SDK=${DPDK} V=1 \
-		EXTRA_CFLAGS="-Wno-error -UDEBUG -lc -I${NUMACTL_BUILD}/include ${DPDK_EXTRA_CFLAGS}" \
+		EXTRA_CFLAGS="-Wno-error -lc -I${NUMACTL_BUILD}/include ${DPDK_EXTRA_CFLAGS} -UDEBUG" \
 		EXTRA_LDFLAGS="-L${NUMACTL_BUILD}/lib" || test ${DPDK_BEAR_HACK} == "yes"
 endef
 
@@ -73,7 +74,8 @@ NUMACTL_BUILD := ${NUMACTL_BUILD_NATIVE}
 DPDK_BUILD := ${DPDK_BUILD_NATIVE}
 DPDK_CONFIG = ${DPDK_BUILD}/.config
 DPDK_CC := ${CC}
-DPDK_EXTRA_CFLAGS :=
+# Since we are only using the native DPDK for initializing, we can always compile it unoptimized
+DPDK_EXTRA_CFLAGS := -g -O0
 # pseudo target for default CC so we use add a dependency on our musl compiler in dpdk_build
 $(CC):
 	:
@@ -99,14 +101,11 @@ ${DPDK_BUILD_NATIVE}/kmod/%.ko:
 	$(error "Kernel module $@ not found, run `make dpdk` first")
 
 load-dpdk-driver: ${DPDK_BUILD_NATIVE}/kmod/igb_uio.ko ${DPDK_BUILD_NATIVE}/kmod/rte_kni.ko
+	modprobe uio || true
 	rmmod rte_kni || true
 	rmmod igb_uio || true
 	insmod ${DPDK_BUILD_NATIVE}/kmod/rte_kni.ko
 	insmod ${DPDK_BUILD_NATIVE}/kmod/igb_uio.ko
-
-fix-dpkg-permissions:
-	sudo chown `id -u` \
-		/mnt/huge /dev/uio* /sys/class/uio/uio*/device/{config,resource*} \
 
 # LKL's static library and include/ header directory
 lkl ${LIBLKL}: ${DPDK_BUILD_SGX}/lib/libdpdk.a ${HOST_MUSL_CC} | ${LKL}/.git ${LKL_BUILD} src/lkl/override/defconfig
@@ -117,11 +116,11 @@ lkl ${LIBLKL}: ${DPDK_BUILD_SGX}/lib/libdpdk.a ${HOST_MUSL_CC} | ${LKL}/.git ${L
 	sed -i 's/static unsigned long mem_size = .*;/static unsigned long mem_size = ${BOOT_MEM} \* 1024 \* 1024;/g' lkl/arch/lkl/kernel/setup.c
 	# Disable loading of kernel symbols for debugging/panics
 	grep -q -F 'CONFIG_KALLSYMS=n' ${LKL}/arch/lkl/defconfig || echo 'CONFIG_KALLSYMS=n' >> ${LKL}/arch/lkl/defconfig
-	+DESTDIR=${LKL_BUILD} ${MAKE} dpdk=yes V=1 RTE_SDK=${DPDK_BUILD_SGX} RTE_TARGET= -C ${LKL}/tools/lkl -j`tools/ncore.sh` CC=${HOST_MUSL_CC} PREFIX="" \
+	+DESTDIR=${LKL_BUILD} ${MAKE} V=1 -C ${LKL}/tools/lkl -j`tools/ncore.sh` CC=${HOST_MUSL_CC} PREFIX="" \
 		${LKL}/tools/lkl/liblkl.a
 	mkdir -p ${LKL_BUILD}/lib
 	cp ${LKL}/tools/lkl/liblkl.a $(LKL_BUILD)/lib
-	+DESTDIR=${LKL_BUILD} ${MAKE} dpdk=yes -C ${LKL}/tools/lkl -j`tools/ncore.sh` CC=${HOST_MUSL_CC} PREFIX="" \
+	+DESTDIR=${LKL_BUILD} ${MAKE} -C ${LKL}/tools/lkl -j`tools/ncore.sh` CC=${HOST_MUSL_CC} PREFIX="" \
 		TARGETS="" headers_install
 	# Bugfix, prefix symbol that collides with musl's one
 	find ${LKL_BUILD}/include/ -type f -exec sed -i 's/struct ipc_perm/struct lkl_ipc_perm/' {} \;
@@ -151,18 +150,28 @@ sgx-lkl-musl-config:
 		--disable-shared \
 		--enable-sgx-hw=${HW_MODE}
 
-DPDK_LIBS = -lrte_pmd_i40e
+DPDK_LIBS = -Wl,--whole-archive
+DPDK_LIBS += -lrte_pmd_i40e
 DPDK_LIBS += -lrte_hash -lrte_mbuf -lrte_ethdev -lrte_eal
-DPDK_LIBS += -lrte_mempool
+DPDK_LIBS += -lrte_mempool -lrte_ring -lrte_mempool_ring
 DPDK_LIBS += -lrte_kvargs -lrte_net -lrte_cmdline
 DPDK_LIBS += -lrte_bus_pci -lrte_pci
 DPDK_LIBS += -lnuma
-SGX_LKL_MUSL_LDFLAGS += -L$(DPDK_BUILD_SGX)/lib
-SGX_LKL_MUSL_LDFLAGS += -L$(NUMACTL_BUILD_SGX)/lib
-SGX_LKL_MUSL_LDFLAGS += $(DPDK_LIBS)
+DPDK_LIBS += -Wl,--no-whole-archive
+DPDK_COMMON_CFLAGS = -msse4.1
+# -nostdinc does vanish both libc headers and gcc intriniscs,
+# we only want get rid-off libc headers
+GCC_HEADERS = $(shell CPP='$(CPP)' ./tools/find-gcc-headers.sh)
+DPDK_SGX_CFLAGS = "${DPDK_COMMON_CFLAGS} -I${DPDK_BUILD_SGX}/include -I${GCC_HEADERS}"
+DPDK_SGX_LDFLAGS = "-L$(DPDK_BUILD_SGX)/lib -L$(NUMACTL_BUILD_SGX)/lib $(DPDK_LIBS)"
+DPDK_NATIVE_CFLAGS = "${DPDK_COMMON_CFLAGS} -I${DPDK_BUILD_NATIVE}/include"
+DPDK_NATIVE_LDFLAGS = "-L$(DPDK_BUILD_NATIVE)/lib -L$(NUMACTL_BUILD_NATIVE)/lib $(DPDK_LIBS)"
 
 sgx-lkl-musl: ${LIBLKL} ${LKL_SGXMUSL_HEADERS} sgx-lkl-musl-config sgx-lkl $(ENCLAVE_DEBUG_KEY) ${DPDK_BUILD_SGX}/lib/libdpdk.a | ${SGX_LKL_MUSL_BUILD}
-	+${MAKE} -C ${SGX_LKL_MUSL} CFLAGS="$(MUSL_CFLAGS)" DPDK_FLAGS="${SGX_LKL_MUSL_LDFLAGS}"
+	+${MAKE} -C ${SGX_LKL_MUSL} CFLAGS="$(MUSL_CFLAGS)" \
+    DPDK_SGX_CFLAGS=$(DPDK_SGX_CFLAGS) \
+    DPDK_SGX_LDFLAGS=$(DPDK_SGX_LDFLAGS)
+
 	cp $(SGX_LKL_MUSL)/lib/libsgxlkl.so $(BUILD_DIR)/libsgxlkl.so
 # This way the debug info will be automatically picked up when debugging with gdb. TODO: Fix...
 	@if [ "$(HW_MODE)" = "yes" ]; then objcopy --only-keep-debug $(BUILD_DIR)/libsgxlkl.so $(BUILD_DIR)/sgx-lkl-run.debug; fi
@@ -172,8 +181,12 @@ sgx-lkl-sign: $(BUILD_DIR)/libsgxlkl.so $(ENCLAVE_DEBUG_KEY)
 
 # compile sgx-lkl sources
 
-sgx-lkl: sgx-lkl-musl-config
-	make -C src all HW_MODE=$(HW_MODE) LIB_SGX_LKL_BUILD_DIR="$(BUILD_DIR)"
+sgx-lkl: sgx-lkl-musl-config ${DPDK_BUILD_NATIVE}/lib/libdpdk.a ${DPDK_BUILD_SGX}/lib/libdpdk.a
+	make -C src all HW_MODE=$(HW_MODE) LIB_SGX_LKL_BUILD_DIR="$(BUILD_DIR)" \
+    DPDK_SGX_CFLAGS=$(DPDK_SGX_CFLAGS) \
+    DPDK_SGX_LDFLAGS=$(DPDK_SGX_LDFLAGS) \
+    DPDK_NATIVE_CFLAGS=${DPDK_NATIVE_CFLAGS} \
+    DPDK_NATIVE_LDFLAGS=${DPDK_NATIVE_LDFLAGS}
 
 $(ENCLAVE_DEBUG_KEY):
 	@mkdir -p $(dir $@ )
