@@ -127,10 +127,11 @@ static void lkl_prestart_dpdk(enclave_config_t *encl) {
 		}
 		dpdk->net_dev_id = net_dev_id;
 	}
-	sgxlkl_register_dpdk_context(encl->dpdk_context);
 }
 
 static void lkl_poststart_dpdk(enclave_config_t* encl) {
+	sgxlkl_register_dpdk_context(encl->dpdk_context);
+
 	for (size_t i = 0; i < encl->num_dpdk_ifaces; i++) {
 		struct enclave_dpdk_config *dpdk = &encl->dpdk_ifaces[i];
 		int res = 0;

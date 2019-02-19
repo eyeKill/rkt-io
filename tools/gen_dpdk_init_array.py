@@ -123,11 +123,14 @@ def main() -> None:
     symbols = get_link_order(linker_script, linker_flags)
 
     with open(output, "w") as f:
-        f.write("void dpdk_init_array() {\n")
         for symbol in symbols:
             if symbol in ["frame_dummy"]:
                 continue
             f.write(f"\tvoid {symbol}();\n")
+        f.write("void dpdk_init_array() {\n")
+        for symbol in symbols:
+            if symbol in ["frame_dummy"]:
+                continue
             f.write(f"\t{symbol}();\n")
         f.write("}\n")
 

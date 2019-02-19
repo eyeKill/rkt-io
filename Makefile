@@ -32,45 +32,27 @@ host-musl ${HOST_MUSL_CC}: | ${HOST_MUSL}/.git ${HOST_MUSL_BUILD}
 	ln -fs ${LINUX_HEADERS_INC}/asm-generic/ ${HOST_MUSL_BUILD}/include/asm-generic
 	# Fix musl-gcc for gcc version that have been built with --enable-default-pie
 	gcc -v 2>&1 | grep "\-\-enable-default-pie" > /dev/null && sed -i 's/"$$@"/-fpie -pie "\$$@"/g' ${HOST_MUSL_BUILD}/bin/musl-gcc || true
-
-numactl-patch ${NUMACTL}/.patched:
-  # numactl uses symbol versioning and requires version scripts when beeing linked as a static library
-  # into libsgxlkl.so. Since their scripst mess up our exported symbols, we simply assume the latest version.
-	sed -i -e 's!__asm__.*symver.*!!g;s!_v2!!g' ${NUMACTL}/*.c
-	touch ${NUMACTL}/.patched
-
-numactl-autogen-$(1) ${NUMACTL}/configure: | ${NUMACTL}.git
-	cd ${NUMACTL}; ./autogen.sh
+	grep fno-omit-frame-pointer ${HOST_MUSL_BUILD}/lib/musl-gcc.specs || \
+		sed -i -e 's!-nostdinc!-nostdinc -fno-omit-frame-pointer!' ${HOST_MUSL_BUILD}/lib/musl-gcc.specs
 
 define dpdk_build
-${NUMACTL_BUILD}:
-	mkdir -p ${NUMACTL_BUILD}
-
-numactl-config-$(1) ${NUMACTL_BUILD}/Makefile : ${NUMACTL}/configure | ${DPDK_CC} ${NUMACTL_BUILD}
-	cd ${NUMACTL_BUILD} && \
-	CFLAGS="${DPDK_EXTRA_CFLAGS}" CC=${DPDK_CC} ${NUMACTL}/configure --disable-shared --prefix=${NUMACTL_BUILD}
-
-numactl-$(1) ${NUMACTL_BUILD}/lib/libnuma.a: ${NUMACTL}/.patched ${NUMACTL_BUILD}/Makefile
-	make -C ${NUMACTL_BUILD} -j`tools/ncore.sh` install
-
-dpdk-config-$(1) ${DPDK_CONFIG}: ${CURDIR}/src/dpdk/override/defconfig ${NUMACTL_BUILD}/lib/libnuma.a
-	make -j1 -C ${DPDK} PATH=${NUMACTL_BUILD}/bin:$$(PATH) RTE_SDK=${DPDK} T=${RTE_TARGET} O=${DPDK_BUILD} config
+dpdk-config-$(1) ${DPDK_CONFIG}: ${CURDIR}/src/dpdk/override/defconfig
+	make -j1 -C ${DPDK} RTE_SDK=${DPDK} T=${RTE_TARGET} O=${DPDK_BUILD} config
 	cat ${DPDK_BUILD}/.config.orig ${CURDIR}/src/dpdk/override/defconfig > ${DPDK_BUILD}/.config
 	if [[ "$(DEBUG)" = "true" ]]; then echo 'CONFIG_RTE_LOG_DP_LEVEL=RTE_LOG_DEBUG' >> ${DPDK_BUILD}/.config; fi
 
 # WARNING we currently disable thread local storage (-D__thread=) since there is no support
 # for it when running lkl. In particular this affects rte_errno and makes it thread-unsafe.
-dpdk-$(1) ${DPDK_BUILD}/lib/libdpdk.a: ${DPDK_CONFIG} ${NUMACTL_BUILD}/lib/libnuma.a | ${DPDK_CC} ${DPDK}/.git ${RTE_SDK}
+dpdk-$(1) ${DPDK_BUILD}/lib/libdpdk.a: ${DPDK_CONFIG} | ${DPDK_CC} ${DPDK}/.git ${RTE_SDK}
 	+make -j`tools/ncore.sh` -C ${DPDK_BUILD} WERROR_FLAGS= CC=${DPDK_CC} RTE_SDK=${DPDK} V=1 \
-		EXTRA_CFLAGS="-Wno-error -lc -I${NUMACTL_BUILD}/include ${DPDK_EXTRA_CFLAGS} -UDEBUG" \
-		EXTRA_LDFLAGS="-L${NUMACTL_BUILD}/lib" || test ${DPDK_BEAR_HACK} == "yes"
+		EXTRA_CFLAGS="-Wno-error -lc ${DPDK_EXTRA_CFLAGS} -UDEBUG" \
+		|| test ${DPDK_BEAR_HACK} == "yes"
 endef
 
 RTE_TARGET = x86_64-native-linuxapp-gcc
 # when compiling with BEAR the build seems to fail at some point also the overall build is still fine
 DPDK_BEAR_HACK ?= no
 
-NUMACTL_BUILD := ${NUMACTL_BUILD_NATIVE}
 DPDK_BUILD := ${DPDK_BUILD_NATIVE}
 DPDK_CONFIG = ${DPDK_BUILD}/.config
 DPDK_CC := ${CC}
@@ -81,14 +63,12 @@ $(CC):
 	:
 $(eval $(call dpdk_build,native))
 
-NUMACTL_BUILD := ${NUMACTL_BUILD_SGX}
 DPDK_BUILD := ${DPDK_BUILD_SGX}
 DPDK_CONFIG = ${DPDK_BUILD}/.config
 DPDK_CC := ${HOST_MUSL_CC}
 DPDK_EXTRA_CFLAGS := ${MUSL_CFLAGS} -include ${CURDIR}/src/dpdk/override/uint.h
 $(eval $(call dpdk_build,sgx))
 
-undefine NUMACTL_BUILD
 undefine DPDK_BUILD
 undefine DPDK_CONFIG
 undefine DPDK_CC
@@ -119,6 +99,8 @@ lkl ${LIBLKL}: ${DPDK_BUILD_SGX}/lib/libdpdk.a ${HOST_MUSL_CC} | ${LKL}/.git ${L
 	+DESTDIR=${LKL_BUILD} ${MAKE} V=1 -C ${LKL}/tools/lkl -j`tools/ncore.sh` CC=${HOST_MUSL_CC} PREFIX="" \
 		${LKL}/tools/lkl/liblkl.a
 	mkdir -p ${LKL_BUILD}/lib
+	# they don't seem to recompile anything unless I touch this:
+	rm ${LKL}/tools/lkl/Makefile.conf
 	cp ${LKL}/tools/lkl/liblkl.a $(LKL_BUILD)/lib
 	+DESTDIR=${LKL_BUILD} ${MAKE} -C ${LKL}/tools/lkl -j`tools/ncore.sh` CC=${HOST_MUSL_CC} PREFIX="" \
 		TARGETS="" headers_install
@@ -156,16 +138,15 @@ DPDK_LIBS += -lrte_hash -lrte_mbuf -lrte_ethdev -lrte_eal
 DPDK_LIBS += -lrte_mempool_ring -lrte_mempool -lrte_ring
 DPDK_LIBS += -lrte_kvargs -lrte_net -lrte_cmdline
 DPDK_LIBS += -lrte_bus_pci -lrte_pci
-DPDK_LIBS += -lnuma
 DPDK_LIBS += -Wl,--no-whole-archive
 DPDK_COMMON_CFLAGS = -msse4.1
 # -nostdinc does vanish both libc headers and gcc intriniscs,
 # we only want get rid-off libc headers
 GCC_HEADERS = $(shell CPP='$(CPP)' ./tools/find-gcc-headers.sh)
 DPDK_SGX_CFLAGS = "${DPDK_COMMON_CFLAGS} -I${DPDK_BUILD_SGX}/include -I${GCC_HEADERS}"
-DPDK_SGX_LDFLAGS = "-L$(DPDK_BUILD_SGX)/lib -L$(NUMACTL_BUILD_SGX)/lib $(DPDK_LIBS) ${BUILD_DIR}/dpdk_init_array.o"
+DPDK_SGX_LDFLAGS = "-L$(DPDK_BUILD_SGX)/lib $(DPDK_LIBS) ${BUILD_DIR}/dpdk_init_array.o"
 DPDK_NATIVE_CFLAGS = "${DPDK_COMMON_CFLAGS} -I${DPDK_BUILD_NATIVE}/include"
-DPDK_NATIVE_LDFLAGS = "-L$(DPDK_BUILD_NATIVE)/lib -L$(NUMACTL_BUILD_NATIVE)/lib $(DPDK_LIBS)"
+DPDK_NATIVE_LDFLAGS = "-L$(DPDK_BUILD_NATIVE)/lib $(DPDK_LIBS)"
 
 ${BUILD_DIR}/dpdk_init_array.c: ${DPDK_BUILD_SGX}/lib/libdpdk.a
 	./tools/gen_dpdk_init_array.py $@ tools/sgx-lkl.ld ${DPDK_NATIVE_LDFLAGS}
@@ -205,7 +186,7 @@ ${BUILD_DIR} ${TOOLS_BUILD} ${LKL_BUILD} ${HOST_MUSL_BUILD} ${SGX_LKL_MUSL_BUILD
 	@mkdir -p $@
 
 # Submodule initialisation (one-shot after git clone)
-${HOST_MUSL}/.git ${LKL}/.git ${SGX_LKL_MUSL}/.git ${DPDK}/.git ${NUMACTL}.git:
+${HOST_MUSL}/.git ${LKL}/.git ${SGX_LKL_MUSL}/.git ${DPDK}/.git:
 	[ "$(FORCE_SUBMODULES_VERSION)" = "true" ] || git submodule update --init $($@:.git=)
 
 compdb:
@@ -221,4 +202,3 @@ clean:
 	+${MAKE} -C src LIB_SGX_LKL_BUILD_DIR="$(BUILD_DIR)" clean || true
 	rm -f ${HOST_MUSL}/config.mak
 	rm -f ${SGX_LKL_MUSL}/config.mak
-	rm -f ${NUMACTL}/configure
