@@ -11,6 +11,8 @@
 #include <unistd.h>
 #include <time.h>
 #include <lkl_host.h>
+#include <arpa/inet.h>
+
 #include "lkl/disk.h"
 #include "lkl/dpdk.h"
 #include "lkl/posix-host.h"
@@ -101,14 +103,12 @@ static int lkl_prestart_net(enclave_config_t* encl)
 
 static void lkl_prestart_dpdk(enclave_config_t *encl) {
 	for (size_t i = 0; i < encl->num_dpdk_ifaces; i++) {
-		fprintf(stderr, "%s %s:%d\n", __func__, __FILE__, __LINE__);
 		struct enclave_dpdk_config *dpdk = &encl->dpdk_ifaces[i];
-		char mac[6];
-		struct lkl_netdev *netdev = sgxlkl_register_netdev_dpdk(dpdk, mac);
+		struct lkl_netdev *netdev = sgxlkl_register_netdev_dpdk(dpdk);
 		assert(netdev != NULL);
 
 		struct lkl_netdev_args netdev_args = {
-			.mac = mac, .offload = 0,
+			.mac = dpdk->mac, .offload = 0,
 			//.offload= (// Host and guest can handle TSOv4
 			//           BIT(LKL_VIRTIO_NET_F_GUEST_TSO4) |
 			//           // Host and guest can handle TSOv6
@@ -116,6 +116,8 @@ static void lkl_prestart_dpdk(enclave_config_t *encl) {
 			//           // Host can merge receive buffers
 			//           BIT(LKL_VIRTIO_NET_F_MRG_RXBUF)),
 		};
+		fprintf(stderr, "[SGX-LKL] DPDK: Port %d: %02x:%02x:%02x:%02x:%02x:%02x\n", dpdk->portid,
+			dpdk->mac[0], dpdk->mac[1], dpdk->mac[2], dpdk->mac[3], dpdk->mac[4], dpdk->mac[5]);
 
 		int net_dev_id = lkl_netdev_add(netdev, &netdev_args);
 		if (net_dev_id < 0) {
@@ -125,6 +127,7 @@ static void lkl_prestart_dpdk(enclave_config_t *encl) {
 		}
 		dpdk->net_dev_id = net_dev_id;
 	}
+	sgxlkl_register_dpdk_context(encl->dpdk_context);
 }
 
 static void lkl_poststart_dpdk(enclave_config_t* encl) {
@@ -133,6 +136,13 @@ static void lkl_poststart_dpdk(enclave_config_t* encl) {
 		int res = 0;
 		int ifidx = lkl_netdev_get_ifindex(dpdk->net_dev_id);
 		res = lkl_if_set_ipv4(ifidx, dpdk->net_ip4.s_addr, dpdk->net_mask4);
+
+		char ip[INET_ADDRSTRLEN];
+		inet_ntop(AF_INET, &dpdk->net_ip4.s_addr, ip, INET_ADDRSTRLEN);
+		printf("iface addr: %s/%d\n", ip, dpdk->net_mask4);
+		inet_ntop(AF_INET, &dpdk->net_gw4.s_addr, ip, INET_ADDRSTRLEN);
+		printf("gw addr: %s\n", ip);
+
 		if (res < 0) {
 			fprintf(stderr, "Error: lkl_if_set_ipv4(): %s\n", lkl_strerror(res));
 			exit(res);
@@ -145,8 +155,8 @@ static void lkl_poststart_dpdk(enclave_config_t* encl) {
 		if (dpdk->net_gw4.s_addr > 0) {
 			res = lkl_set_ipv4_gateway(dpdk->net_gw4.s_addr);
 			if (res < 0) {
-				fprintf(stderr, "Error: lkl_set_ipv4_gateway(): %s\n",
-						lkl_strerror(res));
+				fprintf(stderr, "Error: lkl_set_ipv4_gateway(%s): %s\n",
+						ip, lkl_strerror(res));
 				exit(res);
 			}
 		}
@@ -679,6 +689,7 @@ void __lkl_start_init(enclave_config_t* encl)
 
 	lkl_prestart_disks(disks, num_disks);
 
+	lkl_prestart_dpdk(encl);
 
 	// Register network tap if given one
 	//int net_dev_id = -1;
@@ -735,12 +746,8 @@ void __lkl_start_init(enclave_config_t* encl)
 	putenv(shm_out_to_enc_addr);
 
 	// Set interface status/IP/routes
-	//if (!sgxlkl_use_host_network)
-	//	lkl_poststart_net(encl, net_dev_id);
-	//lkl_prestart_dpdk(encl);
-
-	//if (!sgxlkl_use_host_network)
-	//	lkl_poststart_dpdk(encl);
+	if (!sgxlkl_use_host_network)
+		lkl_poststart_dpdk(encl);
 
 	// Set hostname (provided through SGXLKL_HOSTNAME)
 	sethostname(encl->hostname, strlen(encl->hostname));

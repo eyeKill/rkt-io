@@ -561,7 +561,6 @@ void register_dpdk(enclave_config_t *encl, pid_t *dpdk_setuid_helper_pipe, const
         }
     }
 
-    // TODO add support for multiple interfaces
     encl->num_dpdk_ifaces = 1;
     encl->dpdk_ifaces = (struct enclave_dpdk_config *)malloc(
         sizeof(struct enclave_dpdk_config) * encl->num_dpdk_ifaces);
@@ -569,7 +568,8 @@ void register_dpdk(enclave_config_t *encl, pid_t *dpdk_setuid_helper_pipe, const
     if (r < 0) {
         sgxlkl_fail("dpdk-setuid-helper failed: %s\n", strerror(-r));
     };
-    r = dpdk_initialize(encl, "dpdk0");
+    // TODO add support for multiple interfaces
+    r = dpdk_initialize_iface(encl, "dpdk0");
     if (r < 0) {
         sgxlkl_fail("failed to initialize dpdk interface: %s\n", strerror(-r));
     };
@@ -578,6 +578,7 @@ void register_dpdk(enclave_config_t *encl, pid_t *dpdk_setuid_helper_pipe, const
     encl->dpdk_ifaces[0].net_ip4 = ip4;
     encl->dpdk_ifaces[0].net_gw4 = gw4;
     encl->dpdk_ifaces[0].mtu = mtu;
+    encl->dpdk_context = dpdk_initialize_context();
 }
 
 static void register_queues(enclave_config_t* encl) {

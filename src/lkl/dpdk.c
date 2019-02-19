@@ -6,11 +6,13 @@
 #include <rte_ethdev.h>
 #include <rte_mempool.h>
 #include <rte_net.h>
+#include <rte_bus_pci.h>
+#include <eal_internal_cfg.h>
 
 #include "lkl/virtio.h"
 #include "lkl/dpdk.h"
+#include "dpdk_internal.h"
 #include "enclave_config.h"
-
 
 #include "hostcalls.h"
 
@@ -50,7 +52,7 @@ static int __dpdk_net_rx(struct lkl_netdev *nd, struct iovec *iov, int cnt)
 		r_size = rte_pktmbuf_data_len(rm);
 
 #ifdef DEBUG
-		lkl_printf("dpdk-rx: mbuf pktlen=%d orig_len=%lu\n",
+		fprintf(stderr, "dpdk-rx: mbuf pktlen=%d orig_len=%lu\n",
 			   r_size, iov[i].iov_len);
 #endif
 		/* mergeable buffer starts data after vnet header at [0] */
@@ -119,9 +121,9 @@ end:
 	read += sizeof(struct lkl_virtio_net_hdr_v1);
 
 #ifdef DEBUG
-	lkl_printf("dpdk-rx: len=%d mtu=%d type=%d, size=%d, hdrlen=%d\n",
-		   read, mtu, header->gso_type,
-		   header->gso_size, header->hdr_len);
+	fprintf(stderr, "dpdk-rx: len=%d mtu=%d type=%d, size=%d, hdrlen=%d\n",
+			read, mtu, header->gso_type,
+			header->gso_size, header->hdr_len);
 #endif
 
 	return read;
@@ -133,7 +135,7 @@ static int sgxlkl_dpdk_tx_prep(struct rte_mbuf *rm,
 	uint32_t ptype;
 
 #ifdef DEBUG
-	lkl_printf("dpdk-tx: gso_type=%d, gso=%d, hdrlen=%d validation=%d\n",
+	fprintf(stderr, "dpdk-tx: gso_type=%d, gso=%d, hdrlen=%d validation=%d\n",
 		header->gso_type, header->gso_size, header->hdr_len,
 		rte_validate_tx_offload(rm));
 #endif
@@ -171,7 +173,6 @@ static int sgxlkl_dpdk_tx(struct lkl_netdev *nd, struct iovec *iov, int cnt)
 	int i, len, sent = 0;
 	void *data = NULL;
 
-	fprintf(stderr, "%s at %s:%d\n", __func__, __FILE__, __LINE__);
 	nd_dpdk = (struct lkl_netdev_dpdk *) nd;
 
 	/*
@@ -202,13 +203,13 @@ static int sgxlkl_dpdk_tx(struct lkl_netdev *nd, struct iovec *iov, int cnt)
 			memcpy(pkt, data, len);
 			sent += len;
 		} else {
-			lkl_printf("dpdk-tx: failed to append: idx=%d len=%d\n",
+			fprintf(stderr, "dpdk-tx: failed to append: idx=%d len=%d\n",
 				   i, len);
 			rte_pktmbuf_free(rm);
 			return -1;
 		}
 #ifdef DEBUG
-		lkl_printf("dpdk-tx: pkt[%d]len=%d\n", i, len);
+		fprintf(stderr, "dpdk-tx: pkt[%d]len=%d\n", i, len);
 #endif
 	}
 
@@ -219,7 +220,10 @@ static int sgxlkl_dpdk_tx(struct lkl_netdev *nd, struct iovec *iov, int cnt)
 	if (rte_eth_tx_prepare(nd_dpdk->portid, 0, &rm, 1) != 1)
 		lkl_printf("tx_prep failed\n");
 
-	rte_eth_tx_burst(nd_dpdk->portid, 0, &rm, 1);
+	uint16_t j = rte_eth_tx_burst(nd_dpdk->portid, 0, &rm, 1);
+#ifdef DEBUG
+		fprintf(stderr, "dpdk-tx: burst pkt[%d]\n", j);
+#endif
 
 	rte_pktmbuf_free(rm);
 	return sent;
@@ -239,16 +243,17 @@ static int sgxlkl_dpdk_rx(struct lkl_netdev *nd, struct lkl__iovec *iov, int cnt
 		if (nd_dpdk->npkts <= 0) {
 			/* XXX: need to implement proper poll()
 			 * or interrupt mode PMD of dpdk, which is only
-			 * availbale on ixgbe/igb/e1000 (as of Jan. 2016)
+			 * available on ixgbe/igb/e1000 (as of Jan. 2016)
 			 */
 			//if (!nd_dpdk->busy_poll)
-			//	usleep(1);
+			usleep(1);
 			return -1;
 		}
 		nd_dpdk->bufidx = 0;
 	}
+    fprintf(stderr, "%s() rte_eth_devices: %d pkts\n", __func__, nd_dpdk->npkts);
 
-	/* mergeable buffer */
+    /* mergeable buffer */
 	read = __dpdk_net_rx(nd, iov, cnt);
 
 	rte_pktmbuf_free(nd_dpdk->rcv_mbuf[nd_dpdk->bufidx]);
@@ -264,8 +269,8 @@ static int sgxlkl_dpdk_poll(struct lkl_netdev *nd)
 	struct lkl_netdev_dpdk *nd_dpdk =
 		container_of(nd, struct lkl_netdev_dpdk, dev);
 
-	fprintf(stderr, "%s at %s:%d: %p\n", __func__, __FILE__, __LINE__,
-			nd_dpdk);
+	//fprintf(stderr, "%s at %s:%d: %p\n", __func__, __FILE__, __LINE__,
+	//		nd_dpdk);
 
 	if (nd_dpdk->close)
 		return LKL_DEV_NET_POLL_HUP;
@@ -276,9 +281,7 @@ static int sgxlkl_dpdk_poll(struct lkl_netdev *nd)
 	 * while vmxnet3 is not supported e.g..
 	 */
 
-	fprintf(stderr, "%s at %s:%d: %p\n", __func__, __FILE__, __LINE__,
-			nd_dpdk);
-	usleep(1);
+	usleep(10);
 	return LKL_DEV_NET_POLL_RX | LKL_DEV_NET_POLL_TX;
 }
 
@@ -309,11 +312,72 @@ static struct lkl_dev_net_ops dpdk_net_ops =
 	 .free = sgxlkl_dpdk_free,
 };
 
-struct lkl_netdev* sgxlkl_register_netdev_dpdk(struct enclave_dpdk_config *dpdk_iface, char mac[6]) {
+struct lkl_netdev* sgxlkl_register_netdev_dpdk(struct enclave_dpdk_config *dpdk_iface) {
 	struct lkl_netdev_dpdk *nd = malloc(sizeof(struct lkl_netdev_dpdk));
 	memset(nd, 0, sizeof(struct lkl_netdev_dpdk));
 	nd->dev.ops = &dpdk_net_ops;
 	nd->portid = dpdk_iface->portid;
+    nd->rxpool = dpdk_iface->rxpool;
+    nd->txpool = dpdk_iface->txpool;
 
 	return (struct lkl_netdev*)nd;
+}
+
+// List of reset function exported from dpdk
+int i40evf_dev_init(struct rte_eth_dev *dev);
+struct dev_init_function {
+    char* driver_name;
+    int (*dev_init)(struct rte_eth_dev *eth_dev);
+};
+
+static struct dev_init_function dev_init_table[1] = {
+   { .driver_name = "net_i40e", .dev_init = i40evf_dev_init  },
+};
+
+eth_dev_reset_t find_dev_reset_function(struct rte_eth_dev *device) {
+    for (int i = 0; i < sizeof(dev_init_table); i++) {
+        const char* name = device->device->driver->name;
+        if (strcmp(device->device->driver->name, dev_init_table[i].driver_name) == 0) {
+            return dev_init_table[i].dev_init;
+        }
+    }
+    return NULL;
+}
+
+void mp_hdlr_init_ops_mp_mc(void);
+void mp_hdlr_init_ops_mp_sc(void);
+void mp_hdlr_init_ops_sp_mc(void);
+void mp_hdlr_init_ops_sp_sc(void);
+
+#warning "Blindly trusting outside structures might make the application vulnerable. Remove this for production"
+
+int sgxlkl_register_dpdk_context(struct dpdk_context *context) {
+    memcpy(rte_eth_devices, context->devices, sizeof(struct rte_eth_dev[RTE_MAX_ETHPORTS]));
+    memcpy(rte_eal_get_configuration(), context->config, sizeof(struct rte_config));
+    memcpy(lcore_config, context->lcore_config, sizeof(struct lcore_config[RTE_MAX_LCORE]));
+    memcpy(&internal_config, context->internal_config, sizeof(struct internal_config));
+
+    for (int portid = 0; portid < RTE_MAX_ETHPORTS; portid++) {
+       struct rte_mempool *rxpool, *txpool; /* ring buffer pool */
+
+       struct rte_eth_dev *device = &rte_eth_devices[portid];
+       if (!device->device) {
+           continue;
+       }
+       eth_dev_reset_t reset_func = find_dev_reset_function(device);
+       if (!reset_func) {
+           fprintf(stderr, "[    SGX-LKL   ] Failed to find driver function for %s", device->device->driver->name);
+           return -ENOENT;
+       }
+       // we need to reset the drivers to fixup function pointers
+       reset_func(device);
+    }
+
+    // I could not convince the linke to include those initilizer, hence we reference them here
+    mp_hdlr_init_ops_mp_mc();
+    mp_hdlr_init_ops_mp_sc();
+    mp_hdlr_init_ops_sp_mc();
+    mp_hdlr_init_ops_sp_sc();
+
+    return 0;
 }

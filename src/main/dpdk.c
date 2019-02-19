@@ -17,9 +17,11 @@
 #include <rte_mempool.h>
 
 #include "dpdk.h"
+#include "dpdk_internal.h"
 
 extern char **environ;
 static const int DEBUG_DPDK = 1;
+static struct dpdk_context dpdk_context;
 
 int test_socket(const char* path) {
    int sock = socket(AF_UNIX, SOCK_DGRAM, 0);
@@ -135,7 +137,7 @@ static char *ealargs[5] = {
        "--log-level=0",
 };
 
-int dpdk_initialize(enclave_config_t* encl, const char *ifparams)
+int dpdk_initialize_iface(enclave_config_t* encl, const char *ifparams)
 {
     int ret = 0;
     char poolname[RTE_MEMZONE_NAMESIZE];
@@ -168,9 +170,13 @@ int dpdk_initialize(enclave_config_t* encl, const char *ifparams)
         return -ENOMEM;
     }
 
-    rte_eth_macaddr_get(iface->portid, (struct ether_addr*)iface->mac);
-    fprintf(stderr, "Port %d: %02x:%02x:%02x:%02x:%02x:%02x\n", iface->portid,
-            iface->mac[0], iface->mac[1], iface->mac[2], iface->mac[3], iface->mac[4], iface->mac[5]);
+    rte_eth_macaddr_get(iface->portid, &iface->mac);
+}
 
-    return 0;
+struct dpdk_context *dpdk_initialize_context() {
+    dpdk_context.devices = &rte_eth_devices;
+    dpdk_context.config = rte_eal_get_configuration();
+    dpdk_context.lcore_config = &lcore_config;
+    dpdk_context.internal_config = &internal_config;
+    return &dpdk_context;
 }

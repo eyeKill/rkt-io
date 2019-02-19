@@ -52,9 +52,10 @@ typedef struct enclave_dpdk_config {
     size_t portid;
     int net_dev_id;
     int mtu;
-    char mac[6];
+    uint8_t mac[6];
     struct rte_mempool *txpool, *rxpool;
 } enclave_dpdk_config_t;
+
 
 /* Untrusted config provided by the user */
 typedef struct enclave_config {
@@ -73,6 +74,7 @@ typedef struct enclave_config {
     struct in_addr net_gw4;
     size_t num_dpdk_ifaces;
     struct enclave_dpdk_config *dpdk_ifaces;
+    struct dpdk_context *dpdk_context;
     int net_mask4;
     char hostname[32];
     char **argv;

@@ -17,6 +17,7 @@ struct ifreq;
  * @dev - a POSIX file descriptor number for input/output
  * @returns a struct lkl_netdev_linux_fdnet entry for virtio-net
  */
-struct lkl_netdev* sgxlkl_register_netdev_dpdk(struct enclave_dpdk_config *dpdk_iface, char mac[6]);
+struct lkl_netdev* sgxlkl_register_netdev_dpdk(struct enclave_dpdk_config *dpdk_iface);
+int sgxlkl_register_dpdk_context(struct dpdk_context *context);
 
 #endif
