@@ -153,7 +153,7 @@ sgx-lkl-musl-config:
 DPDK_LIBS = -Wl,--whole-archive
 DPDK_LIBS += -lrte_pmd_i40e
 DPDK_LIBS += -lrte_hash -lrte_mbuf -lrte_ethdev -lrte_eal
-DPDK_LIBS += -lrte_mempool -lrte_ring -lrte_mempool_ring
+DPDK_LIBS += -lrte_mempool_ring -lrte_mempool -lrte_ring
 DPDK_LIBS += -lrte_kvargs -lrte_net -lrte_cmdline
 DPDK_LIBS += -lrte_bus_pci -lrte_pci
 DPDK_LIBS += -lnuma
@@ -163,11 +163,17 @@ DPDK_COMMON_CFLAGS = -msse4.1
 # we only want get rid-off libc headers
 GCC_HEADERS = $(shell CPP='$(CPP)' ./tools/find-gcc-headers.sh)
 DPDK_SGX_CFLAGS = "${DPDK_COMMON_CFLAGS} -I${DPDK_BUILD_SGX}/include -I${GCC_HEADERS}"
-DPDK_SGX_LDFLAGS = "-L$(DPDK_BUILD_SGX)/lib -L$(NUMACTL_BUILD_SGX)/lib $(DPDK_LIBS)"
+DPDK_SGX_LDFLAGS = "-L$(DPDK_BUILD_SGX)/lib -L$(NUMACTL_BUILD_SGX)/lib $(DPDK_LIBS) ${BUILD_DIR}/dpdk_init_array.o"
 DPDK_NATIVE_CFLAGS = "${DPDK_COMMON_CFLAGS} -I${DPDK_BUILD_NATIVE}/include"
 DPDK_NATIVE_LDFLAGS = "-L$(DPDK_BUILD_NATIVE)/lib -L$(NUMACTL_BUILD_NATIVE)/lib $(DPDK_LIBS)"
 
-sgx-lkl-musl: ${LIBLKL} ${LKL_SGXMUSL_HEADERS} sgx-lkl-musl-config sgx-lkl $(ENCLAVE_DEBUG_KEY) ${DPDK_BUILD_SGX}/lib/libdpdk.a | ${SGX_LKL_MUSL_BUILD}
+${BUILD_DIR}/dpdk_init_array.c: ${DPDK_BUILD_SGX}/lib/libdpdk.a
+	./tools/gen_dpdk_init_array.py $@ tools/sgx-lkl.ld ${DPDK_NATIVE_LDFLAGS}
+
+${BUILD_DIR}/dpdk_init_array.o: ${BUILD_DIR}/dpdk_init_array.c
+	${HOST_MUSL_CC} -fPIC -c -o $@ $<
+
+sgx-lkl-musl: ${LIBLKL} ${LKL_SGXMUSL_HEADERS} sgx-lkl-musl-config sgx-lkl $(ENCLAVE_DEBUG_KEY) ${BUILD_DIR}/dpdk_init_array.o ${DPDK_BUILD_SGX}/lib/libdpdk.a | ${SGX_LKL_MUSL_BUILD}
 	+${MAKE} -C ${SGX_LKL_MUSL} CFLAGS="$(MUSL_CFLAGS)" \
     DPDK_SGX_CFLAGS=$(DPDK_SGX_CFLAGS) \
     DPDK_SGX_LDFLAGS=$(DPDK_SGX_LDFLAGS)

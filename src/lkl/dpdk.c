@@ -344,18 +344,16 @@ eth_dev_reset_t find_dev_reset_function(struct rte_eth_dev *device) {
     return NULL;
 }
 
-void mp_hdlr_init_ops_mp_mc(void);
-void mp_hdlr_init_ops_mp_sc(void);
-void mp_hdlr_init_ops_sp_mc(void);
-void mp_hdlr_init_ops_sp_sc(void);
-
 #warning "Blindly trusting outside structures might make the application vulnerable. Remove this for production"
 
 int sgxlkl_register_dpdk_context(struct dpdk_context *context) {
+    // since we are compiling without compiling without stdlib, dpdk's library initializer functions are not called
     memcpy(rte_eth_devices, context->devices, sizeof(struct rte_eth_dev[RTE_MAX_ETHPORTS]));
     memcpy(rte_eal_get_configuration(), context->config, sizeof(struct rte_config));
     memcpy(lcore_config, context->lcore_config, sizeof(struct lcore_config[RTE_MAX_LCORE]));
     memcpy(&internal_config, context->internal_config, sizeof(struct internal_config));
+
+    dpdk_init_array();
 
     for (int portid = 0; portid < RTE_MAX_ETHPORTS; portid++) {
        struct rte_mempool *rxpool, *txpool; /* ring buffer pool */
@@ -372,12 +370,6 @@ int sgxlkl_register_dpdk_context(struct dpdk_context *context) {
        // we need to reset the drivers to fixup function pointers
        reset_func(device);
     }
-
-    // I could not convince the linke to include those initilizer, hence we reference them here
-    mp_hdlr_init_ops_mp_mc();
-    mp_hdlr_init_ops_mp_sc();
-    mp_hdlr_init_ops_sp_mc();
-    mp_hdlr_init_ops_sp_sc();
 
     return 0;
 }
