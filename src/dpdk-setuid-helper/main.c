@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <assert.h>
 #include <unistd.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 #include <rte_eal.h>
 #include <rte_ethdev.h>
@@ -8,11 +10,7 @@
 #include <rte_net.h>
 
 static char *ealargs[5] = {
-	"lkl_vif_dpdk",
-	"-c 1",
-	"-n 1",
-	"--log-level=0",
-    "--proc-type=primary"
+    "lkl_vif_dpdk", "-c 1", "-n 1", "--log-level=0", "--proc-type=primary",
 };
 
 #define MAX_PKT_BURST           16
@@ -20,21 +18,21 @@ static char *ealargs[5] = {
 #define MEMPOOL_CACHE_SZ        0
 /* for TSO pkt */
 #define MAX_PACKET_SZ           (65535 \
-	- (sizeof(struct rte_mbuf) + RTE_PKTMBUF_HEADROOM))
+                                 - (sizeof(struct rte_mbuf) + RTE_PKTMBUF_HEADROOM))
 #define MBUF_NUM                (512*2) /* vmxnet3 requires 1024 */
 #define MBUF_SIZ        \
-	(MAX_PACKET_SZ + sizeof(struct rte_mbuf) + RTE_PKTMBUF_HEADROOM)
-#define NUMDESC         512	/* nb_min on vmxnet3 is 512 */
+    (MAX_PACKET_SZ + sizeof(struct rte_mbuf) + RTE_PKTMBUF_HEADROOM)
+#define NUMDESC         512 /* nb_min on vmxnet3 is 512 */
 #define NUMQUEUE        1
 
 static const int DEBUG_DPDK = 1;
 
 int setup_iface(int portid) {
-	int ret = 0;
-	struct rte_eth_conf portconf;
-	struct rte_eth_link link;
-	struct rte_eth_dev_info dev_info;
-	char poolname[RTE_MEMZONE_NAMESIZE];
+    int ret = 0;
+    struct rte_eth_conf portconf;
+    struct rte_eth_link link;
+    struct rte_eth_dev_info dev_info;
+    char poolname[RTE_MEMZONE_NAMESIZE];
 
     char ifparams[6];
     int r = snprintf(ifparams, 6, "dpdk%d", portid);
@@ -42,28 +40,27 @@ int setup_iface(int portid) {
     memset(&portconf, 0, sizeof(portconf));
 
     snprintf(poolname, RTE_MEMZONE_NAMESIZE, "%s%s", "tx-", ifparams);
-    struct rte_mempool *txpool = rte_mempool_create(poolname,
-                                       MBUF_NUM, MBUF_SIZ, MEMPOOL_CACHE_SZ,
-                                       sizeof(struct rte_pktmbuf_pool_private),
-                                       rte_pktmbuf_pool_init, NULL,
-                                       rte_pktmbuf_init, NULL, 0, 0);
+    struct rte_mempool *txpool = rte_mempool_create(
+        poolname, MBUF_NUM, MBUF_SIZ, MEMPOOL_CACHE_SZ,
+        sizeof(struct rte_pktmbuf_pool_private), rte_pktmbuf_pool_init, NULL,
+        rte_pktmbuf_init, NULL, 0, 0);
     if (!txpool) {
         fprintf(stderr, "dpdk: failed to allocate tx pool\n");
-        return -ENOMEM;
+      return -ENOMEM;
     }
 
     snprintf(poolname, RTE_MEMZONE_NAMESIZE, "%s%s", "rx-", ifparams);
     struct rte_mempool *rxpool = rte_mempool_create(poolname, MBUF_NUM, MBUF_SIZ, 0,
-                                       sizeof(struct rte_pktmbuf_pool_private),
-                                       rte_pktmbuf_pool_init, NULL,
-                                       rte_pktmbuf_init, NULL, 0, 0);
+                                                    sizeof(struct rte_pktmbuf_pool_private),
+                                                    rte_pktmbuf_pool_init, NULL,
+                                                    rte_pktmbuf_init, NULL, 0, 0);
     if (!rxpool) {
         fprintf(stderr, "dpdk: failed to allocate rx pool\n");
         return -ENOMEM;
     }
 
-	rte_eth_dev_info_get(portid, &dev_info);
-	//if (dev_info.tx_offload_capa & DEV_RX_OFFLOAD_TCP_LRO)
+    rte_eth_dev_info_get(portid, &dev_info);
+    //if (dev_info.tx_offload_capa & DEV_RX_OFFLOAD_TCP_LRO)
     //    port_conf.txmode.offloads |= DEV_RX_OFFLOAD_TCP_LRO;
 
     memset(&portconf, 0, sizeof(portconf));
@@ -76,8 +73,6 @@ int setup_iface(int portid) {
       fprintf(stderr, "dpdk: failed to configure port\n");
       return ret;
     }
-
-    rte_eth_dev_info_get(portid, &dev_info);
 
     ret = rte_eth_rx_queue_setup(portid, 0, NUMDESC, 0,
                                  &dev_info.default_rxconf, rxpool);

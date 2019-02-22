@@ -13,11 +13,14 @@
 #include "lkl/dpdk.h"
 #include "dpdk_internal.h"
 #include "enclave_config.h"
+#include "pcap.h"
 
 #include "hostcalls.h"
 
 #define MAX_PKT_BURST           16
-#define DEBUG 1
+//#define DPDK_DEBUG 1
+//#define DPDK_DUMP_PCAP 1
+#define BIT(x) (1ULL << x)
 
 struct lkl_netdev_dpdk {
 	struct lkl_netdev dev;
@@ -28,6 +31,8 @@ struct lkl_netdev_dpdk {
 	int npkts;
 	int bufidx;
 	int close: 1;
+	int offload;
+	int busy_poll;
 
 	struct rte_mempool *rxpool, *txpool; /* ring buffer pool */
 };
@@ -51,12 +56,11 @@ static int __dpdk_net_rx(struct lkl_netdev *nd, struct iovec *iov, int cnt)
 		r_data = rte_pktmbuf_mtod(rm, void *);
 		r_size = rte_pktmbuf_data_len(rm);
 
-#ifdef DEBUG
+#ifdef DPDK_DEBUG
 		fprintf(stderr, "dpdk-rx: mbuf pktlen=%d orig_len=%lu\n",
 			   r_size, iov[i].iov_len);
 #endif
 		/* mergeable buffer starts data after vnet header at [0] */
-#if 0
 		if (nd_dpdk->offload & BIT(LKL_VIRTIO_NET_F_MRG_RXBUF) &&
 		    i == 0)
 			offset = sizeof(struct lkl_virtio_net_hdr_v1);
@@ -65,8 +69,6 @@ static int __dpdk_net_rx(struct lkl_netdev *nd, struct iovec *iov, int cnt)
 			i++;
 		else
 			offset = sizeof(struct lkl_virtio_net_hdr_v1);
-#endif
-		offset = sizeof(struct lkl_virtio_net_hdr_v1);
 
 		read += r_size;
 		while (r_size > 0) {
@@ -101,17 +103,17 @@ end:
 
 		ptype = rte_net_get_ptype(first, &hdr_lens, RTE_PTYPE_ALL_MASK);
 
-		//if ((ptype & RTE_PTYPE_L4_MASK) == RTE_PTYPE_L4_TCP) {
-		//	if ((ptype & RTE_PTYPE_L3_MASK) == RTE_PTYPE_L3_IPV4 &&
-		//	    nd_dpdk->offload & BIT(LKL_VIRTIO_NET_F_GUEST_TSO4))
-		//		header->gso_type = LKL_VIRTIO_NET_HDR_GSO_TCPV4;
-		//	/* XXX: Intel X540 doesn't support LRO
-		//	 * with tcpv6 packets
-		//	 */
-		//	if ((ptype & RTE_PTYPE_L3_MASK) == RTE_PTYPE_L3_IPV6 &&
-		//	    nd_dpdk->offload & BIT(LKL_VIRTIO_NET_F_GUEST_TSO6))
-		//		header->gso_type = LKL_VIRTIO_NET_HDR_GSO_TCPV6;
-		//}
+		if ((ptype & RTE_PTYPE_L4_MASK) == RTE_PTYPE_L4_TCP) {
+			if ((ptype & RTE_PTYPE_L3_MASK) == RTE_PTYPE_L3_IPV4 &&
+			    nd_dpdk->offload & BIT(LKL_VIRTIO_NET_F_GUEST_TSO4))
+				header->gso_type = LKL_VIRTIO_NET_HDR_GSO_TCPV4;
+			/* XXX: Intel X540 doesn't support LRO
+			 * with tcpv6 packets
+			 */
+			if ((ptype & RTE_PTYPE_L3_MASK) == RTE_PTYPE_L3_IPV6 &&
+			    nd_dpdk->offload & BIT(LKL_VIRTIO_NET_F_GUEST_TSO6))
+				header->gso_type = LKL_VIRTIO_NET_HDR_GSO_TCPV6;
+		}
 
 		header->gso_size = mtu - hdr_lens.l3_len - hdr_lens.l4_len;
 		header->hdr_len = hdr_lens.l2_len + hdr_lens.l3_len
@@ -120,7 +122,7 @@ end:
 
 	read += sizeof(struct lkl_virtio_net_hdr_v1);
 
-#ifdef DEBUG
+#ifdef DPDK_DEBUG
 	fprintf(stderr, "dpdk-rx: len=%d mtu=%d type=%d, size=%d, hdrlen=%d\n",
 			read, mtu, header->gso_type,
 			header->gso_size, header->hdr_len);
@@ -134,7 +136,7 @@ static int sgxlkl_dpdk_tx_prep(struct rte_mbuf *rm,
 	struct rte_net_hdr_lens hdr_lens;
 	uint32_t ptype;
 
-#ifdef DEBUG
+#ifdef DPDK_DEBUG
 	fprintf(stderr, "dpdk-tx: gso_type=%d, gso=%d, hdrlen=%d validation=%d\n",
 		header->gso_type, header->gso_size, header->hdr_len,
 		rte_validate_tx_offload(rm));
@@ -161,8 +163,9 @@ static int sgxlkl_dpdk_tx_prep(struct rte_mbuf *rm,
 	}
 
 	return sizeof(struct lkl_virtio_net_hdr_v1);
-
 }
+
+static int global_cnt = 0;
 
 static int sgxlkl_dpdk_tx(struct lkl_netdev *nd, struct iovec *iov, int cnt)
 {
@@ -188,6 +191,14 @@ static int sgxlkl_dpdk_tx(struct lkl_netdev *nd, struct iovec *iov, int cnt)
 		data = iov[i].iov_base;
 		len = (int)iov[i].iov_len;
 
+#ifdef DPDK_DUMP_PCAP
+		char filename[255];
+		snprintf(filename, sizeof(filename), "foo%d.pcap", global_cnt);
+		write_pcap_file(filename, data, len);
+		fprintf(stderr, "%s() at %s:%d: dump %d bytes %s\n", __func__, __FILE__, __LINE__, len, filename);
+		global_cnt++;
+#endif
+
 		if (i == 0) {
 			header = data;
 			data += sizeof(*header);
@@ -208,7 +219,7 @@ static int sgxlkl_dpdk_tx(struct lkl_netdev *nd, struct iovec *iov, int cnt)
 			rte_pktmbuf_free(rm);
 			return -1;
 		}
-#ifdef DEBUG
+#ifdef DPDK_DEBUG
 		fprintf(stderr, "dpdk-tx: pkt[%d]len=%d\n", i, len);
 #endif
 	}
@@ -220,9 +231,9 @@ static int sgxlkl_dpdk_tx(struct lkl_netdev *nd, struct iovec *iov, int cnt)
 	if (rte_eth_tx_prepare(nd_dpdk->portid, 0, &rm, 1) != 1)
 		lkl_printf("tx_prep failed\n");
 
-	uint16_t j = rte_eth_tx_burst(nd_dpdk->portid, 0, &rm, 1);
-#ifdef DEBUG
-		fprintf(stderr, "dpdk-tx: burst pkt[%d]\n", j);
+	rte_eth_tx_burst(nd_dpdk->portid, 0, &rm, 1);
+#ifdef DPDK_DEBUG
+	fprintf(stderr, "%s() at %s:%d: %d bytes sent\n", __func__, __FILE__, __LINE__, sent);
 #endif
 
 	rte_pktmbuf_free(rm);
@@ -245,13 +256,16 @@ static int sgxlkl_dpdk_rx(struct lkl_netdev *nd, struct lkl__iovec *iov, int cnt
 			 * or interrupt mode PMD of dpdk, which is only
 			 * available on ixgbe/igb/e1000 (as of Jan. 2016)
 			 */
-			//if (!nd_dpdk->busy_poll)
-			usleep(1);
+			if (!nd_dpdk->busy_poll)
+			  usleep(1);
 			return -1;
 		}
 		nd_dpdk->bufidx = 0;
 	}
+
+#ifdef DPDK_DEBUG
     fprintf(stderr, "%s() rte_eth_devices: %d pkts\n", __func__, nd_dpdk->npkts);
+#endif
 
     /* mergeable buffer */
 	read = __dpdk_net_rx(nd, iov, cnt);
@@ -269,9 +283,6 @@ static int sgxlkl_dpdk_poll(struct lkl_netdev *nd)
 	struct lkl_netdev_dpdk *nd_dpdk =
 		container_of(nd, struct lkl_netdev_dpdk, dev);
 
-	//fprintf(stderr, "%s at %s:%d: %p\n", __func__, __FILE__, __LINE__,
-	//		nd_dpdk);
-
 	if (nd_dpdk->close)
 		return LKL_DEV_NET_POLL_HUP;
 	/*
@@ -280,8 +291,8 @@ static int sgxlkl_dpdk_poll(struct lkl_netdev *nd)
 	 * on limited NIC drivers like ixgbe/igb/e1000 (with dpdk v2.2.0),
 	 * while vmxnet3 is not supported e.g..
 	 */
+	usleep(1);
 
-	usleep(10);
 	return LKL_DEV_NET_POLL_RX | LKL_DEV_NET_POLL_TX;
 }
 
@@ -290,7 +301,9 @@ static void sgxlkl_dpdk_poll_hup(struct lkl_netdev *nd)
 	struct lkl_netdev_dpdk *nd_dpdk =
 		container_of(nd, struct lkl_netdev_dpdk, dev);
 
+#ifdef DPDK_DEBUG
 	fprintf(stderr, "%s at %s:%d\n", __func__, __FILE__, __LINE__);
+#endif
 	nd_dpdk->close = 1;
 }
 
@@ -299,7 +312,10 @@ static void sgxlkl_dpdk_free(struct lkl_netdev *nd)
 	struct lkl_netdev_dpdk *nd_dpdk =
 		container_of(nd, struct lkl_netdev_dpdk, dev);
 
+#ifdef DPDK_DEBUG
 	fprintf(stderr, "%s at %s:%d\n", __func__, __FILE__, __LINE__);
+#endif
+
 	free(nd_dpdk);
 }
 
@@ -317,8 +333,12 @@ struct lkl_netdev* sgxlkl_register_netdev_dpdk(struct enclave_dpdk_config *dpdk_
 	memset(nd, 0, sizeof(struct lkl_netdev_dpdk));
 	nd->dev.ops = &dpdk_net_ops;
 	nd->portid = dpdk_iface->portid;
-    nd->rxpool = dpdk_iface->rxpool;
-    nd->txpool = dpdk_iface->txpool;
+	nd->rxpool = dpdk_iface->rxpool;
+	nd->txpool = dpdk_iface->txpool;
+
+	/* as we always assume to have vnet_hdr for dpdk device. */
+	nd->dev.has_vnet_hdr = 1;
+	nd->busy_poll = 1;
 
 	return (struct lkl_netdev*)nd;
 }

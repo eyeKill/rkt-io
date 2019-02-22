@@ -750,6 +750,10 @@ void __lkl_start_init(enclave_config_t* encl)
 	if (!sgxlkl_use_host_network)
 		lkl_poststart_dpdk(encl);
 
+	// Set interface status/IP/routes
+	//if (!sgxlkl_use_host_network)
+	//	lkl_poststart_net(encl, net_dev_id);
+
 	// Set hostname (provided through SGXLKL_HOSTNAME)
 	sethostname(encl->hostname, strlen(encl->hostname));
 }

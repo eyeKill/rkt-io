@@ -1,7 +1,7 @@
 /*
  * POSIX file descriptor based virtual network interface feature for
  * LKL Copyright (c) 2015,2016 Ryo Nakamura, Hajime Tazaki
- * 
+ *
  * Copyright 2016, 2017, 2018 Imperial College London
  *
  * Author: Ryo Nakamura <upa@wide.ad.jp>
@@ -21,6 +21,7 @@
 
 #include "lkl/virtio.h"
 #include "lkl/virtio_net.h"
+#include "pcap.h"
 
 #include "hostcalls.h"
 
