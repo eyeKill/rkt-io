@@ -95,7 +95,7 @@ DPDK_SETUID_HELPER_OBJS=$(addprefix $(LIB_SGX_LKL_BUILD)/dpdk-setuid-helper.d/,$
 
 $(DPDK_SETUID_HELPER_OBJS): $(LIB_SGX_LKL_BUILD)/dpdk-setuid-helper.d/%.o: %.c
 	mkdir -p $(dir $@)
-	$(CC) $(DPDK_NATIVE_CFLAGS) -c -o $@ $<
+	$(CC) $(DPDK_NATIVE_CFLAGS) -g -c -o $@ $<
 
 $(LIB_SGX_LKL_BUILD)/dpdk-setuid-helper-pre: $(DPDK_SETUID_HELPER_OBJS)
 	$(CC) $(CFLAGS_SGX) $(DPDK_NATIVE_LDFLAGS) -pthread -ldl -lrt $^ -o $@
