@@ -10,6 +10,3 @@
 [submodule "dpdk"]
 	path = dpdk
 	url = https://github.com/DPDK/dpdk
-[submodule "numactl"]
-	path = numactl
-	url = https://github.com/numactl/numactl
