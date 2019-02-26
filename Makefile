@@ -43,10 +43,11 @@ dpdk-config-${1} ${DPDK_CONFIG}: ${CURDIR}/src/dpdk/override/defconfig | ${DPDK}
 
 # WARNING we currently disable thread local storage (-D__thread=) since there is no support
 # for it when running lkl. In particular this affects rte_errno and makes it thread-unsafe.
-dpdk-${1} ${DPDK_BUILD}/lib/libdpdk.a: ${DPDK_CONFIG} | ${DPDK_CC} ${DPDK}/.git
+dpdk-${1} ${DPDK_BUILD}/.build: ${DPDK_CONFIG} | ${DPDK_CC} ${DPDK}/.git
 	+make -j`tools/ncore.sh` -C ${DPDK_BUILD} WERROR_FLAGS= CC=${DPDK_CC} RTE_SDK=${DPDK} V=1 \
 		EXTRA_CFLAGS="-Wno-error -lc ${DPDK_EXTRA_CFLAGS} -UDEBUG" \
 		|| test ${DPDK_BEAR_HACK} == "yes"
+	touch ${DPDK_BUILD}/.build
 
 spdk-source-${1} ${SPDK_BUILD}/mk: | ${SPDK}/.git
 	rsync -a ${CURDIR}/spdk/ ${SPDK_BUILD}/
@@ -103,7 +104,7 @@ load-dpdk-driver: ${DPDK_BUILD_NATIVE}/kmod/igb_uio.ko ${DPDK_BUILD_NATIVE}/kmod
 	insmod ${DPDK_BUILD_NATIVE}/kmod/igb_uio.ko
 
 # LKL's static library and include/ header directory
-lkl ${LIBLKL}: ${DPDK_BUILD_SGX}/lib/libdpdk.a ${HOST_MUSL_CC} | ${LKL}/.git ${LKL_BUILD} src/lkl/override/defconfig
+lkl ${LIBLKL}: ${DPDK_BUILD_SGX}/.build ${HOST_MUSL_CC} | ${LKL}/.git ${LKL_BUILD} src/lkl/override/defconfig
 	# Override lkl's defconfig with our own
 	cp -Rv src/lkl/override/defconfig ${LKL}/arch/lkl/defconfig
 	cp -Rv src/lkl/override/include/uapi/asm-generic/stat.h ${LKL}/include/uapi/asm-generic/stat.h
@@ -163,13 +164,13 @@ DPDK_SGX_LDFLAGS = "-L$(DPDK_BUILD_SGX)/lib $(DPDK_LIBS) ${BUILD_DIR}/dpdk_init_
 DPDK_NATIVE_CFLAGS = "${DPDK_COMMON_CFLAGS} -I${DPDK_BUILD_NATIVE}/include"
 DPDK_NATIVE_LDFLAGS = "-L$(DPDK_BUILD_NATIVE)/lib $(DPDK_LIBS)"
 
-${BUILD_DIR}/dpdk_init_array.c: ${DPDK_BUILD_SGX}/lib/libdpdk.a
+${BUILD_DIR}/dpdk_init_array.c: ${DPDK_BUILD_SGX}/.build
 	./tools/gen_dpdk_init_array.py $@ tools/sgx-lkl.ld ${DPDK_NATIVE_LDFLAGS}
 
 ${BUILD_DIR}/dpdk_init_array.o: ${BUILD_DIR}/dpdk_init_array.c
 	${HOST_MUSL_CC} -fPIC -c -o $@ $<
 
-sgx-lkl-musl: ${LIBLKL} ${LKL_SGXMUSL_HEADERS} sgx-lkl-musl-config sgx-lkl $(ENCLAVE_DEBUG_KEY) ${BUILD_DIR}/dpdk_init_array.o ${DPDK_BUILD_SGX}/lib/libdpdk.a | ${SGX_LKL_MUSL_BUILD}
+sgx-lkl-musl: ${LIBLKL} ${LKL_SGXMUSL_HEADERS} sgx-lkl-musl-config sgx-lkl $(ENCLAVE_DEBUG_KEY) ${BUILD_DIR}/dpdk_init_array.o ${DPDK_BUILD_SGX}/.build | ${SGX_LKL_MUSL_BUILD}
 	+${MAKE} -C ${SGX_LKL_MUSL} CFLAGS="$(MUSL_CFLAGS)" \
     DPDK_SGX_CFLAGS=$(DPDK_SGX_CFLAGS) \
     DPDK_SGX_LDFLAGS=$(DPDK_SGX_LDFLAGS)
@@ -183,7 +184,7 @@ sgx-lkl-sign: $(BUILD_DIR)/libsgxlkl.so $(ENCLAVE_DEBUG_KEY)
 
 # compile sgx-lkl sources
 
-sgx-lkl: sgx-lkl-musl-config ${DPDK_BUILD_NATIVE}/lib/libdpdk.a ${DPDK_BUILD_SGX}/lib/libdpdk.a
+sgx-lkl: sgx-lkl-musl-config ${DPDK_BUILD_NATIVE}/.build ${DPDK_BUILD_SGX}/.build
 	make -C src all HW_MODE=$(HW_MODE) LIB_SGX_LKL_BUILD_DIR="$(BUILD_DIR)" \
     DPDK_SGX_CFLAGS=$(DPDK_SGX_CFLAGS) \
     DPDK_SGX_LDFLAGS=$(DPDK_SGX_LDFLAGS) \
