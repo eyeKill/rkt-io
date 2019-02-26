@@ -36,23 +36,37 @@ host-musl ${HOST_MUSL_CC}: | ${HOST_MUSL}/.git ${HOST_MUSL_BUILD}
 		sed -i -e 's!-nostdinc!-nostdinc -fno-omit-frame-pointer!' ${HOST_MUSL_BUILD}/lib/musl-gcc.specs
 
 define dpdk_build
-dpdk-config-$(1) ${DPDK_CONFIG}: ${CURDIR}/src/dpdk/override/defconfig
-	make -j1 -C ${DPDK} RTE_SDK=${DPDK} T=${RTE_TARGET} O=${DPDK_BUILD} config
+dpdk-config-${1} ${DPDK_CONFIG}: ${CURDIR}/src/dpdk/override/defconfig | ${DPDK}/.git
+	make -j1 -C ${DPDK} RTE_SDK=${DPDK} T=x86_64-native-linuxapp-gcc O=${DPDK_BUILD} config
 	cat ${DPDK_BUILD}/.config.orig ${CURDIR}/src/dpdk/override/defconfig > ${DPDK_BUILD}/.config
 	if [[ "$(DEBUG)" = "true" ]]; then echo 'CONFIG_RTE_LOG_DP_LEVEL=RTE_LOG_DEBUG' >> ${DPDK_BUILD}/.config; fi
 
 # WARNING we currently disable thread local storage (-D__thread=) since there is no support
 # for it when running lkl. In particular this affects rte_errno and makes it thread-unsafe.
-dpdk-$(1) ${DPDK_BUILD}/lib/libdpdk.a: ${DPDK_CONFIG} | ${DPDK_CC} ${DPDK}/.git ${RTE_SDK}
+dpdk-${1} ${DPDK_BUILD}/lib/libdpdk.a: ${DPDK_CONFIG} | ${DPDK_CC} ${DPDK}/.git
 	+make -j`tools/ncore.sh` -C ${DPDK_BUILD} WERROR_FLAGS= CC=${DPDK_CC} RTE_SDK=${DPDK} V=1 \
 		EXTRA_CFLAGS="-Wno-error -lc ${DPDK_EXTRA_CFLAGS} -UDEBUG" \
 		|| test ${DPDK_BEAR_HACK} == "yes"
+
+spdk-source-${1} ${SPDK_BUILD}/mk: | ${SPDK}/.git
+	rsync -a ${CURDIR}/spdk/ ${SPDK_BUILD}/
+
+spdk-config-${1} ${SPDK_CONFIG}: ${CURDIR}/src/spdk/override/config.mk | ${SPDK_BUILD}/mk
+	cp $< $@
+	echo 'CONFIG_DPDK_DIR=$(DPDK_BUILD)' >> $@
+
+spdk-cflags-${1} ${SPDK_BUILD}/mk/cc.flags.mk: | ${DPDK_CC} ${SPDK_BUILD}/mk
+	echo CFLAGS="-I${DPDK_BUILD}/include -msse4.1" > ${SPDK_BUILD}/mk/cc.flags.mk
+	echo LDFLAGS="-L${DPDK_BUILD}/lib" > ${SPDK_BUILD}/mk/cc.flags.mk
+
+spdk-${1}: ${DPDK_BUILD}/lib/libdpdk.a spdk-source-$(1) ${SPDK_CONFIG} ${SPDK_BUILD}/mk/cc.flags.mk | ${DPDK_CC}
+	make -C ${SPDK_BUILD} CC=${DPDK_CC}
 endef
 
-RTE_TARGET = x86_64-native-linuxapp-gcc
 # when compiling with BEAR the build seems to fail at some point also the overall build is still fine
 DPDK_BEAR_HACK ?= no
 
+SPDK_BUILD := ${SPDK_BUILD_NATIVE}
 DPDK_BUILD := ${DPDK_BUILD_NATIVE}
 DPDK_CONFIG = ${DPDK_BUILD}/.config
 DPDK_CC := ${CC}
@@ -63,6 +77,7 @@ $(CC):
 	:
 $(eval $(call dpdk_build,native))
 
+SPDK_BUILD := ${SPDK_BUILD_SGX}
 DPDK_BUILD := ${DPDK_BUILD_SGX}
 DPDK_CONFIG = ${DPDK_BUILD}/.config
 DPDK_CC := ${HOST_MUSL_CC}
@@ -186,7 +201,7 @@ ${BUILD_DIR} ${TOOLS_BUILD} ${LKL_BUILD} ${HOST_MUSL_BUILD} ${SGX_LKL_MUSL_BUILD
 	@mkdir -p $@
 
 # Submodule initialisation (one-shot after git clone)
-${HOST_MUSL}/.git ${LKL}/.git ${SGX_LKL_MUSL}/.git ${DPDK}/.git:
+${HOST_MUSL}/.git ${LKL}/.git ${SGX_LKL_MUSL}/.git ${DPDK}/.git ${SPDK}/.git:
 	[ "$(FORCE_SUBMODULES_VERSION)" = "true" ] || git submodule update --init $($@:.git=)
 
 compdb:
