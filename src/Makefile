@@ -47,7 +47,7 @@ CFLAGS_MUSL_ALL = $(CFLAGS_C99FSE) $(CFLAGS_AUTO) $(CFLAGS_SGX) $(MUSL_CFLAGS)
 CFLAGS_MUSL_ALL += -D_XOPEN_SOURCE=700
 CFLAGS_MUSL_ALL += -I$(SGX_LKL_MUSL)/src/internal -I$(SGX_LKL_MUSL_BUILD)/include -I$(SGX_LKL_MUSL)/arch/$(ARCH)
 
-all: builddirs $(LIB_SGX_LKL_BUILD)/libsgx/libsgx.a $(LIB_SGX_LKL_BUILD)/sgxlkl/libsgxlkl.a $(LIB_SGX_LKL_BUILD)/sgx-lkl-sign $(LIB_SGX_LKL_BUILD)/sgx-lkl-run $(LIB_SGX_LKL_BUILD)/dpdk-setuid-helper $(LIB_SGX_LKL_BUILD)/dpdk-fix-permissions
+all: builddirs $(LIB_SGX_LKL_BUILD)/libsgx/libsgx.a $(LIB_SGX_LKL_BUILD)/sgxlkl/libsgxlkl.a $(LIB_SGX_LKL_BUILD)/sgx-lkl-sign $(LIB_SGX_LKL_BUILD)/sgx-lkl-run $(LIB_SGX_LKL_BUILD)/sgx-lkl-userpci $(LIB_SGX_LKL_BUILD)/spdk-fix-permissions
 
 builddirs:
 	mkdir -p $(LIB_SGX_LKL_BUILD)/libsgx
@@ -88,33 +88,35 @@ $(LIB_SGX_LKL_BUILD)/sgx_sign/%.o: sgx_sign/%.c
 $(LIB_SGX_LKL_BUILD)/sgx-lkl-sign: $(addprefix $(LIB_SGX_LKL_BUILD)/sgx_sign/,$(SIGN_OBJS)) $(LIB_SGX_LKL_BUILD)/libsgx/libsgx.a
 	$(CC) $(CFLAGS_SGX)  --std=gnu11 -fno-pie -no-pie -Ilibsgx/include $^ -o $@
 
-# sgx-lkl-run ----
+# sgx-lkl-userpci ----
 
-DPDK_SETUID_HELPER_SRCS=$(wildcard dpdk-setuid-helper/*.c)
-DPDK_SETUID_HELPER_OBJS=$(addprefix $(LIB_SGX_LKL_BUILD)/dpdk-setuid-helper.d/,$(DPDK_SETUID_HELPER_SRCS:.c=.o))
+SGX_LKL_USERPCI_SRCS=$(wildcard sgx-lkl-userpci/*.c)
+SGX_LKL_USERPCI_OBJS=$(addprefix $(LIB_SGX_LKL_BUILD)/sgx-lkl-userpci.d/,$(SGX_LKL_USERPCI_SRCS:.c=.o))
 
-$(DPDK_SETUID_HELPER_OBJS): $(LIB_SGX_LKL_BUILD)/dpdk-setuid-helper.d/%.o: %.c
+$(SGX_LKL_USERPCI_OBJS): $(LIB_SGX_LKL_BUILD)/sgx-lkl-userpci.d/%.o: %.c
 	mkdir -p $(dir $@)
-	$(CC) $(DPDK_NATIVE_CFLAGS) -g -c -o $@ $<
+	$(CC) $(SPDK_NATIVE_CFLAGS) -g -c -o $@ $<
 
-$(LIB_SGX_LKL_BUILD)/dpdk-setuid-helper-pre: $(DPDK_SETUID_HELPER_OBJS)
-	$(CC) $(CFLAGS_SGX) $(DPDK_NATIVE_LDFLAGS) -pthread -ldl -lrt $^ -o $@
+$(LIB_SGX_LKL_BUILD)/sgx-lkl-userpci-pre: $(SGX_LKL_USERPCI_OBJS)
+	$(CC) $(CFLAGS_SGX) $(SPDK_NATIVE_LDFLAGS) -pthread -ldl -lrt $^ -o $@
 
-$(LIB_SGX_LKL_BUILD)/dpdk-fix-permissions.sh: dpdk-setuid-helper/dpdk-fix-permissions
+$(LIB_SGX_LKL_BUILD)/spdk-fix-permissions.sh: sgx-lkl-userpci/spdk-fix-permissions
 	install -m755 $^ $@
 
-$(LIB_SGX_LKL_BUILD)/dpdk-setuid-helper: $(LIB_SGX_LKL_BUILD)/dpdk-setuid-helper-pre
-	sudo install -m4755 $^ $@
+$(LIB_SGX_LKL_BUILD)/sgx-lkl-userpci: $(LIB_SGX_LKL_BUILD)/sgx-lkl-userpci-pre
+	sudo install -m4755 $^ $@ || install -m755 $^ $@
+
+# sgx-lkl-run ----
 
 $(LIB_SGX_LKL_BUILD)/sgx-lkl-run: $(LIB_SGX_LKL_BUILD)/main/main.a $(LIB_SGX_LKL_BUILD)/libsgx/libsgx.a builddirs
-	$(CC) $(CFLAGS_SGX) $(LIB_SGX_LKL_BUILD)/main/main.a -o $@  $(LIB_SGX_LKL_BUILD)/libsgx/libsgx.a $(DPDK_NATIVE_LDFLAGS) -pthread -ldl -lrt -Wl,-T $(sgxlkl_toolsdir)/sgx-lkl.ld
+	$(CC) $(CFLAGS_SGX) $(LIB_SGX_LKL_BUILD)/main/main.a -o $@  $(LIB_SGX_LKL_BUILD)/libsgx/libsgx.a $(SPDK_NATIVE_LDFLAGS) -pthread -ldl -lrt -Wl,-T $(sgxlkl_toolsdir)/sgx-lkl.ld
 
 MAIN_SRCS=$(wildcard main/*.c) $(wildcard shared/*.c)
 MAIN_OBJS=$(addprefix $(LIB_SGX_LKL_BUILD)/main/,$(MAIN_SRCS:.c=.o))
 
 $(MAIN_OBJS): $(LIB_SGX_LKL_BUILD)/main/%.o: %.c
 	mkdir -p $(dir $@)
-	$(CC) -I${LKL_BUILD}/include/ -I$(srcdir)/include -I$(srcdir)/main/include $(CFLAGS_SGX) $(DPDK_NATIVE_CFLAGS) -c -o $@ $<
+	$(CC) -I${LKL_BUILD}/include/ -I$(srcdir)/include -I$(srcdir)/main/include $(CFLAGS_SGX) $(SPDK_NATIVE_CFLAGS) -c -o $@ $<
 
 $(LIB_SGX_LKL_BUILD)/main/main.a: $(MAIN_OBJS) builddirs
 	$(AR) rc $@ $(MAIN_OBJS)
@@ -127,7 +129,7 @@ SGXLKL_OBJS=$(addprefix $(LIB_SGX_LKL_BUILD)/sgxlkl/,$(SGXLKL_SRCS:.c=.o))
 
 $(SGXLKL_OBJS): $(LIB_SGX_LKL_BUILD)/sgxlkl/%.o: %.c $(SGX_LKL_MUSL_BUILD)/include
 	mkdir -p $(dir $@)
-	$(CC) -I$(srcdir)/include $(CFLAGS_MUSL_ALL) $(DPDK_SGX_CFLAGS) -c -o $@ $<
+	$(CC) -I$(srcdir)/include $(CFLAGS_MUSL_ALL) $(SPDK_SGX_CFLAGS) -c -o $@ $<
 
 $(LIB_SGX_LKL_BUILD)/sgxlkl/libsgxlkl.a: $(SGXLKL_OBJS) builddirs
 	$(AR) rc $@ $(SGXLKL_OBJS)

@@ -49,6 +49,7 @@ def get_link_order(linker_script: str, linker_flags: List[str]):
             linker_script,
             "-fPIC",
             "-ldl",
+            "-lrt",
             "-pthread",
             "-o",
             "main",
