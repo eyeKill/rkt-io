@@ -3,14 +3,10 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <stdlib.h>
 
 #include "dpdk.h"
-
-static const int DEBUG_DPDK = 1;
-
-static char *ealargs[5] = {
-    "lkl_vif_dpdk", "-c 1", "-n 1", "--log-level=0", "--proc-type=primary",
-};
+#include "spdk.h"
 
 int main(int argc, char** argv)
 {
@@ -21,21 +17,17 @@ int main(int argc, char** argv)
     int pipe_fd = atoi(argv[1]);
     int uid = atoi(argv[2]);
     int port_num = atoi(argv[3]);
+    int exitcode = 0;
 
-    if (DEBUG_DPDK)
-        ealargs[3] = "--log-level=debug";
-
-    int ret = rte_eal_init(sizeof(ealargs) / sizeof(ealargs[0]),
-                       ealargs);
-	if (ret < 0) {
-        fprintf(stderr, "dpdk: failed to initialize eal: %s\n", strerror(ret));
-        return 1;
-    }
+    struct lkl_spdk_context ctx = {};
+    if (lkl_spdk_initialize(&ctx, true) < 0) {
+        goto error;
+    };
 
     for (int portid = 0; portid < port_num; portid++) {
         int r = setup_iface(portid);
         if (r < 0) {
-            return 1;
+            goto error;
         }
     }
 
@@ -43,10 +35,10 @@ int main(int argc, char** argv)
     size_t needed = snprintf(NULL, 0, cmd_tmpl, uid) + 1;
     char *cmd = malloc(needed);
     if (!cmd) {
-        fprintf(stderr, "dpdk: out of memory");
-        return 1;
+        fprintf(stderr, "%s: out of memory", argv[0]);
+        goto error;
     }
-    snprintf(cmd, needed, cmd_tmpl, uid) + 1;
+    snprintf(cmd, needed, cmd_tmpl, uid);
 
     #warning "Rewrite this in C for production code!. Call bash scripts from setuid is insecure for a reason"
     setuid(0);
@@ -54,12 +46,19 @@ int main(int argc, char** argv)
     free(cmd);
 
     if (r != 0) {
-        fprintf(stderr, "dpdk: failed to chown dpdk files: %d\n", r);
-        return 1;
+        fprintf(stderr, "%s: failed to chown dpdk files: %d\n", argv[0], r);
+        goto error;
     }
 
     // child will eventually close this
     char byte;
     read(pipe_fd, &byte, 1);
-    fprintf(stderr, "dpdk: stop setuid-helper\n");
+    goto cleanup;
+
+error:
+    exitcode = 1;
+cleanup:
+    lkl_spdk_cleanup(&ctx);
+    fprintf(stderr, "%s: stop setuid-helper\n", argv[0]);
+    return exitcode;
 }

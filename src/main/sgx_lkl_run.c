@@ -21,6 +21,7 @@
 #include <elf.h>
 #include <signal.h>
 #include <assert.h>
+#include <stdbool.h>
 #include <sys/auxv.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
@@ -39,6 +40,8 @@
 #include "ring_buff.h"
 #include "sgxlkl_util.h"
 #include "dpdk.h"
+#include "spdk.h"
+#include "userpci.h"
 
 #include "lkl/linux/virtio_net.h"
 
@@ -110,7 +113,8 @@ static int __state_exiting = 0;
 static struct enclave_disk_config *encl_disks = 0;
 static size_t encl_disk_cnt = 0;
 
-static uid_t dpdk_setuid_helper_pipe = 0;
+static int userpci_pipe = 0;
+struct lkl_spdk_context spdk_context = {};
 
 static pthread_spinlock_t __stdout_print_lock = {0};
 static pthread_spinlock_t __stderr_print_lock = {0};
@@ -531,7 +535,16 @@ static void register_net(enclave_config_t* encl, const char* tapstr, const char*
     encl->net_mask4 = mask4;
 }
 
-void register_dpdk(enclave_config_t *encl, pid_t *dpdk_setuid_helper_pipe, const char *ip4str, const char *mask4str, const char *gw4str, const char *mtustr) {
+void register_dpdk(enclave_config_t *encl,
+                   int *userpci_pipe,
+                   struct lkl_spdk_context *ctx,
+                   const char *ip4str,
+                   const char *mask4str,
+                   const char *gw4str,
+                   const char *mtustr)
+{
+    assert(ctx);
+
     // Read IPv4 addr if there is one
     if (ip4str == NULL)
         ip4str = DEFAULT_DPDK_IPV4_ADDR;
@@ -555,7 +568,7 @@ void register_dpdk(enclave_config_t *encl, pid_t *dpdk_setuid_helper_pipe, const
 
     int mtu = 0;
     if (mtustr) {
-        mtu = atoi(mtu);
+        mtu = atoi(mtustr);
         if (mtu < 1) {
             sgxlkl_fail("Invalid mtu %s\n", mtustr);
         }
@@ -564,10 +577,16 @@ void register_dpdk(enclave_config_t *encl, pid_t *dpdk_setuid_helper_pipe, const
     encl->num_dpdk_ifaces = 1;
     encl->dpdk_ifaces = (struct enclave_dpdk_config *)malloc(
         sizeof(struct enclave_dpdk_config) * encl->num_dpdk_ifaces);
-    int r = spawn_dpdk_helper(dpdk_setuid_helper_pipe);
+    int r = spawn_lkl_userpci(userpci_pipe);
     if (r < 0) {
-        sgxlkl_fail("dpdk-setuid-helper failed: %s\n", strerror(-r));
+        sgxlkl_fail("sgx-lkl-userpci failed: %s\n", strerror(-r));
     };
+
+    r = lkl_spdk_initialize(ctx, false);
+    if (r < 0) {
+        sgxlkl_fail("spdk: failed to initialize eal: %s\n", strerror(-r));
+    }
+
     // TODO add support for multiple interfaces
     r = dpdk_initialize_iface(encl, "dpdk0");
     if (r < 0) {
@@ -1025,8 +1044,8 @@ static void sgxlkl_cleanup(void) {
     while (encl_disk_cnt) {
         close(encl_disks[--encl_disk_cnt].fd);
     }
-    if (dpdk_setuid_helper_pipe) {
-        close(dpdk_setuid_helper_pipe);
+    if (userpci_pipe) {
+        close(userpci_pipe);
     }
 }
 
@@ -1134,8 +1153,10 @@ int main(int argc, char *argv[], char *envp[]) {
     set_tls(&encl);
     register_hds(&encl, root_hd);
     register_net(&encl, getenv("SGXLKL_TAP"), getenv("SGXLKL_IP4"), getenv("SGXLKL_MASK4"), getenv("SGXLKL_GW4"), getenv("SGXLKL_HOSTNAME"));
+
     register_dpdk(&encl,
-                  &dpdk_setuid_helper_pipe,
+                  &userpci_pipe,
+                  &spdk_context,
                   getenv("SGXLKL_DPDK_IP4"),
                   getenv("SGXLKL_DPDK_MASK4"),
                   getenv("SGXLKL_DPDK_GW4"),

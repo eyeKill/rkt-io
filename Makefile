@@ -195,10 +195,10 @@ SPDK_LIBS += -luuid
 # -nostdinc does vanish both libc headers and gcc intriniscs,
 # we only want get rid-off libc headers
 GCC_HEADERS = $(shell CPP='${CPP}' ./tools/find-gcc-headers.sh)
-SPDK_SGX_CFLAGS = -msse4.1 -I${DPDK_BUILD_SGX}/include -I${SPDK_BUILD_SGX}/include -I${LIBUUID_SGX}/include -I${GCC_HEADERS}
-SPDK_SGX_LDFLAGS = -L${DPDK_BUILD_SGX}/lib -L${SPDK_BUILD_SGX}/build/lib -L${LIBUUID} \
+SPDK_SGX_CFLAGS = -msse4.1 -I${DPDK_BUILD_SGX}/include -I${SPDK_BUILD_SGX}/include -I${LIBUUID_BUILD_SGX}/include -I${GCC_HEADERS}
+SPDK_SGX_LDFLAGS = -L${DPDK_BUILD_SGX}/lib -L${SPDK_BUILD_SGX}/build/lib -L${LIBUUID_BUILD_SGX}/lib \
 	${SPDK_LIBS} ${BUILD_DIR}/init_array.o
-SPDK_NATIVE_CFLAGS = -msse4.1 -I${DPDK_BUILD_NATIVE}/include -I${SPDK_BUILD_NATIVE}/include -I${LIBUUID_NATIVE}/include
+SPDK_NATIVE_CFLAGS = -msse4.1 -I${DPDK_BUILD_NATIVE}/include -I${SPDK_BUILD_NATIVE}/include -I${LIBUUID_BUILD_NATIVE}/include
 SPDK_NATIVE_LDFLAGS = -L${DPDK_BUILD_NATIVE}/lib -L${SPDK_BUILD_NATIVE}/build/lib -L${LIBUUID_BUILD_NATIVE}/lib \
 	${SPDK_LIBS}
 
