@@ -47,6 +47,8 @@ if [[ ! -z "\$SGX_LKL_RUN" ]]; then
         echo "Warning: \$SGX_LKL_RUN not compiled with DEBUG=true. Debug symbols might be missing."
     fi
 fi
+export GDB_TCS_PATH=\$(mktemp)
+trap "[ -f \$GDB_TCS_PATH ] && rm -f \$GDB_TCS_PATH" EXIT INT TERM
 export PYTHONPATH=\$GDB_SGX_PLUGIN_PATH
 LD_PRELOAD=\$SGX_LIBRARY_PATH/libsgx_ptrace.so \$GDB -iex "directory \$GDB_SGX_PLUGIN_PATH" -iex "source \$GDB_SGX_PLUGIN_PATH/gdb_sgx_plugin.py" -iex "set environment LD_PRELOAD" -iex "add-auto-load-safe-path /usr/lib" -iex "source \$GDB_PLUGIN" "\$@"
 EOF
