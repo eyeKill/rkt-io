@@ -384,6 +384,59 @@ class LogSyscallTids(gdb.Command):
 
         return slot_syscallnos
 
+
+stacktrace_regex = re.compile(r"\[[0-9. ]+\]\s+[0-9a-f]+:\s+\[<([0-9a-f]+)>\]")
+info_line = re.compile(r'Line (\d+) of "([^"]+)" starts at address 0x[0-9a-f]+ <([^>]+)>')
+
+
+class BtLkl(gdb.Command):
+    """
+        Recovers backtrace via lkl's dump_stack function
+    """
+    def __init__(self):
+        super(BtLkl, self).__init__("bt-lkl", gdb.COMMAND_USER)
+
+    def parse_stack_trace(self):
+        """
+        Screen scrape lkl's output and get the line of every entry
+        """
+        out = subprocess.check_output(["tmux", "capture-pane", "-pS", "-1000"])
+        frames = []
+        found_call_trace = False
+        for line in out.decode("utf-8").split("\n"):
+            line = line.rstrip()
+            if "Call Trace:" in line:
+                found_call_trace = True
+                frames = []
+                continue
+            if found_call_trace:
+                match = stacktrace_regex.match(line)
+                if not match:
+                    found_call_trace = False
+                    continue
+                frames.append(int(match.group(1), 16))
+        return frames
+
+    def invoke(self, arg, from_tty):
+        if os.environ.get("SGXLKL_VERBOSE", None) != "1":
+            gdb.write("Environment variable SGXLKL_VERBOSE=1 is not set!\n")
+            return
+        gdb.execute('call dump_stack()')
+        frames = self.parse_stack_trace()
+        for i, frame in enumerate(frames):
+             line = gdb.execute('info line *0x%x' % frame, to_string=True)
+             match = info_line.match(line)
+             if match:
+                 symbol_offset = match.group(3)
+                 filename = match.group(2)
+                 line = match.group(1)
+                 gdb.write("[%3d] %50s in %s:%s\n" % (i, symbol_offset, filename, line))
+             else:
+                 # better safe then sorry
+                 gdb.write("[%3d] %s\n" %(i, line))
+        gdb.flush()
+
+
 if __name__ == '__main__':
     StarterExecBreakpoint()
     LthreadBacktrace()
@@ -393,3 +446,4 @@ if __name__ == '__main__':
     LogSchedQueueTids()
     LogSyscallBacktraces()
     LogSyscallTids()
+    BtLkl()
