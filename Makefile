@@ -71,7 +71,7 @@ libuuid-configure-${1} ${LIBUUID_BUILD}/.configured: ${LIBUUID}/.autoreconf
 	touch ${LIBUUID_BUILD}/.configured
 
 libuuid-${1} ${LIBUUID_BUILD}/.build: ${LIBUUID_BUILD}/.configured
-	make -C ${LIBUUID_BUILD} CC=${DPDK_CC} install-am
+	make -C ${LIBUUID_BUILD} -j`tools/ncore.sh` CC=${DPDK_CC} install-am
 	touch ${LIBUUID_BUILD}/.build
 
 spdk-source-${1} ${SPDK_BUILD}/mk: | ${SPDK}/.git
