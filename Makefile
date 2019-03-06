@@ -55,7 +55,7 @@ libuuid-autoreconf-${1} ${LIBUUID}/.autoreconf: ${LIBUUID}/configure.ac | ${LIBU
 
 libuuid-configure-${1} ${LIBUUID_BUILD}/.configured: ${LIBUUID}/.autoreconf
 	mkdir -p ${LIBUUID_BUILD}
-	cd ${LIBUUID_BUILD} && CC="${DPDK_CC}" ${LIBUUID}/configure \
+	cd ${LIBUUID_BUILD} && CFLAGS="-fPIC" CC="${DPDK_CC}" ${LIBUUID}/configure \
 		--disable-all-programs \
 		--enable-libuuid \
 		--disable-libblkid \
