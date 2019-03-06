@@ -1,4 +1,5 @@
 #include <stdbool.h>
+#include <pthread.h>
 
 struct lkl_spdk_ctrlr_entry {
 	struct spdk_nvme_ctrlr	*ctrlr;
@@ -15,6 +16,8 @@ struct lkl_spdk_ns_entry {
 struct lkl_spdk_context {
     struct lkl_spdk_ctrlr_entry *controllers;
     struct lkl_spdk_ns_entry *namespaces;
+    int attach_error;
+    pthread_t ctrlr_thread_id;
 };
 
 int lkl_spdk_initialize(struct lkl_spdk_context* ctx, bool primary);

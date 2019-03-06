@@ -6,7 +6,7 @@
 #include <stdlib.h>
 
 #include "dpdk.h"
-#include "spdk.h"
+#include "lkl_spdk.h"
 
 int main(int argc, char** argv)
 {
