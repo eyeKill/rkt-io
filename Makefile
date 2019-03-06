@@ -82,7 +82,7 @@ spdk-config-${1} ${SPDK_CONFIG}: ${CURDIR}/src/spdk/override/config.mk | ${SPDK_
 	echo 'CONFIG_DPDK_DIR=$(DPDK_BUILD)' >> ${SPDK_CONFIG}
 
 spdk-cflags-${1} ${SPDK_BUILD}/mk/cc.flags.mk: | ${DPDK_CC} ${SPDK_BUILD}/mk
-	echo CFLAGS="-I${DPDK_BUILD}/include -msse4.1" > ${SPDK_BUILD}/mk/cc.flags.mk
+	echo CFLAGS="-I${DPDK_BUILD}/include -msse4.2" > ${SPDK_BUILD}/mk/cc.flags.mk
 	echo LDFLAGS="-L${DPDK_BUILD}/lib" >> ${SPDK_BUILD}/mk/cc.flags.mk
 
 spdk-${1} ${SPDK_BUILD}/.build: ${LIBUUID_BUILD}/.build ${DPDK_BUILD}/.build spdk-source-$(1) ${SPDK_CONFIG} ${SPDK_BUILD}/mk/cc.flags.mk | ${DPDK_CC}
@@ -195,10 +195,10 @@ SPDK_LIBS += -luuid
 # -nostdinc does vanish both libc headers and gcc intriniscs,
 # we only want get rid-off libc headers
 GCC_HEADERS = $(shell CPP='${CPP}' ./tools/find-gcc-headers.sh)
-SPDK_SGX_CFLAGS = -msse4.1 -I${DPDK_BUILD_SGX}/include -I${SPDK_BUILD_SGX}/include -I${LIBUUID_BUILD_SGX}/include -I${GCC_HEADERS}
+SPDK_SGX_CFLAGS = -msse4.2 -I${DPDK_BUILD_SGX}/include -I${SPDK_BUILD_SGX}/include -I${LIBUUID_BUILD_SGX}/include -I${GCC_HEADERS}
 SPDK_SGX_LDFLAGS = -L${DPDK_BUILD_SGX}/lib -L${SPDK_BUILD_SGX}/build/lib -L${LIBUUID_BUILD_SGX}/lib \
 	${SPDK_LIBS} ${BUILD_DIR}/init_array.o
-SPDK_NATIVE_CFLAGS = -msse4.1 -I${DPDK_BUILD_NATIVE}/include -I${SPDK_BUILD_NATIVE}/include -I${LIBUUID_BUILD_NATIVE}/include
+SPDK_NATIVE_CFLAGS = -msse4.2 -I${DPDK_BUILD_NATIVE}/include -I${SPDK_BUILD_NATIVE}/include -I${LIBUUID_BUILD_NATIVE}/include
 SPDK_NATIVE_LDFLAGS = -L${DPDK_BUILD_NATIVE}/lib -L${SPDK_BUILD_NATIVE}/build/lib -L${LIBUUID_BUILD_NATIVE}/lib \
 	${SPDK_LIBS}
 
