@@ -15,12 +15,14 @@
 
 #include "lkl/disk.h"
 #include "lkl/dpdk.h"
+#include "lkl/spdk.h"
 #include "lkl/posix-host.h"
 #include "lkl/setup.h"
 #include "lkl/virtio_net.h"
 #include "enclave_config.h"
 #include "sgxlkl_debug.h"
 #include "sgxlkl_util.h"
+#include "spdk_context.h"
 
 #ifndef NO_CRYPTSETUP
 #include "libcryptsetup.h"
@@ -46,6 +48,9 @@ extern struct timespec sgxlkl_app_starttime;
 
 static size_t num_disks = 0;
 static struct enclave_disk_config *disks;
+static struct spdk_context *spdk_context;
+static size_t num_spdk_devs = 0;
+static struct spdk_dev *spdk_devs;
 
 #ifndef NO_CRYPTSETUP
 static const char* lkl_encryption_key = "FOO";
@@ -57,6 +62,7 @@ static void lkl_prestart_disks(struct enclave_disk_config *disks, size_t num_dis
         /* Set ops to NULL to use platform default ops */
 		struct lkl_disk lkl_disk;
 		lkl_disk.ops = NULL;
+		lkl_disk.blk_ops = NULL;
 		lkl_disk.fd = disks[i].fd;
 		int disk_dev_id = lkl_disk_add(&lkl_disk);
 		if (disk_dev_id < 0) {
@@ -577,6 +583,53 @@ static void lkl_poststart_root_disk(struct enclave_disk_config *disk)
 	lkl_mknods();
 }
 
+static void lkl_start_spdk(enclave_config_t *encl) {
+	struct spdk_context *ctx = encl->spdk_context;
+	int rc = sgxlkl_spdk_initialize();
+	if (rc < 0) {
+		fprintf(stderr, "Error: unable to initialize spdk, %s\n",
+				strerror(-rc));
+		exit(rc);
+	}
+
+	for (struct spdk_ns_entry *ns_entry = ctx->namespaces; ns_entry; ns_entry = ns_entry->next) {
+		num_spdk_devs++;
+	}
+	spdk_devs = (struct spdk_dev*) calloc(num_spdk_devs, sizeof(struct spdk_dev));
+	if (!spdk_devs) {
+		fprintf(stderr, "Error: unable to allocate memory spdk devices\n");
+		exit(1);
+	}
+
+	size_t idx = 0;
+	for (struct spdk_ns_entry *ns_entry = ctx->namespaces; ns_entry; ns_entry = ns_entry->next) {
+		struct spdk_dev *dev = &spdk_devs[idx];
+		memcpy(&dev->ns_entry, ns_entry, sizeof(struct spdk_ns_entry));
+		fprintf(stderr, "%s() at %s:%d\n", __func__, __FILE__, __LINE__);
+		rc = sgxlkl_register_spdk_device(dev);
+		if (rc < 0) {
+			fprintf(stderr, "Error: unable to allocate memory spdk devices\n");
+			exit(1);
+		}
+		idx++;
+	}
+
+	//snprintf(dev_path, dev_path_len, "/dev/vd%c", 'a' + i);
+	int err = lkl_mount_blockdev("/dev/vdb", "/mnt/vdb", "ext4", LKL_MS_RDONLY, NULL);
+	if (err < 0) {
+		fprintf(stderr, "Error: lkl_mount_blockdev()=%s (%d)\n", lkl_strerror(err), err);
+		exit(err);
+	}
+}
+
+static void lkl_stop_spdk() {
+	for (size_t i = 0; i < num_spdk_devs; i++) {
+		sgxlkl_unregister_spdk_device(&spdk_devs[i]);
+	}
+	free(spdk_devs);
+}
+
+
 static void lkl_poststart_disks(struct enclave_disk_config* disks, size_t num_disks)
 {
 	lkl_poststart_root_disk(&disks[0]);
@@ -750,6 +803,9 @@ void __lkl_start_init(enclave_config_t* encl)
 	if (!sgxlkl_use_host_network)
 		lkl_poststart_dpdk(encl);
 
+	lkl_start_spdk(encl);
+	spdk_context = encl->spdk_context;
+
 	// Set interface status/IP/routes
 	//if (!sgxlkl_use_host_network)
 	//	lkl_poststart_net(encl, net_dev_id);
@@ -808,6 +864,9 @@ void __lkl_exit()
 			fprintf(stderr, "Error: Could not remove mount point %s\n", disks[i].mnt, lkl_strerror(res));
 		}
 	}
+
+	//lkl_stop_spdk();
+	//spdk_context_detach(spdk_context);
 
 	res = lkl_sys_halt();
 	if (res < 0) {

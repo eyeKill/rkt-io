@@ -6,7 +6,7 @@
 #include <stdlib.h>
 
 #include "dpdk.h"
-#include "lkl_spdk.h"
+#include "spdk_context.h"
 
 int main(int argc, char** argv)
 {
@@ -19,8 +19,8 @@ int main(int argc, char** argv)
     int port_num = atoi(argv[3]);
     int exitcode = 0;
 
-    struct lkl_spdk_context ctx = {};
-    if (lkl_spdk_initialize(&ctx, true) < 0) {
+    struct spdk_context ctx = {};
+    if (spdk_initialize(&ctx, true) < 0) {
         goto error;
     };
 
@@ -58,7 +58,8 @@ int main(int argc, char** argv)
 error:
     exitcode = 1;
 cleanup:
-    lkl_spdk_cleanup(&ctx);
+    spdk_context_detach(&ctx);
+    spdk_context_free(&ctx);
     fprintf(stderr, "%s: stop setuid-helper\n", argv[0]);
     return exitcode;
 }

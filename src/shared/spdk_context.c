@@ -1,4 +1,4 @@
-#include "lkl_spdk.h"
+#include "spdk_context.h"
 
 #include <stdlib.h>
 #include <stdbool.h>
@@ -11,27 +11,47 @@
 #include <spdk/nvme.h>
 #include <spdk/env.h>
 
-
-void lkl_spdk_cleanup(struct lkl_spdk_context* ctx)
+// We call this function from inside the enclave to drain the I/O queue
+// This is because I/O callbacks contain function pointers.
+void spdk_context_detach(struct spdk_context* ctx)
 {
 	assert(ctx != NULL);
 
-	struct lkl_spdk_ns_entry *ns_entry = ctx->namespaces;
+	struct spdk_ns_entry *ns_entry = ctx->namespaces;
 	while (ns_entry) {
-		struct lkl_spdk_ns_entry *next = ns_entry->next;
+		struct spdk_ns_entry *next = ns_entry->next;
 
 		if (ns_entry->qpair) {
 			spdk_nvme_ctrlr_free_io_qpair(ns_entry->qpair);
 		}
+		ns_entry = next;
+	}
+
+	struct spdk_ctrlr_entry *ctrlr_entry = ctx->controllers;
+	while (ctrlr_entry) {
+		struct spdk_ctrlr_entry *next = ctrlr_entry->next;
+
+		spdk_nvme_detach(ctrlr_entry->ctrlr);
+		ctrlr_entry = next;
+	}
+}
+
+// We call this function from outside of the enclave
+void spdk_context_free(struct spdk_context* ctx)
+{
+	assert(ctx != NULL);
+
+	struct spdk_ns_entry *ns_entry = ctx->namespaces;
+	while (ns_entry) {
+		struct spdk_ns_entry *next = ns_entry->next;
+
 		free(ns_entry);
 		ns_entry = next;
 	}
 
-	struct lkl_spdk_ctrlr_entry *ctrlr_entry = ctx->controllers;
+	struct spdk_ctrlr_entry *ctrlr_entry = ctx->controllers;
 	while (ctrlr_entry) {
-		struct lkl_spdk_ctrlr_entry *next = ctrlr_entry->next;
-
-		spdk_nvme_detach(ctrlr_entry->ctrlr);
+		struct spdk_ctrlr_entry *next = ctrlr_entry->next;
 		free(ctrlr_entry);
 		ctrlr_entry = next;
 	}
@@ -40,6 +60,12 @@ void lkl_spdk_cleanup(struct lkl_spdk_context* ctx)
 	if (thread_id && pthread_cancel(thread_id) == 0) {
 		pthread_join(thread_id, NULL);
 	}
+}
+
+// in case of an error we call both functions outside of the enclave
+static void spdk_context_cleanup(struct spdk_context* ctx) {
+    spdk_context_detach(ctx);
+    spdk_context_free(ctx);
 }
 
 static bool probe_cb(void *ctx,
@@ -51,7 +77,7 @@ static bool probe_cb(void *ctx,
 	return true;
 }
 
-static int register_ns(struct lkl_spdk_context *ctx,
+static int register_ns(struct spdk_context *ctx,
 					   struct spdk_nvme_ctrlr *ctrlr,
 					   struct spdk_nvme_ns *ns)
 {
@@ -72,7 +98,7 @@ static int register_ns(struct lkl_spdk_context *ctx,
 		return 0;
 	}
 
-	struct lkl_spdk_ns_entry *entry = calloc(1, sizeof(struct lkl_spdk_ns_entry));
+	struct spdk_ns_entry *entry = calloc(1, sizeof(struct spdk_ns_entry));
 	if (entry == NULL) {
 		return -ENOMEM;
 	}
@@ -92,13 +118,13 @@ static void attach_cb(void *_ctx,
 					  struct spdk_nvme_ctrlr *ctrlr,
 					  const struct spdk_nvme_ctrlr_opts *opts)
 {
-	struct lkl_spdk_context *ctx = (struct lkl_spdk_context*) _ctx;
+	struct spdk_context *ctx = (struct spdk_context*) _ctx;
 	const struct spdk_nvme_ctrlr_data *cdata = spdk_nvme_ctrlr_get_data(ctrlr);
 
-	struct lkl_spdk_ctrlr_entry *entry = malloc(sizeof(struct lkl_spdk_ctrlr_entry));
+	struct spdk_ctrlr_entry *entry = malloc(sizeof(struct spdk_ctrlr_entry));
 	if (entry == NULL) {
 		ctx->attach_error = -ENOMEM;
-		fprintf(stderr, "spdk: lkl_spdk_ctrlr_entry malloc failed");
+		fprintf(stderr, "spdk: spdk_ctrlr_entry malloc failed");
 		return;
 	}
 
@@ -133,9 +159,9 @@ static void attach_cb(void *_ctx,
 	}
 }
 
-static int register_qpairs(struct lkl_spdk_context *ctx)
+static int register_qpairs(struct spdk_context *ctx)
 {
-	struct lkl_spdk_ns_entry *ns_entry = ctx->namespaces;
+	struct spdk_ns_entry *ns_entry = ctx->namespaces;
 	while (ns_entry != NULL) {
 		/*
 		 * Allocate an I/O qpair that we can use to submit read/write requests
@@ -163,9 +189,9 @@ static int register_qpairs(struct lkl_spdk_context *ctx)
 
 static void *poll_ctrlrs(void *arg)
 {
-		struct lkl_spdk_context *ctx = (struct lkl_spdk_context*) arg;
+		struct spdk_context *ctx = (struct spdk_context*) arg;
 		assert(ctx);
-		struct lkl_spdk_ctrlr_entry *controllers = ctx->controllers;
+		struct spdk_ctrlr_entry *controllers = ctx->controllers;
 
 		spdk_unaffinitize_thread();
 
@@ -186,7 +212,6 @@ static void *poll_ctrlrs(void *arg)
 			if (rc != 0) {
 				fprintf(stderr, "Unable to set cancel state enabled on g_init_thread: %s\n", strerror(-rc));
 			}
-            fprintf(stderr, "%s() at %s:%d\n", __func__, __FILE__, __LINE__);
 
 			/* This is a pthread cancellation point and cannot be removed. */
 			sleep(1);
@@ -196,7 +221,7 @@ static void *poll_ctrlrs(void *arg)
 }
 
 
-int lkl_spdk_initialize(struct lkl_spdk_context *ctx, bool primary_proc)
+int spdk_initialize(struct spdk_context *ctx, bool primary_proc)
 {
 	assert(ctx != NULL);
 
@@ -217,17 +242,16 @@ int lkl_spdk_initialize(struct lkl_spdk_context *ctx, bool primary_proc)
 	r = spdk_nvme_probe(NULL, ctx, probe_cb, attach_cb, NULL);
 	if (r != 0) {
 		fprintf(stderr, "spdk: spdk_nvme_probe() failed: %s\n", strerror(-r));
-		lkl_spdk_cleanup(ctx);
+		spdk_context_cleanup(ctx);
 		return r;
 	}
 	if (ctx->attach_error) {
-		lkl_spdk_cleanup(ctx);
+		spdk_context_cleanup(ctx);
 		return r;
 	}
 
 	if (!primary_proc) {
 		r = pthread_create(&ctx->ctrlr_thread_id, NULL, &poll_ctrlrs, ctx);
-        fprintf(stderr, "%s() at %s:%d: %d\n", __func__, __FILE__, __LINE__, ctx->ctrlr_thread_id);
 		if (r != 0) {
 			fprintf(stderr, "spdk: Unable to spawn a thread to poll admin queues: %s\n", strerror(-r));
 			return r;
@@ -236,7 +260,6 @@ int lkl_spdk_initialize(struct lkl_spdk_context *ctx, bool primary_proc)
 		if (r < 0) {
 			return r;
 		}
-
 	}
 
 	return 0;

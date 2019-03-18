@@ -75,6 +75,7 @@ typedef struct enclave_config {
     size_t num_dpdk_ifaces;
     struct enclave_dpdk_config *dpdk_ifaces;
     struct dpdk_context *dpdk_context;
+    struct spdk_context *spdk_context;
     int net_mask4;
     char hostname[32];
     char **argv;

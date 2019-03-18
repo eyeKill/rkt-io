@@ -40,7 +40,7 @@
 #include "ring_buff.h"
 #include "sgxlkl_util.h"
 #include "dpdk.h"
-#include "lkl_spdk.h"
+#include "spdk_context.h"
 #include "userpci.h"
 
 #include "lkl/linux/virtio_net.h"
@@ -114,7 +114,7 @@ static struct enclave_disk_config *encl_disks = 0;
 static size_t encl_disk_cnt = 0;
 
 static int userpci_pipe = 0;
-struct lkl_spdk_context spdk_context = {};
+struct spdk_context spdk_context = {};
 
 static pthread_spinlock_t __stdout_print_lock = {0};
 static pthread_spinlock_t __stderr_print_lock = {0};
@@ -535,7 +535,9 @@ static void register_net(enclave_config_t* encl, const char* tapstr, const char*
     encl->net_mask4 = mask4;
 }
 
-void register_spdk(struct lkl_spdk_context *ctx, int *userpci_pipe)
+void register_spdk(enclave_config_t *encl,
+                   struct spdk_context *ctx,
+                   int *userpci_pipe)
 {
     assert(ctx);
 
@@ -544,10 +546,11 @@ void register_spdk(struct lkl_spdk_context *ctx, int *userpci_pipe)
         sgxlkl_fail("sgx-lkl-userpci failed: %s\n", strerror(-r));
     };
 
-    r = lkl_spdk_initialize(ctx, false);
+    r = spdk_initialize(ctx, false);
     if (r < 0) {
         sgxlkl_fail("spdk: failed to initialize eal: %s\n", strerror(-r));
     }
+    encl->spdk_context = ctx;
 }
 
 void register_dpdk(enclave_config_t *encl,
@@ -1044,7 +1047,8 @@ static void sgxlkl_cleanup(void) {
     while (encl_disk_cnt) {
         close(encl_disks[--encl_disk_cnt].fd);
     }
-    lkl_spdk_cleanup(&spdk_context);
+
+    spdk_context_free(&spdk_context);
 
     if (userpci_pipe) {
         close(userpci_pipe);
@@ -1156,7 +1160,7 @@ int main(int argc, char *argv[], char *envp[]) {
     register_hds(&encl, root_hd);
     register_net(&encl, getenv("SGXLKL_TAP"), getenv("SGXLKL_IP4"), getenv("SGXLKL_MASK4"), getenv("SGXLKL_GW4"), getenv("SGXLKL_HOSTNAME"));
 
-    register_spdk(&spdk_context, &userpci_pipe);
+    register_spdk(&encl, &spdk_context, &userpci_pipe);
 
     register_dpdk(&encl,
                   getenv("SGXLKL_DPDK_IP4"),
