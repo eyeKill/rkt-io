@@ -369,8 +369,21 @@ int sgxlkl_register_spdk_device(struct spdk_dev *dev) {
 	//	return -EAGAIN;
 	//}
 	return disk_dev_id;
+
+void final_flush_complete(void* ctx) {
+	bool* ready = (bool*)ctx;
+	*ready = true;
 }
+
 void sgxlkl_unregister_spdk_device(struct spdk_dev *dev) {
 	// drain also i/o queues here!
-	lkl_host_ops.thread_join(dev->poll_tid);
+	bool ready = false;
+	spdk_nvme_ns_cmd_flush(dev->ns_entry.ns, dev->ns_entry.qpair, final_flush_complete, &ready);
+	while (!ready) {
+		spdk_nvme_qpair_process_completions(dev->ns_entry.qpair, 0);
+	}
+
+	if (dev->poll_tid > 0) {
+		lkl_host_ops.thread_join(dev->poll_tid);
+	}
 }

@@ -623,6 +623,11 @@ static void lkl_start_spdk(enclave_config_t *encl) {
 }
 
 static void lkl_stop_spdk() {
+	int err = lkl_umount_timeout("/mnt/vdb", 0, UMOUNT_DISK_TIMEOUT);
+	if (err < 0) {
+		fprintf(stderr, "Error: lkl_mount_umount(/mnt/vdb)=%s (%d)\n", lkl_strerror(err), err);
+
+	}
 	for (size_t i = 0; i < num_spdk_devs; i++) {
 		sgxlkl_unregister_spdk_device(&spdk_devs[i]);
 	}
@@ -865,7 +870,7 @@ void __lkl_exit()
 		}
 	}
 
-	//lkl_stop_spdk();
+	lkl_stop_spdk();
 	//spdk_context_detach(spdk_context);
 
 	res = lkl_sys_halt();
