@@ -10,6 +10,7 @@ struct spdk_dev {
     struct spdk_ns_entry ns_entry;
     // set by sgxlkl_register_spdk_device
 	lkl_thread_t poll_tid;
+    int dev_id;
 };
 
 int sgxlkl_spdk_initialize();

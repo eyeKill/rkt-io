@@ -583,6 +583,29 @@ static void lkl_poststart_root_disk(struct enclave_disk_config *disk)
 	lkl_mknods();
 }
 
+#define DEV_PATH_LEN 10
+
+static int device_path(int dev_id, char* dev) {
+	// We assign dev paths from /dev/vda to /dev/vdz, assuming we won't need
+	// support for more than 26 disks.
+	if ('a' + (dev_id - 1) > 'z') {
+		fprintf(stderr, "Error: Too many disks (maximum is 26). Failed to mount disk %d at %s.\n", dev_id);
+		// Adjust number to number of mounted disks.
+		num_disks = 26;
+		return 1;
+	}
+	snprintf(dev, DEV_PATH_LEN, "/dev/vd%c", 'a' + dev_id - 1);
+	return 0;
+}
+
+static int spdk_mountpoint(int dev_id, char* dev) {
+	if (device_path(dev_id, dev) < 0) {
+		return 1;
+	};
+	memcpy(dev, "/mnt", sizeof("/mnt") - 1);
+	return 0;
+}
+
 static void lkl_start_spdk(enclave_config_t *encl) {
 	struct spdk_context *ctx = encl->spdk_context;
 	int rc = sgxlkl_spdk_initialize();
@@ -605,30 +628,36 @@ static void lkl_start_spdk(enclave_config_t *encl) {
 	for (struct spdk_ns_entry *ns_entry = ctx->namespaces; ns_entry; ns_entry = ns_entry->next) {
 		struct spdk_dev *dev = &spdk_devs[idx];
 		memcpy(&dev->ns_entry, ns_entry, sizeof(struct spdk_ns_entry));
-		fprintf(stderr, "%s() at %s:%d\n", __func__, __FILE__, __LINE__);
 		rc = sgxlkl_register_spdk_device(dev);
 		if (rc < 0) {
 			fprintf(stderr, "Error: unable to allocate memory spdk devices\n");
 			exit(1);
 		}
+		char dev_path[DEV_PATH_LEN], mnt[DEV_PATH_LEN];
+		if (device_path(spdk_devs[idx].dev_id, dev_path) < 0) {
+			exit(1);
+		}
+		if (spdk_mountpoint(spdk_devs[idx].dev_id, mnt) < 0) {
+			exit(1);
+		}
+		rc = lkl_mount_blockdev(dev_path, mnt, "ext4", 0, NULL);
+		if (rc < 0) {
+			fprintf(stderr, "Error: lkl_mount_blockdev(%s, %s)=%s (%d)\n", dev_path, mnt, lkl_strerror(rc), rc);
+			exit(rc);
+		}
 		idx++;
-	}
-
-	//snprintf(dev_path, dev_path_len, "/dev/vd%c", 'a' + i);
-	int err = lkl_mount_blockdev("/dev/vdb", "/mnt/vdb", "ext4", LKL_MS_RDONLY, NULL);
-	if (err < 0) {
-		fprintf(stderr, "Error: lkl_mount_blockdev()=%s (%d)\n", lkl_strerror(err), err);
-		exit(err);
 	}
 }
 
 static void lkl_stop_spdk() {
-	int err = lkl_umount_timeout("/mnt/vdb", 0, UMOUNT_DISK_TIMEOUT);
-	if (err < 0) {
-		fprintf(stderr, "Error: lkl_mount_umount(/mnt/vdb)=%s (%d)\n", lkl_strerror(err), err);
-
-	}
 	for (size_t i = 0; i < num_spdk_devs; i++) {
+		char mnt[DEV_PATH_LEN];
+		int rc = spdk_mountpoint(spdk_devs[i].dev_id, mnt);
+		assert(rc >= 0);
+		int err = lkl_umount_timeout(mnt, 0, UMOUNT_DISK_TIMEOUT);
+		if (err < 0) {
+			fprintf(stderr, "Error: lkl_mount_umount(%s)=%s (%d)\n", mnt, lkl_strerror(err), err);
+		}
 		sgxlkl_unregister_spdk_device(&spdk_devs[i]);
 	}
 	free(spdk_devs);
@@ -639,18 +668,11 @@ static void lkl_poststart_disks(struct enclave_disk_config* disks, size_t num_di
 {
 	lkl_poststart_root_disk(&disks[0]);
 
-	char dev_path[] = { "/dev/vdXX" };
-	size_t dev_path_len = strlen(dev_path);
 	for (size_t i = 1; i < num_disks; ++i) {
-		// We assign dev paths from /dev/vda to /dev/vdz, assuming we won't need
-		// support for more than 26 disks.
-		if ('a' + i > 'z') {
-			fprintf(stderr, "Error: Too many disks (maximum is 26). Failed to mount disk %d at %s.\n", i, disks[i].mnt);
-			// Adjust number to number of mounted disks.
-			num_disks = 26;
-			return;
+		char dev_path[DEV_PATH_LEN];
+		if (device_path(i + 1, dev_path) < 0) {
+			exit(1);
 		}
-		snprintf(dev_path, dev_path_len, "/dev/vd%c", 'a' + i);
 		int err = lkl_mount_blockdev(dev_path, disks[i].mnt, "ext4", disks[i].ro ? LKL_MS_RDONLY : 0, NULL);
 		if (err < 0) {
 			fprintf(stderr, "Error: lkl_mount_blockdev()=%s (%d)\n", lkl_strerror(err), err);

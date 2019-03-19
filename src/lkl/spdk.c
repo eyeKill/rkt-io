@@ -359,16 +359,18 @@ int sgxlkl_register_spdk_device(struct spdk_dev *dev) {
 		.blk_ops = NULL,
 		//.blk_ops = &spdk_virtio_ops,
 	};
-	int disk_dev_id = lkl_disk_add(&disk);
-	if (disk_dev_id < 0) {
-		fprintf(stderr, "spdk: unable to register disk: %s\n", lkl_strerror(disk_dev_id));
+	int dev_id = lkl_disk_add(&disk);
+	if (dev_id < 0) {
+		fprintf(stderr, "spdk: unable to register disk: %s\n", lkl_strerror(dev_id));
 	}
+	dev->dev_id = dev_id;
 	//dev->poll_tid = lkl_host_ops.thread_create(poll_thread, dev);
 	//if (dev->poll_tid == 0) {
 	//	fprintf(stderr, "spdk: failed to start spdk poll thread\n");
 	//	return -EAGAIN;
 	//}
-	return disk_dev_id;
+	return dev_id;
+}
 
 void final_flush_complete(void* ctx) {
 	bool* ready = (bool*)ctx;
