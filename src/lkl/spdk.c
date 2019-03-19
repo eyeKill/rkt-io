@@ -218,7 +218,7 @@ struct spdk_sync_req {
 	bool finished;
 };
 
-static void spdk_read_completion_sync_cb(void *ctx, const struct spdk_nvme_cpl *cpl) {
+static void spdk_sync_read_completion_cb(void *ctx, const struct spdk_nvme_cpl *cpl) {
 	struct spdk_sync_req *req = (struct spdk_sync_req*) ctx;
 
 	char *p = (char*) req->spdk_buf;
@@ -230,10 +230,10 @@ static void spdk_read_completion_sync_cb(void *ctx, const struct spdk_nvme_cpl *
 	req->finished = true;
 }
 
-int spdk_sync_read(struct spdk_ns_entry *ns_entry, struct spdk_sync_req *req, uint32_t lba, uint32_t lba_count) {
+static int spdk_sync_read(struct spdk_ns_entry *ns_entry, struct spdk_sync_req *req, uint32_t lba, uint32_t lba_count) {
 	int rc = spdk_nvme_ns_cmd_read(ns_entry->ns, ns_entry->qpair,
 								   req->spdk_buf, lba, lba_count,
-								   spdk_read_completion_sync_cb, req, 0);
+								   spdk_sync_read_completion_cb, req, 0);
 	if (rc != 0) {
 		return rc;
 	}
@@ -246,12 +246,12 @@ int spdk_sync_read(struct spdk_ns_entry *ns_entry, struct spdk_sync_req *req, ui
 	return rc;
 }
 
-static void spdk_write_completion_sync_cb(void *ctx, const struct spdk_nvme_cpl *cpl) {
+static void spdk_sync_completion_cb(void *ctx, const struct spdk_nvme_cpl *cpl) {
 	struct spdk_sync_req *req = (struct spdk_sync_req*) ctx;
 	req->finished = true;
 }
 
-int spdk_sync_write(struct spdk_ns_entry *ns_entry, struct spdk_sync_req *req, uint32_t lba, uint32_t lba_count) {
+static int spdk_sync_write(struct spdk_ns_entry *ns_entry, struct spdk_sync_req *req, uint32_t lba, uint32_t lba_count) {
 	char *p = (char*) req->spdk_buf;
 	for (int i = 0; i < req->req->count; i++) {
 		memcpy(p, req->req->buf[i].iov_base, req->req->buf[i].iov_len);
@@ -259,7 +259,20 @@ int spdk_sync_write(struct spdk_ns_entry *ns_entry, struct spdk_sync_req *req, u
 	}
 	int rc = spdk_nvme_ns_cmd_write(ns_entry->ns, ns_entry->qpair,
 									req->spdk_buf, lba, lba_count,
-									spdk_write_completion_sync_cb, req, 0);
+									spdk_sync_completion_cb, req, 0);
+	if (rc != 0) {
+		return rc;
+	}
+
+	while (!req->finished) {
+		spdk_nvme_qpair_process_completions(ns_entry->qpair, 0);
+	}
+
+	return rc;
+}
+
+static int spdk_sync_flush(struct spdk_ns_entry *ns_entry, struct spdk_sync_req *req) {
+	int rc = spdk_nvme_ns_cmd_flush(ns_entry->ns, ns_entry->qpair, spdk_sync_completion_cb, req);
 	if (rc != 0) {
 		return rc;
 	}
@@ -302,6 +315,13 @@ static int spdk_sync_request(struct lkl_disk disk, struct lkl_blk_req *req)
 		break;
 	case LKL_DEV_BLK_TYPE_WRITE:
 		if (spdk_sync_write(ns_entry, &sync_req, lba, lba_count) == 0) {
+			rc = LKL_DEV_BLK_STATUS_OK;
+		}
+		break;
+	case LKL_DEV_BLK_TYPE_FLUSH:
+	case LKL_DEV_BLK_TYPE_FLUSH_OUT:
+		// when is this actually called?
+		if (spdk_sync_flush(ns_entry, &sync_req) == 0) {
 			rc = LKL_DEV_BLK_STATUS_OK;
 		}
 		break;
