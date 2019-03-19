@@ -257,10 +257,9 @@ int spdk_sync_write(struct spdk_ns_entry *ns_entry, struct spdk_sync_req *req, u
 		memcpy(p, req->req->buf[i].iov_base, req->req->buf[i].iov_len);
 		p += req->req->buf[i].iov_len;
 	}
-
 	int rc = spdk_nvme_ns_cmd_write(ns_entry->ns, ns_entry->qpair,
 									req->spdk_buf, lba, lba_count,
-									spdk_write_completion_cb, req, 0);
+									spdk_write_completion_sync_cb, req, 0);
 	if (rc != 0) {
 		return rc;
 	}
