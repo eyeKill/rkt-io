@@ -437,6 +437,30 @@ class BtLkl(gdb.Command):
         gdb.flush()
 
 
+class Hexyl(gdb.Command):
+    """
+       Run hexyl on provided symbol/address. Takes the number of bytes to print as an optional parameter
+    """
+    def __init__(self):
+        super(Hexyl, self).__init__("hexyl", gdb.COMMAND_USER)
+        self.long_int = gdb.lookup_type("long")
+
+    def invoke(self, arg, from_tty):
+        argv = gdb.string_to_argv(arg)
+        count = 0x100
+        if argv and len(argv) > 0:
+            address = argv[0]
+            if len(argv) > 1:
+                count = argv[1]
+        else:
+            address = "$sp"
+
+        with tempfile.NamedTemporaryFile(suffix='.bin', delete=True) as f:
+            gdb.execute("dump binary memory %s %s (%s + %s)" % (f.name, address, address, count))
+
+        return False
+
+
 if __name__ == '__main__':
     StarterExecBreakpoint()
     LthreadBacktrace()
@@ -447,3 +471,4 @@ if __name__ == '__main__':
     LogSyscallBacktraces()
     LogSyscallTids()
     BtLkl()
+    Hexyl()
