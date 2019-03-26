@@ -359,7 +359,7 @@ class LogSyscallTids(gdb.Command):
     def queue_tids(self, queue):
         enqueue_pos = int(gdb.execute('p __%s_queue->enqueue_pos'%queue, to_string=True).split('=')[1].strip())
         dequeue_pos = int(gdb.execute('p __%s_queue->dequeue_pos'%queue, to_string=True).split('=')[1].strip())
-        if (enqueue_pos < dequeue_pos): raise Exception("Logic error: %d < %d"%(enqueue_pos, dequeue_pos)) 
+        if (enqueue_pos < dequeue_pos): raise Exception("Logic error: %d < %d"%(enqueue_pos, dequeue_pos))
 
         buffer_mask = int(gdb.execute('p __%s_queue->buffer_mask'%queue, to_string=True).split('=')[1].strip())
 
@@ -461,6 +461,15 @@ class Hexyl(gdb.Command):
         return False
 
 
+class Curpath(gdb.Command):
+    """
+Print absolute path of the current file.
+"""
+    def __init__(self):
+        super().__init__('curpath', gdb.COMMAND_FILES)
+    def invoke(self, argument, from_tty):
+        gdb.write(gdb.selected_frame().find_sal().symtab.fullname() + os.linesep)
+
 if __name__ == '__main__':
     StarterExecBreakpoint()
     LthreadBacktrace()
@@ -472,3 +481,4 @@ if __name__ == '__main__':
     LogSyscallTids()
     BtLkl()
     Hexyl()
+    Curpath()
