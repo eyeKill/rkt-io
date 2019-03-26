@@ -1,0 +1,14 @@
+diff -Naur --strip-trailing-cr busybox-1.29.3.org/miscutils/hdparm.c busybox-1.29.3/miscutils/hdparm.c
+--- busybox-1.29.3.org/miscutils/hdparm.c	2018-07-02 13:23:06.000000000 +0200
++++ busybox-1.29.3/miscutils/hdparm.c	2019-03-18 17:47:10.535956314 +0100
+@@ -1505,8 +1505,10 @@
+ 	unsigned total_MB;
+ 	char *buf = xmalloc(TIMING_BUF_BYTES);
+ 
++#if 0
+ 	if (mlock(buf, TIMING_BUF_BYTES))
+ 		bb_perror_msg_and_die("mlock");
++#endif
+ 
+ 	/* Clear out the device request queues & give them time to complete.
+ 	 * NB: *small* delay. User is expected to have a clue and to not run
