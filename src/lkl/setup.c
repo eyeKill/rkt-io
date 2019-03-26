@@ -634,10 +634,10 @@ static void lkl_start_spdk(enclave_config_t *encl) {
 			exit(1);
 		}
 		char dev_path[DEV_PATH_LEN], mnt[DEV_PATH_LEN];
-		if (device_path(spdk_devs[idx].dev_id, dev_path) < 0) {
+		if (device_path(spdk_devs[idx].dev_id - 1, dev_path) < 0) {
 			exit(1);
 		}
-		if (spdk_mountpoint(spdk_devs[idx].dev_id, mnt) < 0) {
+		if (spdk_mountpoint(spdk_devs[idx].dev_id - 1, mnt) < 0) {
 			exit(1);
 		}
 		rc = lkl_mount_blockdev(dev_path, mnt, "ext4", 0, NULL);
@@ -652,7 +652,7 @@ static void lkl_start_spdk(enclave_config_t *encl) {
 static void lkl_stop_spdk() {
 	for (size_t i = 0; i < num_spdk_devs; i++) {
 		char mnt[DEV_PATH_LEN];
-		int rc = spdk_mountpoint(spdk_devs[i].dev_id, mnt);
+		int rc = spdk_mountpoint(spdk_devs[i].dev_id - 1, mnt);
 		assert(rc >= 0);
 		int err = lkl_umount_timeout(mnt, 0, UMOUNT_DISK_TIMEOUT);
 		if (err < 0) {
@@ -699,12 +699,12 @@ static void lkl_poststart_net(enclave_config_t* encl, int net_dev_id)
 			exit(res);
 		}
 		if (encl->net_gw4.s_addr > 0) {
-			res = lkl_set_ipv4_gateway(encl->net_gw4.s_addr);
-			if (res < 0) {
-				fprintf(stderr, "Error: lkl_set_ipv4_gateway(): %s\n",
-					lkl_strerror(res));
-				exit(res);
-			}
+			//res = lkl_set_ipv4_gateway(encl->net_gw4.s_addr);
+			//if (res < 0) {
+			//	fprintf(stderr, "Error: lkl_set_ipv4_gateway(): %s\n",
+			//		lkl_strerror(res));
+			//	exit(res);
+			//}
 		}
 
 		if (sgxlkl_mtu) {
@@ -770,12 +770,12 @@ void __lkl_start_init(enclave_config_t* encl)
 
 	lkl_prestart_disks(disks, num_disks);
 
-	lkl_prestart_dpdk(encl);
-
 	// Register network tap if given one
-	//int net_dev_id = -1;
-	//if (encl->net_fd != 0)
-	//	net_dev_id = lkl_prestart_net(encl);
+	int net_dev_id = -1;
+	if (encl->net_fd != 0)
+		net_dev_id = lkl_prestart_net(encl);
+
+	lkl_prestart_dpdk(encl);
 
 	// Start kernel threads (synchronous, doesn't return before kernel is ready)
 	const char *lkl_cmdline = getenv("SGXLKL_CMDLINE");
@@ -828,14 +828,14 @@ void __lkl_start_init(enclave_config_t* encl)
 
 	// Set interface status/IP/routes
 	if (!sgxlkl_use_host_network)
+		lkl_poststart_net(encl, net_dev_id);
+
+	// Set interface status/IP/routes
+	if (!sgxlkl_use_host_network)
 		lkl_poststart_dpdk(encl);
 
 	lkl_start_spdk(encl);
 	spdk_context = encl->spdk_context;
-
-	// Set interface status/IP/routes
-	//if (!sgxlkl_use_host_network)
-	//	lkl_poststart_net(encl, net_dev_id);
 
 	// Set hostname (provided through SGXLKL_HOSTNAME)
 	sethostname(encl->hostname, strlen(encl->hostname));
