@@ -35,6 +35,8 @@
 
 int sethostname(const char *, size_t);
 
+unsigned long sgxlkl_heap_start = 0;
+unsigned long sgxlkl_heap_end = 0;
 int sgxlkl_trace_lkl_syscall = 0;
 int sgxlkl_trace_internal_syscall = 0;
 int sgxlkl_trace_mmap = 0;
@@ -761,6 +763,9 @@ void __lkl_start_init(enclave_config_t* encl)
 		fprintf(stderr, "Error: No root disk provided. Aborting...\n");
 		exit(EXIT_FAILURE);
 	}
+
+	sgxlkl_heap_start = (unsigned long)encl->heap;
+	sgxlkl_heap_end = sgxlkl_heap_start + encl->heapsize;
 
 	// We copy the disk config as we need to keep track of mount paths and can't
 	// rely on the enclave_config to be around and unchanged for the lifetime of
