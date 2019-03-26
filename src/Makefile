@@ -90,12 +90,12 @@ $(LIB_SGX_LKL_BUILD)/sgx-lkl-sign: $(addprefix $(LIB_SGX_LKL_BUILD)/sgx_sign/,$(
 
 # sgx-lkl-userpci ----
 
-SGX_LKL_USERPCI_SRCS=$(wildcard sgx-lkl-userpci/*.c)
+SGX_LKL_USERPCI_SRCS=$(wildcard sgx-lkl-userpci/*.c) $(wildcard shared/*.c)
 SGX_LKL_USERPCI_OBJS=$(addprefix $(LIB_SGX_LKL_BUILD)/sgx-lkl-userpci.d/,$(SGX_LKL_USERPCI_SRCS:.c=.o))
 
 $(SGX_LKL_USERPCI_OBJS): $(LIB_SGX_LKL_BUILD)/sgx-lkl-userpci.d/%.o: %.c
 	mkdir -p $(dir $@)
-	$(CC) $(SPDK_NATIVE_CFLAGS) -g -c -o $@ $<
+	$(CC) -I$(srcdir)/include $(SPDK_NATIVE_CFLAGS) -g -c -o $@ $<
 
 $(LIB_SGX_LKL_BUILD)/sgx-lkl-userpci-pre: $(SGX_LKL_USERPCI_OBJS)
 	$(CC) $(CFLAGS_SGX) $(SPDK_NATIVE_LDFLAGS) -pthread -ldl -lrt $^ -o $@
