@@ -40,7 +40,8 @@ struct spdk_req {
 	bool finished;
 };
 
-static void spdk_write_completion_cb(void *ctx, const struct spdk_nvme_cpl *cpl) {
+static void spdk_write_completion_cb(void *ctx, const struct spdk_nvme_cpl *cpl)
+{
 	struct spdk_req *req = (struct spdk_req*) ctx;
 	spdk_dma_free(req->spdk_buf);
 	// TODO error handling: spdk_nvme_cpl_is_error(cpl)
@@ -55,7 +56,8 @@ static int spdk_write(void *spdk_buf,
 					  struct iovec *data,
 					  int iov_count,
 					  uint64_t lba,
-					  uint32_t lba_count) {
+					  uint32_t lba_count)
+{
 	char *p = (char*) spdk_buf;
 	for (int i = 0; i < iov_count; i++) {
 		memcpy(p, data[i].iov_base, data[i].iov_len);
@@ -113,7 +115,8 @@ static int spdk_read(void *spdk_buf,
 					  struct iovec *data,
 					  int iov_count,
 					  uint64_t lba,
-					  uint32_t lba_count) {
+					  uint32_t lba_count)
+{
 	struct spdk_req *req = (struct spdk_req*) malloc(sizeof(struct spdk_req));
 	if (!req) {
 		return -ENOMEM;
@@ -140,16 +143,17 @@ static int spdk_read(void *spdk_buf,
 	return 0;
 };
 
-static int spdk_enqueue(struct virtio_dev *dev, int q, struct virtio_req *req)
-{
+static int spdk_enqueue(struct virtio_dev *dev, int q, struct virtio_req *req) {
 	if (req->buf_count < 3) {
 		lkl_printf("virtio_blk: no status buf\n");
 		goto err;
 	}
 
 	struct lkl_virtio_blk_outhdr *header = req->buf[0].iov_base;
-	struct virtio_blk_req_trailer *trailer = req->buf[req->buf_count - 1].iov_base;
-	struct virtio_blk_dev *blk_dev = container_of(dev, struct virtio_blk_dev, dev);
+	struct virtio_blk_req_trailer *trailer =
+		req->buf[req->buf_count - 1].iov_base;
+	struct virtio_blk_dev *blk_dev =
+		container_of(dev, struct virtio_blk_dev, dev);
 
 	trailer->status = LKL_DEV_BLK_STATUS_IOERR;
 
@@ -159,8 +163,8 @@ static int spdk_enqueue(struct virtio_dev *dev, int q, struct virtio_req *req)
 	}
 
 	if (req->buf[req->buf_count - 1].iov_len != sizeof(*trailer)) {
-		lkl_printf("virtio_blk: bad status buf\n");
-		goto err;
+		  lkl_printf("virtio_blk: bad status buf\n");
+		  goto err;
 	}
 
 	unsigned int type = le32toh(header->type);
@@ -172,21 +176,24 @@ static int spdk_enqueue(struct virtio_dev *dev, int q, struct virtio_req *req)
 	for (int i = 0; i < iov_count; i++) {
 		len += buf[i].iov_len;
 	}
-	struct spdk_dev *spdk_dev = (struct spdk_dev*) blk_dev->disk.handle;
+	struct spdk_dev *spdk_dev = (struct spdk_dev *)blk_dev->disk.handle;
 	struct spdk_ns_entry *ns_entry = &spdk_dev->ns_entry;
 
 	void *spdk_buf = spdk_dma_malloc(len, 0x1000, NULL);
-	uint32_t lba_count = len / spdk_nvme_ns_get_extended_sector_size(ns_entry->ns);
+	uint32_t lba_count =
+		len / spdk_nvme_ns_get_extended_sector_size(ns_entry->ns);
 	uint64_t lba = sector * 512 / lba_count;
 
 	switch (type) {
 	case LKL_DEV_BLK_TYPE_READ:
-		if (spdk_read(spdk_buf, req, ns_entry, buf, iov_count, lba, lba_count) < 0) {
+		if (spdk_read(spdk_buf, req, ns_entry, buf, iov_count, lba,
+					  lba_count) < 0) {
 			goto err;
 		};
-		  break;
+		break;
 	case LKL_DEV_BLK_TYPE_WRITE:
-		if (spdk_write(spdk_buf, req, ns_entry, buf, iov_count, lba, lba_count) < 0) {
+		if (spdk_write(spdk_buf, req, ns_entry, buf, iov_count, lba,
+					   lba_count) < 0) {
 			goto err;
 		};
 		break;
@@ -218,7 +225,8 @@ struct spdk_sync_req {
 	bool finished;
 };
 
-static void spdk_sync_read_completion_cb(void *ctx, const struct spdk_nvme_cpl *cpl) {
+static void spdk_sync_read_completion_cb(void *ctx, const struct spdk_nvme_cpl *cpl)
+{
 	struct spdk_sync_req *req = (struct spdk_sync_req*) ctx;
 
 	char *p = (char*) req->spdk_buf;
@@ -230,10 +238,12 @@ static void spdk_sync_read_completion_cb(void *ctx, const struct spdk_nvme_cpl *
 	req->finished = true;
 }
 
-static int spdk_sync_read(struct spdk_ns_entry *ns_entry, struct spdk_sync_req *req, uint32_t lba, uint32_t lba_count) {
-	int rc = spdk_nvme_ns_cmd_read(ns_entry->ns, ns_entry->qpair,
-								   req->spdk_buf, lba, lba_count,
-								   spdk_sync_read_completion_cb, req, 0);
+static int spdk_sync_read(struct spdk_ns_entry *ns_entry,
+						  struct spdk_sync_req *req, uint32_t lba,
+						  uint32_t lba_count) {
+	int rc =
+		spdk_nvme_ns_cmd_read(ns_entry->ns, ns_entry->qpair, req->spdk_buf, lba,
+							  lba_count, spdk_sync_read_completion_cb, req, 0);
 	if (rc != 0) {
 		return rc;
 	}
@@ -246,12 +256,17 @@ static int spdk_sync_read(struct spdk_ns_entry *ns_entry, struct spdk_sync_req *
 	return rc;
 }
 
-static void spdk_sync_completion_cb(void *ctx, const struct spdk_nvme_cpl *cpl) {
+static void spdk_sync_completion_cb(void *ctx, const struct spdk_nvme_cpl *cpl)
+{
 	struct spdk_sync_req *req = (struct spdk_sync_req*) ctx;
 	req->finished = true;
 }
 
-static int spdk_sync_write(struct spdk_ns_entry *ns_entry, struct spdk_sync_req *req, uint32_t lba, uint32_t lba_count) {
+static int spdk_sync_write(struct spdk_ns_entry *ns_entry,
+						   struct spdk_sync_req *req,
+						   uint32_t lba,
+						   uint32_t lba_count)
+{
 	char *p = (char*) req->spdk_buf;
 	for (int i = 0; i < req->req->count; i++) {
 		memcpy(p, req->req->buf[i].iov_base, req->req->buf[i].iov_len);
@@ -271,7 +286,8 @@ static int spdk_sync_write(struct spdk_ns_entry *ns_entry, struct spdk_sync_req 
 	return rc;
 }
 
-static int spdk_sync_flush(struct spdk_ns_entry *ns_entry, struct spdk_sync_req *req) {
+static int spdk_sync_flush(struct spdk_ns_entry *ns_entry, struct spdk_sync_req *req)
+{
 	int rc = spdk_nvme_ns_cmd_flush(ns_entry->ns, ns_entry->qpair, spdk_sync_completion_cb, req);
 	if (rc != 0) {
 		return rc;
@@ -364,14 +380,16 @@ static void poll_thread(void *arg)
 
 int spdk_env_dpdk_post_init(void);
 
-int sgxlkl_spdk_initialize() {
+int sgxlkl_spdk_initialize()
+{
 	// this function is called internally by SPDK to register pci drivers and
 	// initialize address translation. Since we are not running the full
 	// initialisation in SPDK, we need to calls this function manually
 	return spdk_env_dpdk_post_init();
 }
 
-int sgxlkl_register_spdk_device(struct spdk_dev *dev) {
+int sgxlkl_register_spdk_device(struct spdk_dev *dev)
+{
 	assert(dev);
 	struct lkl_disk disk = {
 		.handle = dev,
@@ -392,12 +410,14 @@ int sgxlkl_register_spdk_device(struct spdk_dev *dev) {
 	return dev_id;
 }
 
-void final_flush_complete(void* ctx) {
+void final_flush_complete(void* ctx)
+{
 	bool* ready = (bool*)ctx;
 	*ready = true;
 }
 
-void sgxlkl_unregister_spdk_device(struct spdk_dev *dev) {
+void sgxlkl_unregister_spdk_device(struct spdk_dev *dev)
+{
 	// drain also i/o queues here!
 	bool ready = false;
 	spdk_nvme_ns_cmd_flush(dev->ns_entry.ns, dev->ns_entry.qpair, final_flush_complete, &ready);
