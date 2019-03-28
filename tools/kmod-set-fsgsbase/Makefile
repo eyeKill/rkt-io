@@ -9,9 +9,9 @@ clean:
 set-cr4-fsgsbase: all
 	sudo insmod ./mod_set_cr4_fsgsbase.ko val=1
 	sudo rmmod mod_set_cr4_fsgsbase
-	dmesg | tail -n 10
+	sudo dmesg | tail -n 10
 
 unset-cr4-fsgsbase: all
 	sudo insmod ./mod_set_cr4_fsgsbase.ko val=0
 	sudo rmmod mod_set_cr4_fsgsbase
-	dmesg | tail -n 10
+	sudo dmesg | tail -n 10

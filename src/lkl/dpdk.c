@@ -12,10 +12,10 @@
 #include "lkl/virtio.h"
 #include "lkl/dpdk.h"
 #include "dpdk_internal.h"
-#include "enclave_config.h"
+#include "sgx_enclave_config.h"
 #include "pcap.h"
 
-#include "hostcalls.h"
+#include "sgx_hostcalls.h"
 
 #define MAX_PKT_BURST           16
 //#define DPDK_DEBUG 1

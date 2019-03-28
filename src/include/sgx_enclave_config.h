@@ -1,16 +1,13 @@
-/*
- * Copyright 2016, 2017, 2018 Imperial College London
- */
 
-#ifndef ENCLAVE_CONFIG_H
-#define ENCLAVE_CONFIG_H
+#ifndef SGX_ENCLAVE_CONFIG_H
+#define SGX_ENCLAVE_CONFIG_H
 
 #include <netinet/ip.h>
 #include <inttypes.h>
 #include <stdlib.h>
 #include <elf.h>
 #include "mpmc_queue.h"
-#include "ring_buff.h"
+//#include "ring_buff.h"
 
 #ifdef SGXLKL_HW
 #include <setjmp.h>
@@ -43,6 +40,10 @@ typedef struct enclave_disk_config {
     char mnt[SGXLKL_DISK_MNT_MAX_PATH_LEN + 1];
     int ro;
     int enc;
+    char *key;
+    size_t key_len;
+    char *roothash;
+    size_t roothash_offset;
 } enclave_disk_config_t;
 
 typedef struct enclave_dpdk_config {
@@ -206,4 +207,4 @@ void ecall_rdtsc(gprsgx_t *regs, uint64_t ts);
 
 #endif
 
-#endif /* ENCLAVE_CONFIG_H */
+#endif /* SGX_ENCLAVE_CONFIG_H */

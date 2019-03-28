@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <sys/uio.h>
 
-#include "hostcalls.h"
+#include "sgx_hostcalls.h"
 
 typedef struct __attribute__((packed)) pcap_hdr_s {
     uint32_t magic_number;  /* magic number */

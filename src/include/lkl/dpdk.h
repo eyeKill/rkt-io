@@ -7,7 +7,7 @@
 
 #include <lkl_host.h>
 
-#include "enclave_config.h"
+#include "sgx_enclave_config.h"
 
 struct ifreq;
 
