@@ -48,13 +48,15 @@ def get_link_order(linker_script: str, linker_flags: List[str]):
             "-Wl,-T",
             linker_script,
             "-fPIC",
-            "-ldl",
-            "-lrt",
             "-pthread",
             "-o",
             "main",
             "main.c",
-        ] + linker_flags
+        ] + linker_flags + [
+            "-ldl",
+            "-lrt"
+        ]
+
         with open(os.path.join(tempdir, "main.c"), "w+") as f:
             f.write(
                 """
