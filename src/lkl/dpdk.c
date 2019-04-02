@@ -373,7 +373,7 @@ int sgxlkl_register_dpdk_context(struct dpdk_context *context) {
     memcpy(lcore_config, context->lcore_config, sizeof(struct lcore_config[RTE_MAX_LCORE]));
     memcpy(&internal_config, context->internal_config, sizeof(struct internal_config));
 
-    dpdk_init_array();
+    //dpdk_init_array();
 
     for (int portid = 0; portid < RTE_MAX_ETHPORTS; portid++) {
        struct rte_mempool *rxpool, *txpool; /* ring buffer pool */

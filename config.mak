@@ -45,9 +45,7 @@ SPDK ?= $(ROOT_DIR)/spdk
 SPDK_BUILD_NATIVE = ${BUILD_DIR}/spdk-native
 SPDK_BUILD_SGX = ${BUILD_DIR}/spdk-sgx
 
-LIBUUID ?= $(ROOT_DIR)/util-linux
-LIBUUID_BUILD_NATIVE = ${BUILD_DIR}/libuuid-native
-LIBUUID_BUILD_SGX = ${BUILD_DIR}/libuuid-sgx
+LIBUUID_HOST_BUILD = ${BUILD_DIR}/libuuid-native
 
 # Headers not exported by LKL and built by a custom tool's output cat to the file instead
 LKL_SGXMUSL_HEADERS ?= ${LKL_BUILD}/include/lkl/bits.h ${LKL_BUILD}/include/lkl/syscalls.h

@@ -52,31 +52,6 @@ dpdk-${1} ${DPDK_BUILD}/.build: ${DPDK_CONFIG} | ${DPDK_CC} ${DPDK}/.git
 		|| test ${DPDK_BEAR_HACK} == "yes"
 	touch ${DPDK_BUILD}/.build
 
-libuuid-autoreconf-${1} ${LIBUUID}/.autoreconf: ${LIBUUID}/configure.ac | ${LIBUUID}/.git
-	cd ${LIBUUID} && autoreconf -fi
-	touch ${LIBUUID}/.autoreconf
-
-libuuid-configure-${1} ${LIBUUID_BUILD}/.configured: ${LIBUUID}/.autoreconf
-	mkdir -p ${LIBUUID_BUILD}
-	cd ${LIBUUID_BUILD} && CFLAGS="-fPIC -static" CC="${DPDK_CC}" ${LIBUUID}/configure \
-		--disable-all-programs \
-		--enable-libuuid \
-		--disable-libblkid \
-		--disable-libfdisk \
-		--disable-libmount \
-		--disable-libtool-lock \
-		--disable-libsmartcols \
-		--disable-libmount-support-mtab \
-		--disable-shared \
-		--prefix=${LIBUUID_BUILD}
-	# our musl does not have getrandom
-	echo '#undef HAVE_GETRANDOM' >> ${LIBUUID_BUILD}/config.h
-	touch ${LIBUUID_BUILD}/.configured
-
-libuuid-${1} ${LIBUUID_BUILD}/.build: ${LIBUUID_BUILD}/.configured
-	make -C ${LIBUUID_BUILD} -j`tools/ncore.sh` CC=${DPDK_CC} install-am
-	touch ${LIBUUID_BUILD}/.build
-
 spdk-source-${1} ${SPDK_BUILD}/mk: | ${SPDK}/.git
 	rsync -a ${CURDIR}/spdk/ ${SPDK_BUILD}/
 
@@ -85,10 +60,10 @@ spdk-config-${1} ${SPDK_CONFIG}: ${CURDIR}/src/spdk/override/config.mk | ${SPDK_
 	echo 'CONFIG_DPDK_DIR=$(DPDK_BUILD)' >> ${SPDK_CONFIG}
 
 spdk-cflags-${1} ${SPDK_BUILD}/mk/cc.flags.mk: | ${DPDK_CC} ${SPDK_BUILD}/mk
-	echo CFLAGS="-I${LIBUUID_BUILD}/include -I${DPDK_BUILD}/include -msse4.2" > ${SPDK_BUILD}/mk/cc.flags.mk
+	echo CFLAGS="-I${DPDK_BUILD}/include -I${LIBUUID_HOST_BUILD}/include -msse4.2" > ${SPDK_BUILD}/mk/cc.flags.mk
 	echo LDFLAGS="-L${DPDK_BUILD}/lib" >> ${SPDK_BUILD}/mk/cc.flags.mk
 
-spdk-${1} ${SPDK_BUILD}/.build: ${LIBUUID_BUILD}/.build ${DPDK_BUILD}/.build spdk-source-$(1) ${SPDK_CONFIG} ${SPDK_BUILD}/mk/cc.flags.mk | ${DPDK_CC}
+spdk-${1} ${SPDK_BUILD}/.build: ${DPDK_BUILD}/.build spdk-source-$(1) ${SPDK_CONFIG} ${SPDK_BUILD}/mk/cc.flags.mk | ${DPDK_CC}
 	make -C ${SPDK_BUILD} CC=${DPDK_CC}
 	touch ${SPDK_BUILD}/.build
 endef
@@ -97,7 +72,6 @@ endef
 DPDK_BEAR_HACK ?= no
 
 SPDK_BUILD := ${SPDK_BUILD_NATIVE}
-LIBUUID_BUILD := ${LIBUUID_BUILD_NATIVE}
 DPDK_BUILD := ${DPDK_BUILD_NATIVE}
 DPDK_CONFIG = ${DPDK_BUILD}/.config
 SPDK_CONFIG = ${SPDK_BUILD}/mk/config.mk
@@ -110,7 +84,6 @@ $(CC):
 $(eval $(call dpdk_build,native))
 
 SPDK_BUILD := ${SPDK_BUILD_SGX}
-LIBUUID_BUILD := ${LIBUUID_BUILD_SGX}
 DPDK_BUILD := ${DPDK_BUILD_SGX}
 DPDK_CONFIG = ${DPDK_BUILD}/.config
 SPDK_CONFIG = ${SPDK_BUILD}/mk/config.mk
@@ -118,7 +91,6 @@ DPDK_CC := ${HOST_MUSL_CC}
 DPDK_EXTRA_CFLAGS := ${MUSL_CFLAGS} -include ${CURDIR}/src/dpdk/override/uint.h
 $(eval $(call dpdk_build,sgx))
 
-undefine LIBUUID_BUILD
 undefine SPDK_BUILD
 undefine DPDK_BUILD
 undefine DPDK_CONFIG
@@ -166,7 +138,7 @@ tools: ${TOOLS_OBJ}
 ${TOOLS_BUILD}/%: ${TOOLS}/%.c ${HOST_MUSL_CC} ${LKL_LIB} | ${TOOLS_BUILD}
 	${HOST_MUSL_CC} ${SGXLKL_CFLAGS} --static -I${LKL_BUILD}/include/ -o $@ $<
 
-${CRYPTSETUP_BUILD}/lib/libcryptsetup.a ${CRYPTSETUP_BUILD}/lib/libpopt.a ${CRYPTSETUP_BUILD}/lib/libdevmapper.a ${CRYPTSETUP_BUILD}/lib/libuuid.a ${CRYPTSETUP_BUILD}/lib/libjson-c.a ${MBEDTLS}/mbedtls.a: ${LKL_BUILD}/include
+${CRYPTSETUP_BUILD}/lib/libcryptsetup.a ${CRYPTSETUP_BUILD}/lib/libpopt.a ${CRYPTSETUP_BUILD}/lib/libdevmapper.a ${CRYPTSETUP_BUILD}/lib/libuuid.a ${CRYPTSETUP_BUILD}/lib/libjson-c.a ${MBEDTLS}/mbedtls.a ${LIBUUID_HOST_BUILD}/lib/libuuid.a: ${LKL_BUILD}/include
 	+${MAKE} -C ${MAKE_ROOT}/third_party $@
 
 # More headers required by SGX-Musl not exported by LKL, given by a custom tool's output
@@ -198,24 +170,17 @@ SPDK_LIBS += -lrte_mempool_ring -lrte_mempool -lrte_ring
 SPDK_LIBS += -lrte_kvargs -lrte_net -lrte_cmdline
 SPDK_LIBS += -lrte_bus_pci -lrte_pci
 SPDK_LIBS += -Wl,--no-whole-archive
-SPDK_LIBS += -luuid
 # -nostdinc does vanish both libc headers and gcc intriniscs,
 # we only want get rid-off libc headers
 GCC_HEADERS = $(shell CPP='${CPP}' ./tools/find-gcc-headers.sh)
-SPDK_SGX_CFLAGS = -msse4.2 -I${DPDK_BUILD_SGX}/include -I${SPDK_BUILD_SGX}/include -I${LIBUUID_BUILD_SGX}/include -I${GCC_HEADERS}
-SPDK_SGX_LDFLAGS = -L${DPDK_BUILD_SGX}/lib -L${SPDK_BUILD_SGX}/build/lib -L${LIBUUID_BUILD_SGX}/lib \
-	${SPDK_LIBS} ${BUILD_DIR}/init_array.o
-SPDK_NATIVE_CFLAGS = -msse4.2 -I${DPDK_BUILD_NATIVE}/include -I${SPDK_BUILD_NATIVE}/include -I${LIBUUID_BUILD_NATIVE}/include
-SPDK_NATIVE_LDFLAGS = -L${DPDK_BUILD_NATIVE}/lib -L${SPDK_BUILD_NATIVE}/build/lib -L${LIBUUID_BUILD_NATIVE}/lib \
-	${SPDK_LIBS}
+SPDK_SGX_CFLAGS = -msse4.2 -I${DPDK_BUILD_SGX}/include -I${SPDK_BUILD_SGX}/include -I${GCC_HEADERS}
+SPDK_SGX_LDFLAGS = -L${DPDK_BUILD_SGX}/lib -L${SPDK_BUILD_SGX}/build/lib ${SPDK_LIBS}
 
-${BUILD_DIR}/init_array.c: ${SPDK_BUILD_SGX}/.build
-	./tools/gen_init_array.py $@ tools/sgx-lkl.ld "${SPDK_NATIVE_LDFLAGS}"
+SPDK_NATIVE_CFLAGS = -msse4.2 -I${DPDK_BUILD_NATIVE}/include -I${SPDK_BUILD_NATIVE}/include
+SPDK_NATIVE_LDFLAGS = -L${DPDK_BUILD_NATIVE}/lib -L${SPDK_BUILD_NATIVE}/build/lib -L${LIBUUID_HOST_BUILD}/lib ${SPDK_LIBS}
+SPDK_NATIVE_LDFLAGS += -luuid
 
-${BUILD_DIR}/init_array.o: ${BUILD_DIR}/init_array.c
-	${HOST_MUSL_CC} -fPIC -c -o $@ $<
-
-sgx-lkl-musl: ${LIBLKL} ${LKL_SGXMUSL_HEADERS} ${CRYPTSETUP_BUILD}/lib/libcryptsetup.a sgx-lkl-musl-config sgx-lkl $(ENCLAVE_DEBUG_KEY) ${BUILD_DIR}/init_array.o ${SPDK_BUILD_SGX}/.build | ${SGX_LKL_MUSL_BUILD}
+sgx-lkl-musl: ${LIBLKL} ${LKL_SGXMUSL_HEADERS} ${CRYPTSETUP_BUILD}/lib/libcryptsetup.a sgx-lkl-musl-config sgx-lkl $(ENCLAVE_DEBUG_KEY) ${SPDK_BUILD_SGX}/.build | ${SGX_LKL_MUSL_BUILD}
 	+${MAKE} -C ${SGX_LKL_MUSL} CFLAGS="$(MUSL_CFLAGS)" \
     SPDK_SGX_CFLAGS="$(SPDK_SGX_CFLAGS)" \
     SPDK_SGX_LDFLAGS="$(SPDK_SGX_LDFLAGS)"
@@ -228,7 +193,7 @@ sgx-lkl-sign: $(BUILD_DIR)/libsgxlkl.so $(ENCLAVE_DEBUG_KEY)
 
 # compile sgx-lkl sources
 
-sgx-lkl: sgx-lkl-musl-config ${MBEDTLS}/mbedtls.a ${SPDK_BUILD_NATIVE}/.build ${SPDK_BUILD_SGX}/.build
+sgx-lkl: sgx-lkl-musl-config ${MBEDTLS}/mbedtls.a ${LIBUUID_HOST_BUILD}/lib/libuuid.a ${SPDK_BUILD_NATIVE}/.build ${SPDK_BUILD_SGX}/.build
 	make -C src all HW_MODE=$(HW_MODE) LIB_SGX_LKL_BUILD_DIR="$(BUILD_DIR)" \
     SPDK_SGX_CFLAGS="$(SPDK_SGX_CFLAGS)" \
     SPDK_SGX_LDFLAGS="$(SPDK_SGX_LDFLAGS)" \
@@ -246,7 +211,7 @@ ${BUILD_DIR} ${TOOLS_BUILD} ${LKL_BUILD} ${HOST_MUSL_BUILD} ${SGX_LKL_MUSL_BUILD
 	@mkdir -p $@
 
 # Submodule initialisation (one-shot after git clone)
-${HOST_MUSL}/.git ${LKL}/.git ${SGX_LKL_MUSL}/.git ${DPDK}/.git ${SPDK}/.git ${LIBUUID}/.git:
+${HOST_MUSL}/.git ${LKL}/.git ${SGX_LKL_MUSL}/.git ${DPDK}/.git ${SPDK}/.git:
 	[ "$(FORCE_SUBMODULES_VERSION)" = "true" ] || git submodule update --init $($@:.git=)
 
 compdb:

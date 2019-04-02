@@ -58,7 +58,7 @@ ${CRYPTSETUP_BUILD}/lib/libdevmapper.a: ${DEVICEMAPPER} ${HOST_MUSL_CC} ${CRYPTS
 	+CC=${HOST_MUSL_CC} ${MAKE} -C ${DEVICEMAPPER}/libdm install
 
 ${CRYPTSETUP_BUILD}/lib/libuuid.a: ${UTILLINUX} ${HOST_MUSL_CC} ${CRYPTSETUP_BUILD}
-	cd ${UTILLINUX}; [ -f Makefile ] || CC=${HOST_MUSL_CC} CFLAGS="${CRYPTSETUP_CFLAGS} -fPIC -Wl,--dynamic-linker=${HOST_MUSL_BUILD}/lib/libc.so" ./autogen.sh
+	cd ${UTILLINUX}; [ -f configure ] || CC=${HOST_MUSL_CC} CFLAGS="${CRYPTSETUP_CFLAGS} -fPIC -Wl,--dynamic-linker=${HOST_MUSL_BUILD}/lib/libc.so" ./autogen.sh
 	cd ${UTILLINUX}; [ -f Makefile ] || CC=${HOST_MUSL_CC} CFLAGS="${CRYPTSETUP_CFLAGS} -fPIC -Wl,--dynamic-linker=${HOST_MUSL_BUILD}/lib/libc.so" ./configure \
 		--prefix=${CRYPTSETUP_BUILD}/ --enable-static \
 		--disable-all-programs --enable-libuuid --enable-uuid \
@@ -66,6 +66,17 @@ ${CRYPTSETUP_BUILD}/lib/libuuid.a: ${UTILLINUX} ${HOST_MUSL_CC} ${CRYPTSETUP_BUI
 		--disable-bash-completion
 	+CC=${HOST_MUSL_CC} ${MAKE} -C ${UTILLINUX} all install
 	cp ${UTILLINUX}/.libs/libuuid.* ${CRYPTSETUP_BUILD}/lib/
+
+${LIBUUID_HOST_BUILD}/lib/libuuid.a: ${UTILLINUX}
+	cd ${UTILLINUX}; [ -f configure ] || CFLAGS="${CRYPTSETUP_CFLAGS} -fPIC" ./autogen.sh
+	cd ${UTILLINUX}; [ -f Makefile ] || CFLAGS="${CRYPTSETUP_CFLAGS} -fPIC" ./configure \
+		--prefix=${CRYPTSETUP_BUILD}/ --enable-static \
+		--disable-all-programs --enable-libuuid --enable-uuid \
+		--without-ncurses --without-ncursesw --without-tinfo \
+		--disable-bash-completion
+	+CC=${HOST_MUSL_CC} ${MAKE} -C ${UTILLINUX} all install
+	install --target ${LIBUUID_HOST_BUILD}/lib -D ${UTILLINUX}/.libs/libuuid.a
+	install --target ${LIBUUID_HOST_BUILD}/include/uuid -D ${UTILLINUX}/libuuid/src/uuid.h
 
 ${CRYPTSETUP_BUILD}/lib/libpopt.a: ${POPT} ${HOST_MUSL_CC} ${CRYPTSETUP_BUILD}
 	cd ${POPT}; [ -f Makefile ] || CC=${HOST_MUSL_CC} CFLAGS="$(CRYPTSETUP_CFLAGS) -fPIC -Wl,--dynamic-linker=${HOST_MUSL_BUILD}/lib/libc.so" ./configure \
@@ -101,4 +112,4 @@ clean:
 	+[ -f ${UTILLINUX}/Makefile ] && ${MAKE} -C ${UTILLINUX} distclean || true
 	+[ -f ${DEVICEMAPPER}/Makefile ] && ${MAKE} -C ${DEVICEMAPPER} distclean || true
 	+[ -f ${JSONC}/Makefile ] && ${MAKE} -C ${JSONC} distclean || true
-	+rm -rf $(MBEDTLS)/mbedtls.a $(MBEDTLS)/*.o 
+	+rm -rf $(MBEDTLS)/mbedtls.a $(MBEDTLS)/*.o

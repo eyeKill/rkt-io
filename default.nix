@@ -76,24 +76,24 @@ let
     esac
   '';
 
-  gcc8_nocc = wrapCCWith {
+  gcc8_nolibc = wrapCCWith {
     cc = gcc8.cc;
     bintools = wrapBintoolsWith {
       bintools = binutils-unwrapped;
       libc = null;
     };
     extraBuildCommands = ''
-      sed -i '2i if ! [[ $@ == *'musl-gcc.specs'* ]]; then exec ${gcc8}/bin/gcc -L${glibc.static} "$@"; fi' \
+      sed -i '2i if ! [[ $@ == *'musl-gcc.specs'* ]]; then exec ${gcc8}/bin/gcc -L${glibc}/lib -L${glibc.static}/lib "$@"; fi' \
         $out/bin/gcc
 
-      sed -i '2i if ! [[ $@ == *'musl-gcc.specs'* ]]; then exec ${gcc8}/bin/g++ -L${glibc.static} "$@"; fi' \
+      sed -i '2i if ! [[ $@ == *'musl-gcc.specs'* ]]; then exec ${gcc8}/bin/g++ -L${glibc}/lib -L${glibc.static}/lib "$@"; fi' \
         $out/bin/g++
 
       sed -i '2i if ! [[ $@ == *'musl-gcc.spec'* ]]; then exec ${gcc8}/bin/cpp "$@"; fi' \
         $out/bin/cpp
     '';
   };
-in (overrideCC stdenv gcc8_nocc).mkDerivation {
+in (overrideCC stdenv gcc8_nolibc).mkDerivation {
   name = "env";
 
   nativeBuildInputs = [
