@@ -14,6 +14,11 @@ in {
     command = [ "bin/iperf" "-s" ];
   };
 
+  iperf-client = runImage {
+    pkg = pkgsMusl.iperf;
+    command = [ "bin/iperf" "-c" ];
+  };
+
   iproute = runImage {
     pkg = pkgsMusl.iproute;
     command = [ "bin/ip" "a" ];
@@ -137,10 +142,18 @@ in {
   };
 
   nginx = runImage {
-    pkg = pkgsMusl.nginx.override {
+    pkg = (pkgsMusl.nginx.override {
       gd = null;
-    };
+      geoip = null;
+      libxslt = null;
+      withStream = false;
+    }).overrideAttrs (old: {
+      configureFlags = [
+        "--with-file-aio" "--with-threads"
+      ];
+    });
     command = [ "bin/nginx" "-c" "/etc/nginx.conf" ];
+    extraFiles."/var/www/wn.dict".path = "${dictdDBs.wordnet}/share/dictd/wn.dict";
     extraFiles."etc/nginx.conf" = ''
       master_process off;
       daemon off;
@@ -151,7 +164,12 @@ in {
         server {
           listen 80;
           default_type text/plain;
-          return 200 "$remote_addr\n";
+          location / {
+            return 200 "$remote_addr\n";
+          }
+          location /wordnet {
+            alias /var/www;
+          }
         }
       }
     '';

@@ -50,9 +50,13 @@ in stdenv.mkDerivation {
       if [ ! -d "$dir" ]; then
         mkdir -p "$dir"
       fi
-      cat > root/${file} <<'EOF'
-      ${files.${file}}
-      EOF
+      ${if builtins.isString files.${file} then ''
+        cat > root/${file} <<'EOF'
+        ${files.${file}}
+        EOF
+      '' else ''
+        install -D ${files.${file}.path} root/${file}
+      ''}
     '') (attrNames files)}
 
     # FIXME calculate storage requirement
