@@ -16,7 +16,12 @@ in writeScript "run-lkl" ''
   fi
 
   tmppath=$(mktemp -d)
-  cleanup() { rm -rf "$tmppath"; }
+  cleanup() {
+    if [[ -n "$pid" ]]; then
+      kill $pid
+    fi
+    rm -rf "$tmppath";
+  }
   trap cleanup EXIT SIGINT SIGQUIT ERR
 
   DEBUGGER=
@@ -31,5 +36,7 @@ in writeScript "run-lkl" ''
   fi
 
   install -m660 ${image} $tmppath/fs.img
-  TMPDIR=/tmp $DEBUGGER sgx-lkl-run $tmppath/fs.img ${image.pkg}/$cmd "$@"
+  TMPDIR=/tmp $DEBUGGER sgx-lkl-run $tmppath/fs.img ${image.pkg}/$cmd "$@" &
+  pid=$!
+  wait $pid
 ''

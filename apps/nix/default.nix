@@ -153,7 +153,9 @@ in {
       ];
     });
     command = [ "bin/nginx" "-c" "/etc/nginx.conf" ];
-    extraFiles."/var/www/wn.dict".path = "${dictdDBs.wordnet}/share/dictd/wn.dict";
+    extraFiles."/var/www/file-3mb".path = runCommand "file-3mb" {} ''
+      yes "a" | head -c ${toString (3 * 1024 * 1024)} > $out || true
+    '';
     extraFiles."etc/nginx.conf" = ''
       master_process off;
       daemon off;
@@ -167,7 +169,7 @@ in {
           location / {
             return 200 "$remote_addr\n";
           }
-          location /wordnet {
+          location /test {
             alias /var/www;
           }
         }
