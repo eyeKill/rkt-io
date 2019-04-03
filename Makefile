@@ -145,6 +145,12 @@ ${CRYPTSETUP_BUILD}/lib/libcryptsetup.a ${CRYPTSETUP_BUILD}/lib/libpopt.a ${CRYP
 ${LKL_SGXMUSL_HEADERS}: ${LKL_BUILD}/include/lkl/%.h: ${TOOLS_BUILD}/lkl_%
 	$< > $@
 
+${BUILD_DIR}/init_array.c: ${SPDK_BUILD_SGX}/.build
+	./tools/gen_init_array.py $@ tools/sgx-lkl.ld "${SPDK_NATIVE_LDFLAGS}"
+
++${BUILD_DIR}/init_array.o: ${BUILD_DIR}/init_array.c
+	${HOST_MUSL_CC} -fPIC -c -o $@ $<
+
 # SGX-LKL-Musl
 sgx-lkl-musl-config:
 	cd ${SGX_LKL_MUSL}; [ -f config.mak ] || CFLAGS="$(MUSL_CFLAGS)" ./configure \
@@ -175,12 +181,13 @@ SPDK_LIBS += -Wl,--no-whole-archive
 GCC_HEADERS = $(shell CPP='${CPP}' ./tools/find-gcc-headers.sh)
 SPDK_SGX_CFLAGS = -msse4.2 -I${DPDK_BUILD_SGX}/include -I${SPDK_BUILD_SGX}/include -I${GCC_HEADERS}
 SPDK_SGX_LDFLAGS = -L${DPDK_BUILD_SGX}/lib -L${SPDK_BUILD_SGX}/build/lib ${SPDK_LIBS}
+SPDK_SGX_LDFLAGS += ${BUILD_DIR}/init_array.o
 
 SPDK_NATIVE_CFLAGS = -msse4.2 -I${DPDK_BUILD_NATIVE}/include -I${SPDK_BUILD_NATIVE}/include
 SPDK_NATIVE_LDFLAGS = -L${DPDK_BUILD_NATIVE}/lib -L${SPDK_BUILD_NATIVE}/build/lib -L${LIBUUID_HOST_BUILD}/lib ${SPDK_LIBS}
 SPDK_NATIVE_LDFLAGS += -luuid
 
-sgx-lkl-musl: ${LIBLKL} ${LKL_SGXMUSL_HEADERS} ${CRYPTSETUP_BUILD}/lib/libcryptsetup.a sgx-lkl-musl-config sgx-lkl $(ENCLAVE_DEBUG_KEY) ${SPDK_BUILD_SGX}/.build | ${SGX_LKL_MUSL_BUILD}
+sgx-lkl-musl: ${LIBLKL} ${LKL_SGXMUSL_HEADERS} ${CRYPTSETUP_BUILD}/lib/libcryptsetup.a sgx-lkl-musl-config sgx-lkl $(ENCLAVE_DEBUG_KEY) ${BUILD_DIR}/init_array.o ${SPDK_BUILD_SGX}/.build | ${SGX_LKL_MUSL_BUILD}
 	+${MAKE} -C ${SGX_LKL_MUSL} CFLAGS="$(MUSL_CFLAGS)" \
     SPDK_SGX_CFLAGS="$(SPDK_SGX_CFLAGS)" \
     SPDK_SGX_LDFLAGS="$(SPDK_SGX_LDFLAGS)"
