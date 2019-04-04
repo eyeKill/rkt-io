@@ -13,9 +13,6 @@
 [submodule "spdk"]
 	path = spdk
 	url = https://github.com/Mic92/spdk.git
-[submodule "util-linux"]
-	path = util-linux
-	url = https://github.com/karelzak/util-linux
 [submodule "apps/fstest"]
 	path = apps/fstest
 	url = https://github.com/Mic92/fstest
