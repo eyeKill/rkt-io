@@ -10,6 +10,7 @@
 #include <byteswap.h>
 #include <lkl_host.h>
 
+#include "lthread_int.h"
 #include "lkl/virtio.h"
 #include "lkl/spdk.h"
 #include "lkl/virtio_queue.h"
@@ -375,7 +376,7 @@ static void poll_thread(void *arg)
 	// FIXME one might want to limit the number of completions here,
 	// based on benchmarks.
 	spdk_nvme_qpair_process_completions(dev->ns_entry.qpair, 0);
-	usleep(1);
+	_lthread_yield_cb(lthread_self(), __scheduler_enqueue, lthread_self());
 }
 
 int spdk_env_dpdk_post_init(void);

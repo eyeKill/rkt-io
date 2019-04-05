@@ -9,6 +9,7 @@
 #include <rte_bus_pci.h>
 #include <eal_internal_cfg.h>
 
+#include "lthread_int.h"
 #include "lkl/virtio.h"
 #include "lkl/dpdk.h"
 #include "dpdk_internal.h"
@@ -257,7 +258,7 @@ static int sgxlkl_dpdk_rx(struct lkl_netdev *nd, struct lkl__iovec *iov, int cnt
 			 * available on ixgbe/igb/e1000 (as of Jan. 2016)
 			 */
 			if (!nd_dpdk->busy_poll)
-			  usleep(1);
+				_lthread_yield_cb(lthread_self(), __scheduler_enqueue, lthread_self());
 			return -1;
 		}
 		nd_dpdk->bufidx = 0;
@@ -291,7 +292,8 @@ static int sgxlkl_dpdk_poll(struct lkl_netdev *nd)
 	 * on limited NIC drivers like ixgbe/igb/e1000 (with dpdk v2.2.0),
 	 * while vmxnet3 is not supported e.g..
 	 */
-	usleep(1);
+
+	_lthread_yield_cb(lthread_self(), __scheduler_enqueue, lthread_self());
 
 	return LKL_DEV_NET_POLL_RX | LKL_DEV_NET_POLL_TX;
 }
