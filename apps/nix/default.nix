@@ -81,11 +81,11 @@ in {
       configureFlags = [ "--disable-shm" ];
     });
     diskSize = "10G";
-    extraFiles = {
+    extraFiles = (partition: {
       "fio-rand-RW.job" = ''
         [global]
         name=fio-rand-RW
-        filename=fio-rand-RW
+        filename=${partition}/fio-rand-RW
         rw=randrw
         rwmixread=60
         rwmixwrite=40
@@ -102,7 +102,7 @@ in {
       "fio-seq-RW.job" = ''
         [global]
         name=fio-seq-RW
-        filename=fio-seq-RW
+        filename=${partition}/fio-seq-RW
         rw=rw
         rwmixread=60
         rwmixwrite=40
@@ -119,7 +119,7 @@ in {
       "fio-rand-read.job" = ''
         [global]
         name=fio-rand-RW
-        filename=fio-rand-RW
+        filename=${partition}/fio-rand-RW
         rw=randrw
         rwmixread=60
         rwmixwrite=40
@@ -136,7 +136,7 @@ in {
       "fio-rand-write.job" = ''
         [global]
         name=fio-rand-write
-        filename=fio-rand-write
+        filename=${partition}/fio-rand-write
         rw=randwrite
         bs=4K
         direct=0
@@ -147,8 +147,7 @@ in {
         [file1]
         size=1G
         iodepth=16
-      '';
-    };
+      '';}) "/mnt/vdb";
     command = [
       "bin/fio"
       "--output-format=json+"
