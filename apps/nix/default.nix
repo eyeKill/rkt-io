@@ -172,6 +172,40 @@ in {
     command = [ "bin/redis-server" ];
   };
 
+  mariadb = let
+    datadir = "/var/lib/mysql";
+    mysql = pkgsMusl.mysql55;
+  in runImage {
+    pkg = mysql.overrideAttrs (old: {
+      patches = [ ./mysql.patch ];
+    });
+    command = [ "bin/mysqld" "--socket=/tmp/mysql.sock" ];
+    extraFiles = {
+      "/etc/my.cnf" = ''
+        [mysqld]
+        user=root
+        datadir=${datadir}
+      '';
+      "/etc/resolv.conf" = "";
+      "/etc/services" = "${iana-etc}/etc/services";
+      "/var/lib/mysql/.keep" = "";
+      "/run/mysqld/.keep" = "";
+    };
+    extraCommands = ''
+      export PATH=$PATH:${lib.getBin nettools}/bin
+      ${mysql}/bin/mysql_install_db --datadir=$(readlink -f root/${datadir}) --basedir=${mysql}
+      ${mysql}/bin/mysqld_safe --datadir=$(readlink -f root/${datadir}) --socket=$TMPDIR/mysql.sock &
+      while [[ ! -e $TMPDIR/mysql.sock ]]; do
+        sleep 1
+      done
+      ${mysql}/bin/mysql -u root --socket=$TMPDIR/mysql.sock <<EOF
+      GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' IDENTIFIED BY 'root' WITH GRANT OPTION;
+      CREATE DATABASE root;
+      FLUSH PRIVILEGES;
+      EOF
+   '';
+  };
+
   samba = runImage {
     pkg = samba;
     command = [ "bin/smbd" "--interactive" "--configfile=/etc/smb.conf" ];
