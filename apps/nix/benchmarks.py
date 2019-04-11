@@ -87,8 +87,8 @@ def test_nginx(settings: Settings) -> None:
 
 
 def test_iperf(settings: Settings) -> None:
-    nginx = nix_build("iperf")
-    with spawn(nginx.strip()):
+    iperf = nix_build("iperf")
+    with spawn(iperf.strip()):
         for _ in range(10):
             try:
                 cmd = ["iperf3", "-c", settings.local_dpdk_ip]
