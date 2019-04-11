@@ -172,6 +172,27 @@ in {
     command = [ "bin/redis-server" ];
   };
 
+  samba = runImage {
+    pkg = samba;
+    command = [ "bin/smbd" "--interactive" "--configfile=/etc/smb.conf" ];
+    extraFiles = {
+      "/etc/smb.conf" = ''
+        registry shares = no
+
+        [Anonymous]
+        path = /
+        browsable = yes
+        writable = yes
+        read only = no
+        force user = nobody
+      '';
+      "/var/log/samba/.keep" = "";
+      "/var/lock/samba/.keep" = "";
+      "/var/lib/samba/private/.keep" = "";
+      "/var/run/samba/.keep" = "";
+    };
+  };
+
   nginx = runImage {
     pkg = (pkgsMusl.nginx.override {
       gd = null;
