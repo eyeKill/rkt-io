@@ -8,6 +8,38 @@ let
     patches = (old.patches or []) ++ [ ./busybox-mlock.patch ];
   });
 
+  # Runs out-of-memory wit
+  samba = (pkgsMusl.samba.override {
+    enableRegedit = true;
+  }).overrideAttrs (old: {
+    patches = old.patches ++ [
+      ./musl_uintptr.patch
+      ./netdb-defines.patch
+    ];
+    buildInputs = with pkgsMusl; [
+      readline popt iniparser libtirpc
+      libbsd libarchive zlib libiconv libunwind
+      ncurses
+    ];
+
+    nativeBuildInputs = with pkgsMusl; [
+      python2 pkgconfig perl gettext
+      libxslt docbook_xsl docbook_xml_dtd_42
+    ];
+
+    configureFlags = [
+      "--with-shared-modules=ALL"
+      "--enable-fhs"
+      "--sysconfdir=/etc"
+      "--localstatedir=/var"
+      "--without-ad-dc"
+      "--without-ads"
+      "--without-systemd"
+      "--without-ldap"
+      "--without-pam"
+    ];
+    debugSymbols = false;
+  });
 in {
   iperf = runImage {
     pkg = pkgsMusl.iperf;
