@@ -2,7 +2,7 @@
 , pkgsMusl, e2fsprogs, lkl, enableDebugging
 }:
 
-{ pkg, extraFiles ? {}, debugSymbols ? true, diskSize ? "1G" }:
+{ pkg, extraFiles ? {}, extraCommands ? "", debugSymbols ? true, diskSize ? "1G" }:
 with stdenv.lib;
 
 let
@@ -11,7 +11,7 @@ let
   }));
   finalPkg = piePkg.override {
     stdenv = if debugSymbols then
-      piePkg.stdenv
+      stdenvAdapters.keepDebugInfo piePkg.stdenv
     else
       piePkg.stdenv;
   };
@@ -58,6 +58,8 @@ in stdenv.mkDerivation {
         install -D ${files.${file}.path} root/${file}
       ''}
     '') (attrNames files)}
+
+    ${extraCommands}
 
     # FIXME calculate storage requirement
     truncate -s ${diskSize}  $out

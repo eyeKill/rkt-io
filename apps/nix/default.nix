@@ -46,6 +46,11 @@ in {
     command = [ "bin/iperf" "-s" ];
   };
 
+  iperf-host = pkgs.writeScript "iperf" ''
+    #! ${pkgs.runtimeShell} -e
+    exec ${pkgsMusl.iperf}/bin/iperf -s
+  '';
+
   iperf-client = runImage {
     pkg = pkgsMusl.iperf;
     command = [ "bin/iperf" "-c" ];
