@@ -377,6 +377,7 @@ static void poll_thread(void *arg)
 	// based on benchmarks.
 	spdk_nvme_qpair_process_completions(dev->ns_entry.qpair, 0);
 	_lthread_yield_cb(lthread_self(), __scheduler_enqueue, lthread_self());
+	//usleep(1);
 }
 
 int spdk_env_dpdk_post_init(void);
