@@ -24,7 +24,7 @@ in writeScript "run-lkl" ''
     fi
 
     if [[ ''${SGXLKL_ENABLE_FLAMEGRAPH:-} ]]; then
-      flamegraph="${image.pkg.name}-$(date +%s).svg"
+      flamegraph="''${FLAMEGRAPH_FILENAME:-${image.pkg.name}-$(date +%s).svg}"
 
       perf script -i $tmppath/perf.data \
         | stackcollapse-perf.pl \

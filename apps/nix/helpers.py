@@ -4,27 +4,34 @@ import sys
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterator, List
+from typing import Dict, Iterator, List
 
 ROOT = Path(__file__).parent.resolve()
 
 
-def run(cmd: List[str]) -> subprocess.CompletedProcess:
+def run(cmd: List[str], extra_env: Dict[str, str] = {}) -> subprocess.CompletedProcess:
     print("$ " + " ".join(cmd))
-    return subprocess.run(cmd, cwd=ROOT, stdout=subprocess.PIPE, check=True)
+    env = os.environ.copy()
+    env.update(extra_env)
+    return subprocess.run(cmd, cwd=ROOT, stdout=subprocess.PIPE, check=True, env=env)
 
 
 @contextmanager
 def spawn(*args: str, **kwargs) -> Iterator:
     print(f"$ {' '.join(args)}&")
-    proc = subprocess.Popen(args, cwd=ROOT)
+    env = os.environ.copy()
+
+    extra_env = kwargs.pop("extra_env", None)
+    if extra_env is not None:
+        env.update(extra_env)
+    proc = subprocess.Popen(args, cwd=ROOT, env=env)
+
     try:
         yield proc
     finally:
         print(f"terminate {args[0]}")
         proc.terminate()
-        proc.wait(timeout=5)
-        proc.kill()
+        proc.wait()
 
 
 @dataclass
@@ -34,13 +41,19 @@ class Settings:
     local_dpdk_ip: str
     dpdk_netmask: int
     pci_id: str
-    nic_host_driver: str
-    nic_host_ifname: str
-    nic_dpdk_driver: str
+    native_nic_driver: str
+    native_nic_ifname: str
+    dpdk_nic_driver: str
+    tap_ifname: str
+    tap_bridge_cidr: str
 
-    def run_remote(self, cmd: List[str]) -> subprocess.CompletedProcess:
+    @property
+    def cidr(self) -> str:
+        return f"{self.local_dpdk_ip}/{self.dpdk_netmask}"
+
+    def run_remote(self, cmd: List[str], extra_env: Dict[str, str] = {}) -> subprocess.CompletedProcess:
         cmd = ["ssh", self.remote_ssh_host, "--"] + cmd
-        return run(cmd)
+        return run(cmd, extra_env=extra_env)
 
 
 def nix_build(attr: str) -> str:
@@ -62,14 +75,15 @@ def create_settings() -> Settings:
     if not pci_id:
         print("NETWORK_PCI_DEV_ID not set", file=sys.stderr)
         sys.exit(1)
-
     return Settings(
         remote_ssh_host=remote_ssh_host,
         remote_dpdk_ip=remote_dpdk_ip,
         local_dpdk_ip=os.environ.get("SGXLKL_DPKD_IP4", "10.0.2.1"),
         dpdk_netmask=int(os.environ.get("DEFAULT_DPDK_IPV4_MASK", "24")),
         pci_id=pci_id,
-        nic_host_driver=os.environ.get("NETWORK_HOST_DRIVER", "i40e"),
-        nic_host_ifname=os.environ.get("NETWORK_HOST_IFNAME", "eth2"),
-        nic_dpdk_driver=os.environ.get("NETWORK_DPDK_DRIVER", "igb_uio")
+        native_nic_driver=os.environ.get("NATIVE_NETWORK_DRIVER", "i40e"),
+        native_nic_ifname=os.environ.get("NATIVE_NETWORK_IFNAME", "eth2"),
+        dpdk_nic_driver=os.environ.get("DPDK_NETWORK_DRIVER", "igb_uio"),
+        tap_ifname=os.environ.get("SGXLKL_TAP", "sgxlkl_tap0"),
+        tap_bridge_cidr=os.environ.get("SGXLKL_BRIDGE_CIDR", "10.0.2.3/24"),
     )
