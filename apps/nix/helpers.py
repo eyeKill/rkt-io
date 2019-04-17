@@ -1,6 +1,7 @@
 import os
 import subprocess
 import sys
+import signal
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
@@ -30,7 +31,7 @@ def spawn(*args: str, **kwargs) -> Iterator:
         yield proc
     finally:
         print(f"terminate {args[0]}")
-        proc.terminate()
+        proc.send_signal(signal.SIGINT)
         proc.wait()
 
 

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import getpass
 import json
 import os
 import subprocess
@@ -63,6 +64,15 @@ class Network:
         if self.kind != NetworkKind.DPDK:
             ip(["addr", "flush", "dev", self.settings.native_nic_ifname])
 
+        try:
+            ip(["link", "del", self.settings.tap_ifname])
+        except subprocess.CalledProcessError:
+            # might not exists
+            pass
+
+        ip(["tuntap", "add", "dev", self.settings.tap_ifname, "mode", "tap", "user", getpass.getuser()])
+        ip(["link", "set", "dev", self.settings.tap_ifname, "up"])
+
         subprocess.run(["sudo", "ip", "link", "del", "iperf-br"])
 
         if self.kind == NetworkKind.BRIDGE:
@@ -117,19 +127,25 @@ def _benchmark_iperf(
     extra_env: Dict[str, str] = {},
 ):
     env = extra_env.copy()
-    env.update(FLAMEGRAPH_FILENAME=f"iperf-{direction}-{system}-{NOW}.svg")
+    flamegraph = f"iperf-{direction}-{system}-{NOW}.svg"
+    print(flamegraph)
+    env.update(FLAMEGRAPH_FILENAME=flamegraph,
+               SGXLKL_ENABLE_FLAMEGRAPH="1")
     with spawn(iperf_cmd, extra_env=env):
         while True:
             cmd = ["iperf3", "-c", settings.local_dpdk_ip, "-n", "1024"]
-            proc = settings.run_remote(cmd)
-            if proc.returncode == 0:
+            try:
+                proc = settings.run_remote(cmd)
                 break
+            except subprocess.CalledProcessError:
+                print(".")
+                pass
 
         _postprocess_iperf(run_iperf(settings), direction, system, stats)
 
-    # HACK: tap device is busy even after the process finish
-    if system != "native":
-        time.sleep(5)
+    while not os.path.exists(flamegraph):
+        print(".")
+        time.sleep(1)
 
 
 def benchmark_iperf(
@@ -171,7 +187,9 @@ def main() -> None:
     benchmark_sgx_lkl(settings, stats)
     benchmark_sgx_io(settings, stats)
 
-    pd.DataFrame(stats).to_csv(f"iperf-{NOW}.tsv", index=False)
+    csv = f"iperf-{NOW}.tsv"
+    print(csv)
+    pd.DataFrame(stats).to_csv(csv, index=False)
 
 
 if __name__ == "__main__":
