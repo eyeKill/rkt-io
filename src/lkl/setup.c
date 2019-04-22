@@ -774,6 +774,17 @@ static void lkl_poststart_net(enclave_config_t* encl, int net_dev_id) {
     }
 }
 
+static void setworkingdir(char* path) {
+    int ret = lkl_sys_chdir(path);
+
+    if (ret == 0) {
+        return;
+    }
+
+    fprintf(stderr, "Error: lkl_sys_chdir(%s): %s\n", path, lkl_strerror(res));
+    exit(res);
+}
+
 static void init_random() {
     struct rand_pool_info *pool_info = 0;
     FILE *f;
@@ -946,6 +957,8 @@ void __lkl_start_init(enclave_config_t* encl) {
 
     lkl_start_spdk(encl);
     spdk_context = encl->spdk_context;
+
+    setworkingdir(encl->cwd);
 
     // Set hostname (provided through SGXLKL_HOSTNAME)
     sethostname(encl->hostname, strlen(encl->hostname));

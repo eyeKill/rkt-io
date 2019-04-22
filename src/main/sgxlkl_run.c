@@ -1287,6 +1287,8 @@ int main(int argc, char *argv[], char *envp[]) {
                   getenv("SGXLKL_DPDK_GW4"),
                   getenv("SGXLKL_DPDK_MTU"));
 
+    encl->cwd = getenv_str("SGXLKL_CWD", "/");
+
     register_queues(&encl);
 
 #ifndef SGXLKL_HW
