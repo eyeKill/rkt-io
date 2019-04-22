@@ -40,13 +40,17 @@ let
     ];
     debugSymbols = false;
   });
+
+  mysql = pkgsMusl.mysql55;
+  mysqlDatadir = "/var/lib/mysql";
+  fio = pkgsMusl.fio.overrideAttrs (old: {configureFlags = [ "--disable-shm" ]; });
 in {
   iperf = runImage {
     pkg = pkgsMusl.iperf;
     command = [ "bin/iperf" "-s" ];
   };
 
-  iperf-host = runImage {
+  iperf-native = runImage {
     pkg = pkgsMusl.iperf;
     native = true;
     command = [ "bin/iperf" "-s" ];
@@ -82,16 +86,23 @@ in {
     command = [ "bin/arping" "-I" "eth0" "10.0.2.2" ];
   };
 
+  fio-native = runImage {
+    pkg = fio;
+    native = true;
+    command = [
+      "bin/fio"
+      "--output-format=json+"
+      "fio-rand-RW.job"
+    ];
+  };
+
   fio = runImage {
-    pkg = pkgsMusl.fio.overrideAttrs (old: {
-      configureFlags = [ "--disable-shm" ];
-    });
-    diskSize = "10G";
+    pkg = fio;
     extraFiles = (partition: {
       "fio-rand-RW.job" = ''
         [global]
         name=fio-rand-RW
-        filename=${partition}/fio-rand-RW
+        filename=fio-rand-RW
         rw=randrw
         rwmixread=60
         rwmixwrite=40
@@ -108,7 +119,7 @@ in {
       "fio-seq-RW.job" = ''
         [global]
         name=fio-seq-RW
-        filename=${partition}/fio-seq-RW
+        filename=fio-seq-RW
         rw=rw
         rwmixread=60
         rwmixwrite=40
@@ -125,7 +136,7 @@ in {
       "fio-rand-read.job" = ''
         [global]
         name=fio-rand-RW
-        filename=${partition}/fio-rand-RW
+        filename=fio-rand-RW
         rw=randrw
         rwmixread=60
         rwmixwrite=40
@@ -142,7 +153,7 @@ in {
       "fio-rand-write.job" = ''
         [global]
         name=fio-rand-write
-        filename=${partition}/fio-rand-write
+        filename=fio-rand-write
         rw=randwrite
         bs=4K
         direct=0
@@ -153,7 +164,8 @@ in {
         [file1]
         size=1G
         iodepth=16
-      '';}) "/mnt/vdb";
+      '';
+      }) "/mnt/vdb";
     command = [
       "bin/fio"
       "--output-format=json+"
@@ -179,8 +191,6 @@ in {
   };
 
   mariadb = let
-    datadir = "/var/lib/mysql";
-    mysql = pkgsMusl.mysql55;
   in runImage {
     pkg = mysql.overrideAttrs (old: {
       patches = [ ./mysql.patch ];
@@ -231,6 +241,99 @@ in {
       "/var/lib/samba/private/.keep" = "";
       "/var/run/samba/.keep" = "";
     };
+  };
+
+  iotest-image = buildImage {
+    pkg = pkgs.callPackage ./dummy.nix {};
+    extraFiles = {
+      "fio-rand-RW.job" = ''
+        [global]
+        name=fio-rand-RW
+        filename=fio-rand-RW
+        rw=randrw
+        rwmixread=60
+        rwmixwrite=40
+        bs=4K
+        direct=0
+        numjobs=4
+        time_based=1
+        runtime=10
+
+        [file1]
+        size=1G
+        iodepth=16
+      '';
+      "fio-seq-RW.job" = ''
+        [global]
+        name=fio-seq-RW
+        filename=fio-seq-RW
+        rw=rw
+        rwmixread=60
+        rwmixwrite=40
+        bs=256K
+        direct=0
+        numjobs=4
+        time_based=1
+        runtime=900
+
+        [file1]
+        size=1G
+        iodepth=16
+      '';
+      "fio-rand-read.job" = ''
+        [global]
+        name=fio-rand-read
+        filename=fio-rand-read
+        rw=randrw
+        rwmixread=60
+        rwmixwrite=40
+        bs=4K
+        direct=0
+        numjobs=4
+        time_based=1
+        runtime=900
+
+        [file1]
+        size=1G
+        iodepth=16
+      '';
+      "fio-rand-write.job" = ''
+        [global]
+        name=fio-rand-write
+        filename=fio-rand-write
+        rw=randwrite
+        bs=4K
+        direct=0
+        numjobs=4
+        time_based=1
+        runtime=10
+
+        [file1]
+        size=1G
+        iodepth=16
+      '';
+      "/etc/my.cnf" = ''
+        [mysqld]
+        user=root
+        datadir=${mysqlDatadir}
+      '';
+      "/etc/resolv.conf" = "";
+      "/etc/services" = "${iana-etc}/etc/services";
+      "/var/lib/mysql/.keep" = "";
+      "/run/mysqld/.keep" = "";
+    };
+    extraCommands = ''
+      ${mysql}/bin/mysql_install_db --datadir=$(readlink -f root/${mysqlDatadir}) --basedir=${mysql}
+      ${mysql}/bin/mysqld_safe --datadir=$(readlink -f root/${mysqlDatadir}) --socket=$TMPDIR/mysql.sock &
+      while [[ ! -e $TMPDIR/mysql.sock ]]; do
+      sleep 1
+      done
+      ${mysql}/bin/mysql -u root --socket=$TMPDIR/mysql.sock <<EOF
+      GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' IDENTIFIED BY 'root' WITH GRANT OPTION;
+      CREATE DATABASE root;
+      FLUSH PRIVILEGES;
+      EOF
+    '';
   };
 
   nginx = runImage {

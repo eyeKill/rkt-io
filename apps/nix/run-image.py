@@ -8,8 +8,7 @@ import sys
 import tempfile
 from datetime import datetime
 from typing import List
-
-NOW = datetime.now()
+NOW = datetime.now().strftime("%Y%m%d-%H%M%S")
 
 
 def get_debugger(perf_data: str) -> List[str]:
@@ -32,7 +31,7 @@ def generate_flamegraph(perf_data: str, flamegraph: str) -> None:
             ["flamegraph.pl"], stdin=stackcollapse.stdout, stdout=f
         )
     flamegraph_proc.communicate()
-    print(flamegraph)
+    print(flamegraph, file=sys.stderr)
 
 
 def main(args: List[str]) -> None:
@@ -62,7 +61,7 @@ def main(args: List[str]) -> None:
         finally:
             flamegraph = os.environ.get("FLAMEGRAPH_FILENAME", None)
             if flamegraph is None:
-                flamegraph = os.path.join(tmpdirname, NOW.strftime("flamegraph-%Y%m%d-%H%M%S.svg"))
+                flamegraph = os.path.join(tmpdirname, f"flamegraph-{NOW}.svg")
             generate_flamegraph(perf_data, flamegraph)
 
 

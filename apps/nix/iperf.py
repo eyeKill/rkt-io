@@ -11,9 +11,7 @@ from enum import Enum
 from typing import Any, DefaultDict, Dict, List
 
 import pandas as pd
-from helpers import ROOT, Settings, create_settings, nix_build, run, spawn
-
-NOW = datetime.now().strftime("%Y%m%d-%H%M%S")
+from helpers import NOW, ROOT, Settings, create_settings, nix_build, run, spawn
 
 
 def run_iperf(settings: Settings, send: bool = False, extra_env: Dict[str, str] = {}):
@@ -70,7 +68,18 @@ class Network:
             # might not exists
             pass
 
-        ip(["tuntap", "add", "dev", self.settings.tap_ifname, "mode", "tap", "user", getpass.getuser()])
+        ip(
+            [
+                "tuntap",
+                "add",
+                "dev",
+                self.settings.tap_ifname,
+                "mode",
+                "tap",
+                "user",
+                getpass.getuser(),
+            ]
+        )
         ip(["link", "set", "dev", self.settings.tap_ifname, "up"])
 
         subprocess.run(["sudo", "ip", "link", "del", "iperf-br"])
@@ -129,8 +138,7 @@ def _benchmark_iperf(
     env = extra_env.copy()
     flamegraph = f"iperf-{direction}-{system}-{NOW}.svg"
     print(flamegraph)
-    env.update(FLAMEGRAPH_FILENAME=flamegraph,
-               SGXLKL_ENABLE_FLAMEGRAPH="1")
+    env.update(FLAMEGRAPH_FILENAME=flamegraph, SGXLKL_ENABLE_FLAMEGRAPH="1")
     with spawn(iperf_cmd, extra_env=env):
         while True:
             cmd = ["iperf3", "-c", settings.local_dpdk_ip, "-n", "1024"]
@@ -155,19 +163,19 @@ def benchmark_iperf(
     stats: Dict[str, List[int]],
     extra_env: Dict[str, str] = {},
 ) -> None:
-    iperf = nix_build(attr).strip()
+    iperf = nix_build(attr)
 
     _benchmark_iperf(settings, iperf, "send", system, stats, extra_env)
     _benchmark_iperf(settings, iperf, "receive", system, stats, extra_env)
 
 
-def benchmark_native(settings: Settings, stats: Dict[str, List[int]]):
+def benchmark_native(settings: Settings, stats: Dict[str, List[int]]) -> None:
     Network(NetworkKind.NATIVE, settings).setup()
 
-    benchmark_iperf(settings, "iperf-host", "native", stats)
+    benchmark_iperf(settings, "iperf-native", "native", stats)
 
 
-def benchmark_sgx_lkl(settings: Settings, stats: Dict[str, List[int]]):
+def benchmark_sgx_lkl(settings: Settings, stats: Dict[str, List[int]]) -> None:
     Network(NetworkKind.BRIDGE, settings).setup()
     extra_env = dict(SGXLKL_IP4=settings.local_dpdk_ip)
     benchmark_iperf(settings, "iperf", "sgx-lkl", stats, extra_env=extra_env)

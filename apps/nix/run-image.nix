@@ -16,6 +16,8 @@ let
 in writeScript "run-lkl" ''
   #!/usr/bin/env bash
 
+  set -xeu -o pipefail
+
   export TMPDIR=/tmp
   export PATH=${lib.makeBinPath [ flamegraph ]}:$PATH
 
@@ -25,6 +27,11 @@ in writeScript "run-lkl" ''
     cmd=$1
     shift
   fi
+  ${if native then ''
+    if [[ -n "''${SGXLKL_CWD:-}" ]]; then
+      cd "$SGXLKL_CWD"
+    fi
+  '' else ""}
 
   exec ${python3.interpreter} ${./run-image.py} ${if native then "NONE" else image} ${image.pkg}/$cmd "$@"
 ''
