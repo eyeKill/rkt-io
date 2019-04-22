@@ -214,9 +214,9 @@ static void lkl_poststart_dpdk(enclave_config_t* encl) {
 
         char ip[INET_ADDRSTRLEN];
         inet_ntop(AF_INET, &dpdk->net_ip4.s_addr, ip, INET_ADDRSTRLEN);
-        printf("iface addr: %s/%d\n", ip, dpdk->net_mask4);
+        SGXLKL_VERBOSE("dpdk iface addr: %s/%d\n", ip, dpdk->net_mask4);
         inet_ntop(AF_INET, &dpdk->net_gw4.s_addr, ip, INET_ADDRSTRLEN);
-        printf("gw addr: %s\n", ip);
+        SGXLKL_VERBOSE("gw addr: %s\n", ip);
 
         if (res < 0) {
           fprintf(stderr, "Error: lkl_if_set_ipv4(): %s\n", lkl_strerror(res));
@@ -688,6 +688,7 @@ static void lkl_start_spdk(enclave_config_t *encl) {
         if (spdk_mountpoint(spdk_devs[idx].dev_id - 1, mnt) < 0) {
             exit(1);
         }
+        SGXLKL_VERBOSE("spdk: mount(%s, %s)\n", dev_path, mnt);
         rc = lkl_mount_blockdev(dev_path, mnt, "ext4", 0, NULL);
         if (rc < 0) {
             fprintf(stderr, "Error: lkl_mount_blockdev(%s, %s)=%s (%d)\n", dev_path, mnt, lkl_strerror(rc), rc);
@@ -742,6 +743,9 @@ static void lkl_poststart_net(enclave_config_t* encl, int net_dev_id) {
     int res = 0;
     if (net_dev_id >= 0) {
         int ifidx = lkl_netdev_get_ifindex(net_dev_id);
+        char ip[INET_ADDRSTRLEN];
+        inet_ntop(AF_INET, &encl->net_ip4.s_addr, ip, INET_ADDRSTRLEN);
+        SGXLKL_VERBOSE("tap iface addr: %s/%d\n", ip, encl->net_mask4);
         res = lkl_if_set_ipv4(ifidx, encl->net_ip4.s_addr, encl->net_mask4);
         if (res < 0) {
             fprintf(stderr, "Error: lkl_if_set_ipv4(): %s\n",
