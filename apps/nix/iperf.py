@@ -51,7 +51,7 @@ class Network:
             except subprocess.CalledProcessError:  # interface may not exists
                 pass
 
-        run(["sudo", str(devbind), "-b", driver, self.settings.pci_id])
+        run(["sudo", str(devbind), "-b", driver, self.settings.nic_pci_id])
 
         if self.kind == NetworkKind.NATIVE:
             ip(["link", "set", self.settings.native_nic_ifname, "up"])
