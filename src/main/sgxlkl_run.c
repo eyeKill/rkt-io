@@ -170,7 +170,7 @@ int sim_exit_code;
 #endif /* SGXLKL_HW */
 
 static void version() {
-    printf("SGX-LKL version %s %s%s\n", VERSION, SGX_MODE, DEBUG_INFO);
+    fprintf(stderr, "SGX-LKL version %s %s%s\n", VERSION, SGX_MODE, DEBUG_INFO);
 }
 
 static void usage(char* prog) {
@@ -665,6 +665,8 @@ void register_spdk(enclave_config_t *encl,
         sgxlkl_fail("sgx-lkl-userpci failed: %s\n", strerror(-r));
     };
 
+    // use stderr for logging
+    rte_openlog_stream(stderr);
     r = spdk_initialize(ctx, false);
     if (r < 0) {
         sgxlkl_fail("spdk: failed to initialize eal: %s\n", strerror(-r));

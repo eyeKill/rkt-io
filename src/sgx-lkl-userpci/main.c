@@ -5,9 +5,11 @@
 #include <fcntl.h>
 #include <stdlib.h>
 
+#include <rte_ethdev.h>
+#include <rte_log.h>
+
 #include "dpdk.h"
 #include "spdk_context.h"
-#include "rte_ethdev.h"
 
 int main(int argc, char** argv)
 {
@@ -18,6 +20,9 @@ int main(int argc, char** argv)
     int pipe_fd = atoi(argv[1]);
     int uid = atoi(argv[2]);
     int exitcode = 0;
+
+    // use stderr for logging
+    rte_openlog_stream(stderr);
 
     struct spdk_context ctx = {};
     if (spdk_initialize(&ctx, true) < 0) {
