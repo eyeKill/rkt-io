@@ -17,7 +17,10 @@ int dpdk_initialize_iface(enclave_config_t* encl, const char *ifparams)
 {
     char poolname[RTE_MEMZONE_NAMESIZE];
 
-    assert(encl->num_dpdk_ifaces);
+    if (!encl->num_dpdk_ifaces) {
+        fprintf(stderr, "dpdk: no interface found, skip initialization\n");
+        return 0;
+    }
 
     struct enclave_dpdk_config *iface = &encl->dpdk_ifaces[encl->num_dpdk_ifaces - 1];
     iface->portid = encl->num_dpdk_ifaces - 1;

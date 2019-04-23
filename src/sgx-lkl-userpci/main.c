@@ -7,16 +7,16 @@
 
 #include "dpdk.h"
 #include "spdk_context.h"
+#include "rte_ethdev.h"
 
 int main(int argc, char** argv)
 {
-    if (argc < 4) {
-        fprintf(stderr, "USAGE: %s pipe-fd uid port-num\n", argv[0]);
+    if (argc < 3) {
+        fprintf(stderr, "USAGE: %s pipe-fd uid\n", argv[0]);
         return 1;
     }
     int pipe_fd = atoi(argv[1]);
     int uid = atoi(argv[2]);
-    int port_num = atoi(argv[3]);
     int exitcode = 0;
 
     struct spdk_context ctx = {};
@@ -24,6 +24,7 @@ int main(int argc, char** argv)
         goto error;
     };
 
+    size_t port_num = rte_eth_dev_count_avail();
     for (int portid = 0; portid < port_num; portid++) {
         int r = setup_iface(portid);
         if (r < 0) {
@@ -41,8 +42,12 @@ int main(int argc, char** argv)
     snprintf(cmd, needed, cmd_tmpl, uid);
 
     #warning "Rewrite this in C for production code!. Call bash scripts from setuid is insecure for a reason"
-    setuid(0);
-    int r = system(cmd);
+    int r = setuid(0);
+    if (r != 0) {
+        fprintf(stderr, "%s: failed to setuid: %d\n", argv[0], r);
+        goto error;
+    }
+    r = system(cmd);
     free(cmd);
 
     if (r != 0) {

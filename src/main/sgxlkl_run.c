@@ -705,7 +705,7 @@ void register_dpdk(enclave_config_t *encl,
         }
     }
 
-    encl->num_dpdk_ifaces = 1;
+    encl->num_dpdk_ifaces = rte_eth_dev_count_avail();
     encl->dpdk_ifaces = (struct enclave_dpdk_config *)malloc(
         sizeof(struct enclave_dpdk_config) * encl->num_dpdk_ifaces);
 
