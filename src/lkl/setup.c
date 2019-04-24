@@ -682,10 +682,10 @@ static void lkl_start_spdk(enclave_config_t *encl) {
             exit(1);
         }
         char dev_path[DEV_PATH_LEN], mnt[DEV_PATH_LEN];
-        if (device_path(spdk_devs[idx].dev_id - 1, dev_path) < 0) {
+        if (device_path(spdk_devs[idx].dev_id, dev_path) < 0) {
             exit(1);
         }
-        if (spdk_mountpoint(spdk_devs[idx].dev_id - 1, mnt) < 0) {
+        if (spdk_mountpoint(spdk_devs[idx].dev_id, mnt) < 0) {
             exit(1);
         }
         SGXLKL_VERBOSE("spdk: mount(%s, %s)\n", dev_path, mnt);
@@ -701,7 +701,7 @@ static void lkl_start_spdk(enclave_config_t *encl) {
 static void lkl_stop_spdk() {
     for (size_t i = 0; i < num_spdk_devs; i++) {
         char mnt[DEV_PATH_LEN];
-        int rc = spdk_mountpoint(spdk_devs[i].dev_id - 1, mnt);
+        int rc = spdk_mountpoint(spdk_devs[i].dev_id, mnt);
         assert(rc >= 0);
         int err = lkl_umount_timeout(mnt, 0, UMOUNT_DISK_TIMEOUT);
         if (err < 0) {
