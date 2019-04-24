@@ -994,6 +994,8 @@ void __lkl_exit() {
         printf("Application runtime: %lld.%.9lds\n", runtime.tv_sec, runtime.tv_nsec);
     }
 
+    setworkingdir("/");
+
     long res;
     for (int i = num_disks - 1; i >= 0; --i) {
         res = lkl_umount_timeout(disks[i].mnt, 0, UMOUNT_DISK_TIMEOUT);
