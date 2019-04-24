@@ -33,6 +33,7 @@
 #include <netinet/ip.h>
 #include <linux/if.h>
 #include <linux/if_tun.h>
+#include <rte_ethdev.h>
 
 #include "sgx_enclave_config.h"
 #include "load_elf.h"
@@ -42,7 +43,6 @@
 #include "dpdk.h"
 #include "spdk_context.h"
 #include "userpci.h"
-
 #include "lkl/linux/virtio_net.h"
 
 #ifdef SGXLKL_HW
@@ -1289,7 +1289,7 @@ int main(int argc, char *argv[], char *envp[]) {
                   getenv("SGXLKL_DPDK_GW4"),
                   getenv("SGXLKL_DPDK_MTU"));
 
-    encl->cwd = getenv_str("SGXLKL_CWD", "/");
+    encl.cwd = getenv_str("SGXLKL_CWD", "/");
 
     register_queues(&encl);
 

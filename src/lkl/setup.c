@@ -784,9 +784,10 @@ static void setworkingdir(char* path) {
     if (ret == 0) {
         return;
     }
+    SGXLKL_VERBOSE("CWD %s\n", path);
 
-    fprintf(stderr, "Error: lkl_sys_chdir(%s): %s\n", path, lkl_strerror(res));
-    exit(res);
+    fprintf(stderr, "Error: lkl_sys_chdir(%s): %s\n", path, lkl_strerror(ret));
+    exit(ret);
 }
 
 static void init_random() {
