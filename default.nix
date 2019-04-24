@@ -93,6 +93,15 @@ let
         $out/bin/cpp
     '';
   };
+
+  remote_pdb = ps: ps.buildPythonPackage rec {
+    pname = "remote-pdb";
+    version = "1.3.0";
+    src = ps.fetchPypi {
+      inherit pname version;
+      sha256 = "0gqz1j8gkrvb4vws0164ac75cbmjk3lj0jljrv0igpblgvgdshg4";
+    };
+  };
 in (overrideCC stdenv gcc8_nolibc).mkDerivation {
   name = "env";
 
@@ -110,7 +119,7 @@ in (overrideCC stdenv gcc8_nolibc).mkDerivation {
     libtool
     pkgconfig
     rr
-    python3.pkgs.virtualenv
+    (python3.withPackages(ps: [ ps.pandas (remote_pdb ps) ]))
   ];
   buildInputs = [
     #(cryptsetup.overrideAttrs (old: {
