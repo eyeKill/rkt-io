@@ -44,7 +44,9 @@ let
   mysql = pkgsMusl.mysql55;
   mysqlDatadir = "/var/lib/mysql";
   fio = pkgsMusl.fio.overrideAttrs (old: {
-    tls_thread = "no";
+    patches = (old.patches or []) ++ [
+      ./fio-pool-size.patch
+    ];
     postConfigure = ''
       sed -i '/#define CONFIG_TLS_THREAD/d' config-host.h
     '';

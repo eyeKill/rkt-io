@@ -1,0 +1,13 @@
+diff --git a/smalloc.c b/smalloc.c
+index a2ad25a0..c8508982 100644
+--- a/smalloc.c
++++ b/smalloc.c
+@@ -18,7 +18,7 @@
+ #define SMALLOC_BPI	(sizeof(unsigned int) * 8)
+ #define SMALLOC_BPL	(SMALLOC_BPB * SMALLOC_BPI)
+ 
+-#define INITIAL_SIZE	16*1024*1024	/* new pool size */
++#define INITIAL_SIZE	1*1024*1024	/* new pool size */
+ #define INITIAL_POOLS	8		/* maximum number of pools to setup */
+ 
+ #define MAX_POOLS	16
