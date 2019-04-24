@@ -108,7 +108,7 @@ static int register_ns(struct spdk_context *ctx,
 	entry->next = ctx->namespaces;
 	ctx->namespaces = entry;
 
-	printf("spdk:  Namespace ID: %d size: %juGB\n", spdk_nvme_ns_get_id(ns),
+	fprintf(stderr, "spdk:  Namespace ID: %d size: %juGB\n", spdk_nvme_ns_get_id(ns),
 		   spdk_nvme_ns_get_size(ns) / 1000000000);
 	return 0;
 }
@@ -128,7 +128,7 @@ static void attach_cb(void *_ctx,
 		return;
 	}
 
-	printf("Attached to %s\n", trid->traddr);
+	fprintf(stderr, "Attached to %s\n", trid->traddr);
 
 	snprintf(entry->name, sizeof(entry->name), "%-20.20s (%-20.20s)", cdata->mn, cdata->sn);
 
@@ -145,7 +145,7 @@ static void attach_cb(void *_ctx,
 	 * Note that in NVMe, namespace IDs start at 1, not 0.
 	 */
 	int num_ns = spdk_nvme_ctrlr_get_num_ns(ctrlr);
-	printf("spdk: Using controller %s with %d namespaces.\n", entry->name, num_ns);
+	fprintf(stderr, "spdk: Using controller %s with %d namespaces.\n", entry->name, num_ns);
 	for (int nsid = 1; nsid <= num_ns; nsid++) {
 		struct spdk_nvme_ns *ns = spdk_nvme_ctrlr_get_ns(ctrlr, nsid);
 		if (ns == NULL) {
