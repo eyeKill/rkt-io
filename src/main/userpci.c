@@ -72,7 +72,7 @@ int spawn_lkl_userpci(int *pipe_fd)
     }
 
     char* prog = "sgx-lkl-userpci";
-    char* argv[] = {prog, NULL /* pipefd */, NULL /* uid */, "1" /* port-num */, NULL};
+    char* argv[] = {prog, NULL /* pipefd */, NULL /* uid */, NULL};
     char pipe_arg[255];
     snprintf(pipe_arg, sizeof(pipefds), "%d", pipefds[0]);
     argv[1] = pipe_arg;
