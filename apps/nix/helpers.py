@@ -12,11 +12,11 @@ ROOT = Path(__file__).parent.resolve()
 NOW = datetime.now().strftime("%Y%m%d-%H%M%S")
 
 
-def run(cmd: List[str], extra_env: Dict[str, str] = {}) -> subprocess.CompletedProcess:
+def run(cmd: List[str], extra_env: Dict[str, str] = {}, stdout=subprocess.PIPE) -> subprocess.CompletedProcess:
     print("$ " + " ".join(cmd))
     env = os.environ.copy()
     env.update(extra_env)
-    return subprocess.run(cmd, cwd=ROOT, stdout=subprocess.PIPE, check=True, env=env)
+    return subprocess.run(cmd, cwd=ROOT, stdout=stdout, check=True, env=env)
 
 
 class Chdir(object):
