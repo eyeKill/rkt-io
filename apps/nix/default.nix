@@ -52,6 +52,12 @@ let
     '';
     configureFlags = [ "--disable-shm" ];
   });
+
+  fioCommand = [
+    "bin/fio"
+    "--output-format=json+"
+    "fio-rand-RW.job"
+  ];
 in {
   iperf = runImage {
     pkg = pkgsMusl.iperf;
@@ -97,88 +103,12 @@ in {
   fio-native = runImage {
     pkg = fio;
     native = true;
-    command = [
-      "bin/fio"
-      "--output-format=json+"
-      "fio-rand-RW.job"
-    ];
+    command = fioCommand;
   };
 
   fio = runImage {
     pkg = fio;
-    extraFiles = (partition: {
-      "fio-rand-RW.job" = ''
-        [global]
-        name=fio-rand-RW
-        filename=fio-rand-RW
-        rw=randrw
-        rwmixread=60
-        rwmixwrite=40
-        bs=4K
-        direct=0
-        numjobs=4
-        time_based=1
-        runtime=900
-
-        [file1]
-        size=1G
-        iodepth=16
-      '';
-      "fio-seq-RW.job" = ''
-        [global]
-        name=fio-seq-RW
-        filename=fio-seq-RW
-        rw=rw
-        rwmixread=60
-        rwmixwrite=40
-        bs=256K
-        direct=0
-        numjobs=4
-        time_based=1
-        runtime=900
-
-        [file1]
-        size=1G
-        iodepth=16
-      '';
-      "fio-rand-read.job" = ''
-        [global]
-        name=fio-rand-RW
-        filename=fio-rand-RW
-        rw=randrw
-        rwmixread=60
-        rwmixwrite=40
-        bs=4K
-        direct=0
-        numjobs=4
-        time_based=1
-        runtime=900
-
-        [file1]
-        size=1G
-        iodepth=16
-      '';
-      "fio-rand-write.job" = ''
-        [global]
-        name=fio-rand-write
-        filename=fio-rand-write
-        rw=randwrite
-        bs=4K
-        direct=0
-        numjobs=4
-        time_based=1
-        runtime=900
-
-        [file1]
-        size=1G
-        iodepth=16
-      '';
-      }) "/mnt/vdb";
-    command = [
-      "bin/fio"
-      "--output-format=json+"
-      "fio-rand-write.job"
-    ];
+    command = fioCommand;
   };
 
   ioping = runImage {
