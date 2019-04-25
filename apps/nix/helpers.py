@@ -12,10 +12,15 @@ ROOT = Path(__file__).parent.resolve()
 NOW = datetime.now().strftime("%Y%m%d-%H%M%S")
 
 
-def run(cmd: List[str], extra_env: Dict[str, str] = {}, stdout=subprocess.PIPE) -> subprocess.CompletedProcess:
-    print("$ " + " ".join(cmd))
+def run(
+    cmd: List[str], extra_env: Dict[str, str] = {}, stdout=subprocess.PIPE
+) -> subprocess.CompletedProcess:
     env = os.environ.copy()
     env.update(extra_env)
+    env_string = []
+    for k, v in extra_env.items():
+        env_string.append("{k}={v}")
+    print(f"$ {' '.join(env_string)} {' '.join(cmd)}")
     return subprocess.run(cmd, cwd=ROOT, stdout=stdout, check=True, env=env)
 
 
@@ -33,12 +38,16 @@ class Chdir(object):
 
 @contextmanager
 def spawn(*args: str, **kwargs) -> Iterator:
-    print(f"$ {' '.join(args)}&")
     env = os.environ.copy()
 
     extra_env = kwargs.pop("extra_env", None)
     if extra_env is not None:
         env.update(extra_env)
+    env_string = []
+    for k, v in extra_env.items():
+        env_string.append("{k}={v}")
+
+    print(f"$ {' '.join(env_string)} {' '.join(args)}&")
     proc = subprocess.Popen(args, cwd=ROOT, env=env)
 
     try:
@@ -50,6 +59,21 @@ def spawn(*args: str, **kwargs) -> Iterator:
 
 
 @dataclass
+class RemoteCommand:
+    nix_path: str
+    ssh_host: str
+
+    def __post_init__(self) -> None:
+        run(["nix", "copy", self.nix_path, "--to", f"ssh://{self.ssh_host}"])
+
+    def run(
+        self, exe: str, args: List[str], extra_env: Dict[str, str] = {}
+    ) -> subprocess.CompletedProcess:
+        cmd = ["ssh", self.ssh_host, "--", os.path.join(self.nix_path, exe)] + args
+        return run(cmd, extra_env=extra_env, stdout=None)
+
+
+@dataclass(frozen=True)
 class Settings:
     remote_ssh_host: str
     remote_dpdk_ip: str
@@ -67,11 +91,8 @@ class Settings:
     def cidr(self) -> str:
         return f"{self.local_dpdk_ip}/{self.dpdk_netmask}"
 
-    def run_remote(
-        self, cmd: List[str], extra_env: Dict[str, str] = {}
-    ) -> subprocess.CompletedProcess:
-        cmd = ["ssh", self.remote_ssh_host, "--"] + cmd
-        return run(cmd, extra_env=extra_env)
+    def remote_command(self, nix_attr: str) -> RemoteCommand:
+        return RemoteCommand(nix_attr, self.remote_ssh_host)
 
     def spdk_device(self) -> str:
         for device in os.listdir("/sys/block"):
