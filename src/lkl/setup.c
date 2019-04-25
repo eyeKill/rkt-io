@@ -204,7 +204,6 @@ static void lkl_prestart_dpdk(enclave_config_t *encl) {
 }
 
 static void lkl_poststart_dpdk(enclave_config_t* encl) {
-    sgxlkl_register_dpdk_context(encl->dpdk_context);
 
     for (size_t i = 0; i < encl->num_dpdk_ifaces; i++) {
         struct enclave_dpdk_config *dpdk = &encl->dpdk_ifaces[i];
@@ -899,8 +898,6 @@ void __lkl_start_init(enclave_config_t* encl) {
     if (encl->net_fd != 0)
         net_dev_id = lkl_prestart_net(encl);
 
-    lkl_prestart_dpdk(encl);
-
     // Start kernel threads (synchronous, doesn't return before kernel is ready)
     const char *lkl_cmdline = getenv("SGXLKL_CMDLINE");
     if (lkl_cmdline == NULL)
@@ -956,11 +953,14 @@ void __lkl_start_init(enclave_config_t* encl) {
     if (!sgxlkl_use_host_network)
         lkl_poststart_net(encl, net_dev_id);
 
-    // Set interface status/IP/routes
-    if (!sgxlkl_use_host_network)
-        lkl_poststart_dpdk(encl);
-
+    sgxlkl_register_dpdk_context(encl->dpdk_context);
     lkl_start_spdk(encl);
+    // Set interface status/IP/routes
+    if (!sgxlkl_use_host_network) {
+        lkl_prestart_dpdk(encl);
+        lkl_poststart_dpdk(encl);
+    }
+
     spdk_context = encl->spdk_context;
 
     setworkingdir(encl->cwd);
