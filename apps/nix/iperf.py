@@ -11,99 +11,8 @@ from enum import Enum
 from typing import Any, DefaultDict, Dict, List
 
 import pandas as pd
-from helpers import NOW, ROOT, Settings, create_settings, nix_build, run, spawn
-
-
-def run_iperf(settings: Settings, send: bool = False, extra_env: Dict[str, str] = {}):
-    cmd = ["iperf3"]
-    if send:
-        cmd += ["-R"]
-    cmd += ["-c", settings.local_dpdk_ip, "--json"]
-
-    proc = settings.run_remote(cmd, extra_env=extra_env)
-    return json.loads(proc.stdout)
-
-
-def ip(args: List[str]) -> None:
-    run(["sudo", "ip"] + args)
-
-
-class NetworkKind(Enum):
-    NATIVE = 1
-    BRIDGE = 2
-    DPDK = 3
-
-
-class Network:
-    def __init__(self, kind: NetworkKind, settings: Settings) -> None:
-        self.kind = kind
-        self.settings = settings
-
-    def bind_driver(self) -> None:
-        devbind = ROOT.joinpath("..", "..", "dpdk", "usertools", "dpdk-devbind.py")
-
-        if self.kind != NetworkKind.DPDK:
-            driver = self.settings.native_nic_driver
-        else:
-            driver = self.settings.dpdk_nic_driver
-            try:
-                ip(["link", "set", self.settings.native_nic_ifname, "down"])
-            except subprocess.CalledProcessError:  # interface may not exists
-                pass
-
-        run(["sudo", str(devbind), "-b", driver, self.settings.nic_pci_id])
-
-        if self.kind == NetworkKind.NATIVE:
-            ip(["link", "set", self.settings.native_nic_ifname, "up"])
-
-    def setup(self) -> None:
-        self.bind_driver()
-
-        if self.kind != NetworkKind.DPDK:
-            ip(["addr", "flush", "dev", self.settings.native_nic_ifname])
-
-        try:
-            ip(["link", "del", self.settings.tap_ifname])
-        except subprocess.CalledProcessError:
-            # might not exists
-            pass
-
-        ip(
-            [
-                "tuntap",
-                "add",
-                "dev",
-                self.settings.tap_ifname,
-                "mode",
-                "tap",
-                "user",
-                getpass.getuser(),
-            ]
-        )
-        ip(["link", "set", "dev", self.settings.tap_ifname, "up"])
-
-        subprocess.run(["sudo", "ip", "link", "del", "iperf-br"])
-
-        if self.kind == NetworkKind.BRIDGE:
-            ip(["link", "add", "name", "iperf-br", "type", "bridge"])
-            ip(["link", "set", "dev", "iperf-br", "up"])
-            ip(["link", "set", self.settings.native_nic_ifname, "master", "iperf-br"])
-            ip(["link", "set", self.settings.tap_ifname, "master", "iperf-br"])
-            run(["sudo", "sysctl", "-w", "net.ipv4.ip_forward=1"])
-            ip(["addr", "add", "dev", "iperf-br", self.settings.tap_bridge_cidr])
-        elif self.kind == NetworkKind.NATIVE:
-            ip(
-                [
-                    "addr",
-                    "add",
-                    self.settings.cidr,
-                    "dev",
-                    self.settings.native_nic_ifname,
-                ]
-            )
-
-        if self.kind != NetworkKind.DPDK:
-            ip(["link", "set", self.settings.native_nic_ifname, "up"])
+from helpers import NOW, ROOT, Settings, create_settings, nix_build, run, spawn, RemoteCommand
+from network import Network, NetworkKind
 
 
 def _postprocess_iperf(
@@ -129,7 +38,8 @@ def _postprocess_iperf(
 
 def _benchmark_iperf(
     settings: Settings,
-    iperf_cmd: str,
+    local_iperf: str,
+    remote_iperf: RemoteCommand,
     direction: str,
     system: str,
     stats: Dict[str, List[int]],
@@ -139,17 +49,23 @@ def _benchmark_iperf(
     flamegraph = f"iperf-{direction}-{system}-{NOW}.svg"
     print(flamegraph)
     env.update(FLAMEGRAPH_FILENAME=flamegraph, SGXLKL_ENABLE_FLAMEGRAPH="1")
-    with spawn(iperf_cmd, extra_env=env):
+    with spawn(local_iperf, extra_env=env):
         while True:
-            cmd = ["iperf3", "-c", settings.local_dpdk_ip, "-n", "1024"]
+            cmd = ["bin/iperf", "-c", settings.local_dpdk_ip, "-n", "1024"]
             try:
-                proc = settings.run_remote(cmd)
+                proc = remote_iperf.run(cmd)
                 break
             except subprocess.CalledProcessError:
                 print(".")
                 pass
 
-        _postprocess_iperf(run_iperf(settings), direction, system, stats)
+        cmd = ["iperf3"]
+        if direction == "send":
+            cmd += ["-R"]
+        cmd += ["-c", settings.local_dpdk_ip, "--json"]
+
+        proc = settings.run_remote(cmd, extra_env=extra_env)
+        _postprocess_iperf(json.loads(proc.stdout), direction, system, stats)
 
     while not os.path.exists(flamegraph):
         print(".")
@@ -163,10 +79,15 @@ def benchmark_iperf(
     stats: Dict[str, List[int]],
     extra_env: Dict[str, str] = {},
 ) -> None:
-    iperf = nix_build(attr)
+    local_iperf = nix_build(attr)
+    remote_iperf = settings.remote_command(nix_build("iperf-native"))
 
-    _benchmark_iperf(settings, iperf, "send", system, stats, extra_env)
-    _benchmark_iperf(settings, iperf, "receive", system, stats, extra_env)
+    _benchmark_iperf(
+        settings, local_iperf, remote_iperf, "send", system, stats, extra_env
+    )
+    _benchmark_iperf(
+        settings, local_iperf, remote_iperf, "receive", system, stats, extra_env
+    )
 
 
 def benchmark_native(settings: Settings, stats: Dict[str, List[int]]) -> None:
