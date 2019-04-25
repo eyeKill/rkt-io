@@ -1,0 +1,12 @@
+diff -Naur --strip-trailing-cr -r mysql-5.5.62.org/sql/mysqld.cc mysql-5.5.62/sql/mysqld.cc
+--- mysql-5.5.62.org/sql/mysqld.cc	2018-08-28 23:12:51.000000000 +0200
++++ mysql-5.5.62/sql/mysqld.cc	2019-04-25 16:51:54.059075571 +0200
+@@ -4505,7 +4505,7 @@
+   if (init_common_variables())
+     unireg_abort(1);				// Will do exit
+ 
+-  init_signals();
++  //init_signals();
+ #if defined(__ia64__) || defined(__ia64)
+   /*
+     Peculiar things with ia64 platforms - it seems we only have half the

@@ -41,7 +41,9 @@ let
     debugSymbols = false;
   });
 
-  mysql = pkgsMusl.mysql55;
+  mysql = pkgsMusl.mysql55.overrideAttrs (old: {
+    patches = [ ./mysql.patch ];
+  });
   mysqlDatadir = "/var/lib/mysql";
   fio = pkgsMusl.fio.overrideAttrs (old: {
     patches = (old.patches or []) ++ [
@@ -128,17 +130,14 @@ in {
     command = [ "bin/redis-server" ];
   };
 
-  mariadb = let
-  in runImage {
-    pkg = mysql.overrideAttrs (old: {
-      patches = [ ./mysql.patch ];
-    });
+  mariadb = runImage {
+    pkg = mysql;
     command = [ "bin/mysqld" "--socket=/tmp/mysql.sock" ];
     extraFiles = {
       "/etc/my.cnf" = ''
         [mysqld]
         user=root
-        datadir=${datadir}
+        datadir=${mysqlDatadir}
       '';
       "/etc/resolv.conf" = "";
       "/etc/services" = "${iana-etc}/etc/services";
@@ -147,8 +146,8 @@ in {
     };
     extraCommands = ''
       export PATH=$PATH:${lib.getBin nettools}/bin
-      ${mysql}/bin/mysql_install_db --datadir=$(readlink -f root/${datadir}) --basedir=${mysql}
-      ${mysql}/bin/mysqld_safe --datadir=$(readlink -f root/${datadir}) --socket=$TMPDIR/mysql.sock &
+      ${mysql}/bin/mysql_install_db --datadir=$(readlink -f root/${mysqlDatadir}) --basedir=${mysql}
+      ${mysql}/bin/mysqld_safe --datadir=$(readlink -f root/${mysqlDatadir}) --socket=$TMPDIR/mysql.sock &
       while [[ ! -e $TMPDIR/mysql.sock ]]; do
         sleep 1
       done
@@ -158,6 +157,14 @@ in {
       FLUSH PRIVILEGES;
       EOF
    '';
+  };
+
+  mariadbPkg = mysql;
+
+  mariadb-native = runImage {
+    pkg = mysql;
+    native = true;
+    command = [ "bin/mysqld" ];
   };
 
   samba = runImage {
@@ -180,6 +187,9 @@ in {
       "/var/run/samba/.keep" = "";
     };
   };
+
+  sysbench = pkgs.sysbench;
+  netcat = pkgs.netcat;
 
   iotest-image = buildImage {
     pkg = pkgs.callPackage ./dummy.nix {};
