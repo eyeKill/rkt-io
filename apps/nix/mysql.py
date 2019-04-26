@@ -78,7 +78,7 @@ def benchmark_mysql(
     stats: Dict[str, List],
     extra_env: Dict[str, str] = {},
 ) -> None:
-    flamegraph = f"sysbench-{NOW}.svg"
+    flamegraph = f"mysql-{system}-{NOW}.svg"
     print(flamegraph)
 
     env = dict(

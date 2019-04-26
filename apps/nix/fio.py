@@ -104,7 +104,7 @@ def benchmark_fio(
     stats: Dict[str, List],
     extra_env: Dict[str, str] = {},
 ):
-    flamegraph = f"fio-{NOW}.svg"
+    flamegraph = f"fio-{system}-{NOW}.svg"
     print(flamegraph)
 
     env = dict(
