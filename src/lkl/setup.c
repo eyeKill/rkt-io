@@ -778,7 +778,16 @@ static void lkl_poststart_net(enclave_config_t* encl, int net_dev_id) {
 }
 
 static void setworkingdir(char* path) {
-    int ret = lkl_sys_chdir(path);
+    if (strcmp(path, "/") == 0) {
+        return;
+    }
+    char *local_path = strdup(path);
+    if (!local_path) {
+        fprintf(stderr, "Error: setworkingdir(%s): %s\n", path, strerror(errno));
+        exit(1);
+    }
+    int ret = lkl_sys_chdir(local_path);
+    free(local_path);
 
     if (ret == 0) {
         return;
@@ -786,7 +795,7 @@ static void setworkingdir(char* path) {
     SGXLKL_VERBOSE("CWD %s\n", path);
 
     fprintf(stderr, "Error: lkl_sys_chdir(%s): %s\n", path, lkl_strerror(ret));
-    exit(ret);
+    exit(1);
 }
 
 static void init_random() {
