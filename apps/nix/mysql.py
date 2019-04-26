@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import subprocess
 import tempfile
 import time
@@ -36,12 +37,45 @@ def nc_command(settings: Settings) -> RemoteCommand:
     return settings.remote_command(path)
 
 
+def parse_sysbench(output: str) -> Dict[str, str]:
+    stats_found = False
+    section = ""
+    data = {}
+    for line in output.split("\n"):
+        if line.startswith("SQL statistics"):
+            stats_found = True
+        if stats_found:
+            col = line.split(":")
+            if len(col) != 2:
+                continue
+            name = col[0].strip()
+            # remove trailing statistics, e.g.:
+            # transform
+            #     transactions:                        3228   (322.42 per sec.)
+            # to
+            #     transactions:                        3228
+            value = re.sub(r"\([^)]+\)$", "", col[1]).strip()
+            if value == "" and name != "queries performed":
+                section = name
+                continue
+            data[f"{section} {name}"] = value
+    return data
+
+
+def process_sysbench(output: str, system: str, stats: Dict[str, List]) -> None:
+    data = parse_sysbench(output)
+
+    for k, v in data.items():
+        stats[k].append(v)
+    stats["system"].append(system)
+
+
 def benchmark_mysql(
     storage: Storage,
     attr: str,
     system: str,
     mnt: str,
-    stats: Dict[str, List[int]],
+    stats: Dict[str, List],
     extra_env: Dict[str, str] = {},
 ) -> None:
     flamegraph = f"sysbench-{NOW}.svg"
@@ -79,35 +113,30 @@ def benchmark_mysql(
                 print(".")
                 pass
 
-        try:
-            sysbench.run("bin/sysbench", common_flags + ["prepare"])
-        except subprocess.CalledProcessError as f:
-            breakpoint()
-        sysbench.run("bin/sysbench", common_flags + ["run"])
+        sysbench.run("bin/sysbench", common_flags + ["prepare"])
+        proc = sysbench.run("bin/sysbench", common_flags + ["run"])
+        process_sysbench(proc.stdout.decode("utf-8"), system, stats)
         sysbench.run("bin/sysbench", common_flags + ["cleanup"])
 
 
-def benchmark_native(storage: Storage, stats: Dict[str, List[int]]) -> None:
+def benchmark_native(storage: Storage, stats: Dict[str, List]) -> None:
     with storage.setup(StorageKind.NATIVE) as mnt:
         Network(NetworkKind.NATIVE, storage.settings).setup()
         benchmark_mysql(storage, "mariadb-native", "fio-native", mnt, stats)
 
 
-def benchmark_sgx_lkl(storage: Storage, stats: Dict[str, List[int]]) -> None:
+def benchmark_sgx_lkl(storage: Storage, stats: Dict[str, List]) -> None:
     Network(NetworkKind.BRIDGE, storage.settings).setup()
     storage.setup(StorageKind.LKL)
-    extra_env = dict(SGXLKL_IP4=storage.settings.local_dpdk_ip, SGXLKL_HDS="/dev/nvme0n1:/mnt/nvme")
+    extra_env = dict(
+        SGXLKL_IP4=storage.settings.local_dpdk_ip, SGXLKL_HDS="/dev/nvme0n1:/mnt/nvme"
+    )
     benchmark_mysql(
-        storage,
-        "mariadb",
-        "sgx-lkl",
-        "/mnt/nvme",
-        stats,
-        extra_env=extra_env,
+        storage, "mariadb", "sgx-lkl", "/mnt/nvme", stats, extra_env=extra_env
     )
 
 
-def benchmark_sgx_io(storage: Storage, stats: Dict[str, List[int]]):
+def benchmark_sgx_io(storage: Storage, stats: Dict[str, List]):
     Network(NetworkKind.DPDK, storage.settings).setup()
     storage.setup(StorageKind.SPDK)
     benchmark_mysql(storage, "mariadb", "sgx-io", "/mnt/vdb", stats)
@@ -118,9 +147,13 @@ def main() -> None:
 
     settings = create_settings()
     storage = Storage(settings)
-    #benchmark_native(storage, stats)
+    benchmark_native(storage, stats)
     benchmark_sgx_lkl(storage, stats)
     benchmark_sgx_io(storage, stats)
+
+    csv = f"mysql-{NOW}.tsv"
+    print(csv)
+    pd.DataFrame(stats).to_csv(csv, index=False)
 
 
 if __name__ == "__main__":

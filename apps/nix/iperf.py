@@ -11,7 +11,16 @@ from enum import Enum
 from typing import Any, DefaultDict, Dict, List
 
 import pandas as pd
-from helpers import NOW, ROOT, Settings, create_settings, nix_build, run, spawn, RemoteCommand
+from helpers import (
+    NOW,
+    ROOT,
+    RemoteCommand,
+    Settings,
+    create_settings,
+    nix_build,
+    run,
+    spawn,
+)
 from network import Network, NetworkKind
 
 
