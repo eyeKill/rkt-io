@@ -20,6 +20,7 @@ from helpers import (
     nix_build,
     run,
     spawn,
+    flamegraph_env
 )
 from network import Network, NetworkKind
 from storage import Storage, StorageKind
@@ -78,12 +79,9 @@ def benchmark_mysql(
     stats: Dict[str, List],
     extra_env: Dict[str, str] = {},
 ) -> None:
-    flamegraph = f"mysql-{system}-{NOW}.svg"
-    print(flamegraph)
 
-    env = dict(
-        FLAMEGRAPH_FILENAME=flamegraph, SGXLKL_ENABLE_FLAMEGRAPH="1", SGXLKL_CWD=mnt
-    )
+    env = dict(SGXLKL_CWD=mnt)
+    env.update(flamegraph_env(f"mysql-{system}-{NOW}"))
     env.update(extra_env)
     mysql = nix_build(attr)
     sysbench = sysbench_command(storage.settings)

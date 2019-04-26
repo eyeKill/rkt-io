@@ -17,6 +17,7 @@ from helpers import (
     RemoteCommand,
     Settings,
     create_settings,
+    flamegraph_env,
     nix_build,
     run,
     spawn,
@@ -55,30 +56,22 @@ def _benchmark_iperf(
     extra_env: Dict[str, str] = {},
 ):
     env = extra_env.copy()
-    flamegraph = f"iperf-{direction}-{system}-{NOW}.svg"
-    print(flamegraph)
-    env.update(FLAMEGRAPH_FILENAME=flamegraph, SGXLKL_ENABLE_FLAMEGRAPH="1")
+    env.update(flamegraph_env(f"iperf-{direction}-{system}-{NOW}"))
     with spawn(local_iperf, extra_env=env):
         while True:
-            cmd = ["bin/iperf", "-c", settings.local_dpdk_ip, "-n", "1024"]
             try:
-                proc = remote_iperf.run(cmd)
+                proc = remote_iperf.run("bin/iperf", ["-c", settings.local_dpdk_ip, "-n", "1024"])
                 break
             except subprocess.CalledProcessError:
                 print(".")
                 pass
 
-        cmd = ["iperf3"]
+        iperf_args = ["-c", settings.local_dpdk_ip, "--json"]
         if direction == "send":
-            cmd += ["-R"]
-        cmd += ["-c", settings.local_dpdk_ip, "--json"]
+            iperf_args += ["-R"]
 
-        proc = settings.run_remote(cmd, extra_env=extra_env)
+        proc = remote_iperf.run("bin/iperf", iperf_args, extra_env=extra_env)
         _postprocess_iperf(json.loads(proc.stdout), direction, system, stats)
-
-    while not os.path.exists(flamegraph):
-        print(".")
-        time.sleep(1)
 
 
 def benchmark_iperf(
@@ -89,7 +82,7 @@ def benchmark_iperf(
     extra_env: Dict[str, str] = {},
 ) -> None:
     local_iperf = nix_build(attr)
-    remote_iperf = settings.remote_command(nix_build("iperf-native"))
+    remote_iperf = settings.remote_command(nix_build("iperf-remote"))
 
     _benchmark_iperf(
         settings, local_iperf, remote_iperf, "send", system, stats, extra_env

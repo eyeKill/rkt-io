@@ -109,6 +109,18 @@ def nix_build(attr: str) -> str:
     return run(["nix-build", "-A", str(attr)]).stdout.decode("utf-8").strip()
 
 
+def flamegraph_env(name: str) -> Dict[str, str]:
+    if os.environ.get("PROFILING", None) is None:
+        return {}
+
+    flamegraph = f"{name}.svg"
+    print(flamegraph)
+    return dict(
+        FLAMEGRAPH_FILENAME=flamegraph,
+        SGXLKL_ENABLE_FLAMEGRAPH="1",
+    )
+
+
 def create_settings() -> Settings:
     remote_ssh_host = os.environ.get("REMOTE_SSH_HOST", None)
     if not remote_ssh_host:

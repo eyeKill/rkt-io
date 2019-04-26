@@ -8,7 +8,7 @@ from collections import defaultdict
 from typing import Any, DefaultDict, Dict, List, Union
 
 import pandas as pd
-from helpers import NOW, ROOT, Chdir, Settings, create_settings, nix_build, run, spawn
+from helpers import NOW, ROOT, Chdir, Settings, create_settings, nix_build, run, spawn, flamegraph_env
 from storage import Storage, StorageKind
 
 
@@ -104,14 +104,8 @@ def benchmark_fio(
     stats: Dict[str, List],
     extra_env: Dict[str, str] = {},
 ):
-    flamegraph = f"fio-{system}-{NOW}.svg"
-    print(flamegraph)
-
-    env = dict(
-        FLAMEGRAPH_FILENAME=flamegraph,
-        SGXLKL_ENABLE_FLAMEGRAPH="1",
-        SGXLKL_CWD=directory,
-    )
+    env = dict(SGXLKL_CWD=directory)
+    env.update(flamegraph_env(f"fio-{system}-{NOW}"))
     env.update(extra_env)
     fio = nix_build(attr)
     proc = run([fio], extra_env=env)
