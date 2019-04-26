@@ -46,7 +46,6 @@ def main(args: List[str]) -> None:
     with tempfile.TemporaryDirectory(prefix="iperf-") as tmpdirname:
         perf_data = os.path.join(tmpdirname, "perf.data")
         debugger = get_debugger(perf_data)
-
         try:
             if native_mode:
                 proc = subprocess.Popen(debugger + cmd)
@@ -59,6 +58,9 @@ def main(args: List[str]) -> None:
             signal.signal(signal.SIGINT, stop_proc)
             proc.wait()
         finally:
+            if os.environ.get("SGXLKL_ENABLE_FLAMEGRAPH", None) is None:
+                return
+
             flamegraph = os.environ.get("FLAMEGRAPH_FILENAME", None)
             if flamegraph is None:
                 flamegraph = os.path.join(tmpdirname, f"flamegraph-{NOW}.svg")
