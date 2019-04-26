@@ -19,7 +19,7 @@ def run(
     env.update(extra_env)
     env_string = []
     for k, v in extra_env.items():
-        env_string.append("{k}={v}")
+        env_string.append(f"{k}={v}")
     print(f"$ {' '.join(env_string)} {' '.join(cmd)}")
     return subprocess.run(cmd, cwd=ROOT, stdout=stdout, check=True, env=env)
 
@@ -45,7 +45,7 @@ def spawn(*args: str, **kwargs) -> Iterator:
         env.update(extra_env)
     env_string = []
     for k, v in extra_env.items():
-        env_string.append("{k}={v}")
+        env_string.append(f"{k}={v}")
 
     print(f"$ {' '.join(env_string)} {' '.join(args)}&")
     proc = subprocess.Popen(args, cwd=ROOT, env=env)
