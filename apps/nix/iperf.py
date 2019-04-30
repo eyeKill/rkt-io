@@ -120,7 +120,7 @@ def main() -> None:
 
     csv = f"iperf-{NOW}.tsv"
     print(csv)
-    pd.DataFrame(stats).to_csv(csv, index=False)
+    pd.DataFrame(stats).to_csv(csv, index=False, sep="\t")
 
 
 if __name__ == "__main__":

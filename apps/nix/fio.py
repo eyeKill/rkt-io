@@ -146,9 +146,9 @@ def main() -> None:
     benchmark_sgx_lkl(storage, stats)
     benchmark_sgx_io(storage, stats)
 
-    csv = f"fio-{NOW}.tsv"
+    csv = f"fio-latency-{NOW}.tsv"
     print(csv)
-    pd.DataFrame(stats).to_csv(csv, index=False)
+    pd.DataFrame(latency_stats).to_csv(csv, index=False, sep="\t")
 
 
 if __name__ == "__main__":
