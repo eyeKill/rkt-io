@@ -102,6 +102,7 @@ def benchmark_fio(
     attr: str,
     directory: str,
     stats: Dict[str, List],
+    latency_stats: Dict[str, List],
     extra_env: Dict[str, str] = {},
 ):
     env = dict(SGXLKL_CWD=directory)
@@ -110,15 +111,26 @@ def benchmark_fio(
     fio = nix_build(attr)
     proc = run([fio], extra_env=env)
     jsondata = json.loads(proc.stdout)
-    parse_json_plus(jsondata, system, stats)
+    parse_json_plus(jsondata, system, latency_stats)
+
+    operation_set = set(["read", "write", "trim"])
+    for jobnum in range(0, len(jsondata["jobs"])):
+        stats["system"].append(system)
+        stats["job"].append(jobnum)
+
+        for operation in operation_set:
+            op_stats = jsondata["jobs"][jobnum][operation]
+            stats[f"{operation}-iobytes"].append(op_stats["io_bytes"])
+            stats[f"{operation}-iops"].append(op_stats["iops"])
+            stats[f"{operation}-runtime"].append(op_stats["runtime"])
 
 
-def benchmark_native(storage: Storage, stats: Dict[str, List]) -> None:
+def benchmark_native(storage: Storage, stats: Dict[str, List], latency_stats: Dict[str, List]) -> None:
     with storage.setup(StorageKind.NATIVE) as mnt:
-        benchmark_fio(storage, "native", "fio-native", mnt, stats)
+        benchmark_fio(storage, "native", "fio-native", mnt, stats, latency_stats)
 
 
-def benchmark_sgx_lkl(storage: Storage, stats: Dict[str, List]) -> None:
+def benchmark_sgx_lkl(storage: Storage, stats: Dict[str, List], latency_stats: Dict[str, List]) -> None:
     storage.setup(StorageKind.LKL)
     benchmark_fio(
         storage,
@@ -126,25 +138,31 @@ def benchmark_sgx_lkl(storage: Storage, stats: Dict[str, List]) -> None:
         "fio",
         "/mnt/nvme",
         stats,
+        latency_stats,
         extra_env=dict(SGXLKL_HDS="/dev/nvme0n1:/mnt/nvme"),
     )
 
 
-def benchmark_sgx_io(storage: Storage, stats: Dict[str, List]) -> None:
+def benchmark_sgx_io(storage: Storage, stats: Dict[str, List], latency_stats: Dict[str, List]) -> None:
     storage.setup(StorageKind.SPDK)
-    benchmark_fio(storage, "sgx-io", "fio", "/mnt/vdb", stats)
+    benchmark_fio(storage, "sgx-io", "fio", "/mnt/vdb", stats, latency_stats)
 
 
 def main() -> None:
     stats: DefaultDict[str, List] = defaultdict(list)
+    latency_stats: DefaultDict[str, List] = defaultdict(list)
 
     settings = create_settings()
 
     storage = Storage(settings)
 
-    benchmark_native(storage, stats)
-    benchmark_sgx_lkl(storage, stats)
-    benchmark_sgx_io(storage, stats)
+    benchmark_native(storage, stats, latency_stats)
+    benchmark_sgx_lkl(storage, stats, latency_stats)
+    benchmark_sgx_io(storage, stats, latency_stats)
+
+    csv = f"fio-throughput-{NOW}.tsv"
+    print(csv)
+    pd.DataFrame(stats).to_csv(csv, index=False, sep="\t")
 
     csv = f"fio-latency-{NOW}.tsv"
     print(csv)
