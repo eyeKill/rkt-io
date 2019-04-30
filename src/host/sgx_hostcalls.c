@@ -86,10 +86,6 @@ int host_syscall_SYS_fstat(int fd, struct stat *buf) {
     return (int)__syscall_return_value;
 }
 
-long host_syscall_SYS_set_tid_address(int * tidptr) {
-    return 0;
-}
-
 int host_syscall_SYS_poll(struct pollfd * fds, nfds_t nfds, int timeout) {
     volatile syscall_t *sc;
     volatile intptr_t __syscall_return_value;
@@ -111,28 +107,6 @@ int host_syscall_SYS_poll(struct pollfd * fds, nfds_t nfds, int timeout) {
     arena_free(a);
     sc->status = 0;
     return (int)__syscall_return_value;
-}
-
-void host_syscall_SYS_exit_group(int status) {
-    volatile syscall_t *sc;
-    volatile intptr_t __syscall_return_value;
-    Arena *a = NULL;
-    sc = getsyscallslot(&a);
-    sc->syscallno = SYS_exit_group;
-    sc->arg1 = (uintptr_t)status;
-    threadswitch((syscall_t*) sc);
-    sc->status = 0;
-}
-
-void host_syscall_SYS_exit(int status) {
-    volatile syscall_t *sc;
-    volatile intptr_t __syscall_return_value;
-    Arena *a = NULL;
-    sc = getsyscallslot(&a);
-    sc->syscallno = SYS_exit;
-    sc->arg1 = (uintptr_t)status;
-    threadswitch((syscall_t*) sc);
-    sc->status = 0;
 }
 
 int host_syscall_SYS_fdatasync(int fd) {
@@ -230,27 +204,6 @@ int host_syscall_SYS_pipe(int pipefd[2]) {
     int * val1;
     val1 = arena_alloc(a, len1);
     sc->arg1 = (uintptr_t)val1;
-    threadswitch((syscall_t*) sc);
-    __syscall_return_value = (int)sc->ret_val;
-    if (val1 != NULL && pipefd != NULL) memcpy(pipefd, val1, len1);
-    arena_free(a);
-    sc->status = 0;
-    return (int)__syscall_return_value;
-}
-
-int host_syscall_SYS_pipe2(int pipefd[2], int flags) {
-    volatile syscall_t *sc;
-    volatile intptr_t __syscall_return_value;
-    Arena *a = NULL;
-    sc = getsyscallslot(&a);
-    size_t len1;
-    len1 = sizeof(*pipefd) * 2;
-    sc = arena_ensure(a, len1, (syscall_t*) sc);
-    sc->syscallno = SYS_pipe2;
-    int * val1;
-    val1 = arena_alloc(a, len1);
-    sc->arg1 = (uintptr_t)val1;
-    sc->arg2 = (uintptr_t)flags;
     threadswitch((syscall_t*) sc);
     __syscall_return_value = (int)sc->ret_val;
     if (val1 != NULL && pipefd != NULL) memcpy(pipefd, val1, len1);
@@ -447,18 +400,6 @@ ssize_t host_syscall_SYS_pwritev(int fd, const struct iovec * iov, int iovcnt, o
     arena_free(a);
     sc->status = 0;
     return (ssize_t)__syscall_return_value;
-}
-
-int host_syscall_SYS_munlockall() {
-    volatile syscall_t *sc;
-    volatile intptr_t __syscall_return_value;
-    Arena *a = NULL;
-    sc = getsyscallslot(&a);
-    sc->syscallno = SYS_munlockall;
-    threadswitch((syscall_t*) sc);
-    __syscall_return_value = (int)sc->ret_val;
-    sc->status = 0;
-    return (int)__syscall_return_value;
 }
 
 int host_syscall_SYS_mprotect(void * addr, size_t len, int prot) {
@@ -779,26 +720,6 @@ int host_syscall_SYS_msync(void *addr, size_t length, int flags) {
     __syscall_return_value = sc->ret_val;
     sc->status = 0;
     return (int)__syscall_return_value;
-}
-
-int host_syscall_SYS_sigaltstack(const stack_t * ss, stack_t * oss) {
-    /* Currently not supported */
-    return -ENOSYS;
-}
-
-int host_syscall_SYS_kill(pid_t pid, int sig) {
-    /* Currently not supported */
-    return -ENOSYS;
-}
-
-uintptr_t host_syscall_SYS_brk(int inc) {
-    /* Currently not supported */
-    return -ENOSYS;
-}
-
-int host_syscall_SYS_munlock(const void * addr, size_t len) {
-    /* No-op */
-    return 0;
 }
 
 /* Some host system calls are only needed for debug purposed. Don't include

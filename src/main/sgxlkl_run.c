@@ -38,7 +38,6 @@
 #include "sgx_enclave_config.h"
 #include "load_elf.h"
 #include "mpmc_queue.h"
-//#include "ring_buff.h"
 #include "sgxlkl_util.h"
 #include "dpdk.h"
 #include "spdk_context.h"
@@ -210,10 +209,11 @@ static void usage(char* prog) {
     printf("SGXLKL_HD_KEY: Encryption key as passphrase or file path to a key file for the root file system image (Debug only).\n");
     printf("SGXLKL_HD_RO: Set to 1 to mount the root file system as read-only.\n");
     printf("SGXLKL_HDS: Secondary file system images. Comma-separated list of the format: disk1path:disk1mntpoint:disk1mode,disk2path:disk2mntpoint:disk2mode,[...].\n");
+    printf("SGXLKL_HD_MMAP: Set to 1 to use file-backed mmap to read from and write to disks instead of using host read/write system calls.\n");
     printf("\n## Memory ##\n");
     printf("SGXLKL_HEAP: Total heap size (in bytes) available in the enclave. This includes memory used by the kernel.\n");
     printf("SGXLKL_STACK_SIZE: Stack size of in-enclave user-level threads.\n");
-    printf("SGXLKL_MMAP_FILE_SUPPORT: <Not yet supported>\n");
+    printf("SGXLKL_MMAP_FILES: Set to \"Private\" to allow mmaping files with private copy-on-write mapping ('MAP_PRIVATE'). Set to \"Shared\" to allow mmaping files with 'MAP_SHARED'. These files will be mapped as if 'MAP_PRIVATE' has been used instead. Default: No File mapping supported.\n");
     printf("SGXLKL_SHMEM_FILE: Name of the file to be used for shared memory between the enclave and the outside.\n");
     printf("SGXLKL_SHMEM_SIZE: Size of the file to be used for shared memory between the enclave and the outside.\n");
     printf("\n## Debugging ##\n");
@@ -339,7 +339,7 @@ void *host_syscall_thread(void *v) {
 #endif /* DEBUG */
 
         /* Acquire ticket lock if the system call writes to stdout or stderr to prevent mangling of concurrent writes */
-        if (scall[i].syscallno == SYS_write) {
+        if (scall[i].syscallno == SYS_write || scall[i].syscallno == SYS_writev) {
             int fd = (int) scall[i].arg1;
             if (fd == STDOUT_FILENO) {
                 pthread_spin_lock(&__stdout_print_lock);
@@ -473,6 +473,15 @@ static void register_hd(enclave_config_t* encl, char* path, char* mnt, int reado
 
     int fd = open(path, readonly ? O_RDONLY : O_RDWR);
     if (fd == -1) sgxlkl_fail("Unable to open disk file %s for %s access: %s\n", path, readonly ? "read" : "read/write", strerror(errno));
+    struct stat disk_stat;
+    fstat(fd, &disk_stat);
+
+    char * disk_mmap = NULL;
+    if (getenv_bool("SGXLKL_HD_MMAP", 0)) {
+        disk_mmap = mmap(NULL, disk_stat.st_size, PROT_READ | (readonly ? 0 : PROT_WRITE), MAP_SHARED, fd, 0);
+        if (disk_mmap == MAP_FAILED)
+            sgxlkl_fail("Could not map memory for disk image: %s\n", strerror(errno));
+    }
 
     int flags = fcntl(fd, F_GETFL);
     if (flags == -1) sgxlkl_fail("fcntl(disk_fd, F_GETFL)");
@@ -483,6 +492,8 @@ static void register_hd(enclave_config_t* encl, char* path, char* mnt, int reado
     struct enclave_disk_config *disk = &encl->disks[idx];
     disk->fd = fd;
     disk->ro = readonly;
+    disk->capacity = disk_stat.st_size;
+    disk->mmap = disk_mmap;
     strncpy(disk->mnt, mnt, SGXLKL_DISK_MNT_MAX_PATH_LEN);
     disk->mnt[SGXLKL_DISK_MNT_MAX_PATH_LEN] = '\0';
     disk->enc = is_disk_encrypted(fd);
@@ -748,11 +759,9 @@ static void register_queues(enclave_config_t* encl) {
 
 #define MIN(a,b) (((a)<(b))?(a):(b))
 
-void set_sysconf_params(enclave_config_t *conf) {
-    long no_ethreads = (long) getenv_uint64("SGXLKL_ETHREADS", 1, 1024);
-    conf->sysconf_nproc_conf = MIN(sysconf(_SC_NPROCESSORS_CONF), no_ethreads);
-    conf->sysconf_nproc_onln = MIN(sysconf(_SC_NPROCESSORS_ONLN), no_ethreads);
-
+void set_sysconf_params(enclave_config_t *conf, long no_ethreads) {
+    conf->sysconf_nproc_conf = no_ethreads;
+    conf->sysconf_nproc_onln = no_ethreads;
 }
 
 
@@ -1269,12 +1278,16 @@ int main(int argc, char *argv[], char *envp[]) {
     encl.mode = SGXLKL_SIM_MODE;
 #endif /* SGXLKL_HW */
 
+    // Use numbers of cores as default.
+    long nproc = sysconf(_SC_NPROCESSORS_ONLN);
+    ntenclave = getenv_uint64("SGXLKL_ETHREADS", (size_t) nproc, 1024);
+
     backoff_maxpause = getenv_uint64("SGXLKL_SSPINS", 100, ULONG_MAX);
     backoff_factor = getenv_uint64("SGXLKL_SSLEEP", 4000, ULONG_MAX);
     encl.stacksize = getenv_uint64("SGXLKL_STACK_SIZE", 512*1024, ULONG_MAX);
     encl.max_user_threads = getenv_uint64("SGXLKL_MAX_USER_THREADS", DEFAULT_MAX_USER_THREADS, MAX_MAX_USER_THREADS);
-    encl.maxsyscalls = encl.max_user_threads + getenv_uint64("SGXLKL_ETHREADS", 1, 1024);
-    set_sysconf_params(&encl);
+    encl.maxsyscalls = encl.max_user_threads + ntenclave;
+    set_sysconf_params(&encl, ntenclave);
     set_vdso(&encl);
     set_shared_mem(&encl);
     set_tls(&encl);
@@ -1317,8 +1330,6 @@ int main(int argc, char *argv[], char *envp[]) {
 
     /* Get system call thread number */
     ntsyscall = getenv_uint64("SGXLKL_STHREADS", 4, 1024);
-    long nproc = sysconf(_SC_NPROCESSORS_ONLN);
-    ntenclave = getenv_uint64("SGXLKL_ETHREADS", 1, 1024);
     ts = calloc(sizeof(*ts), ntenclave + ntsyscall);
     if (ts == 0) sgxlkl_fail("Failed to allocate memory for thread identifiers: %s\n", strerror(errno));
 
