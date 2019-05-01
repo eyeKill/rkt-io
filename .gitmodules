@@ -9,7 +9,7 @@
 	url = https://github.com/lsds/sgx-lkl-musl.git
 [submodule "dpdk"]
 	path = dpdk
-	url = https://github.com/DPDK/dpdk
+	url = https://github.com/Mic92/dpdk
 [submodule "spdk"]
 	path = spdk
 	url = https://github.com/Mic92/spdk.git
