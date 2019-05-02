@@ -115,12 +115,10 @@ in (overrideCC stdenv gcc8_nolibc).mkDerivation {
     docker
     jdk
     maven
-    radare2
     automake
     autoconf
     libtool
     pkgconfig
-    rr
     linuxHeaders
     flex
     bison
@@ -131,6 +129,12 @@ in (overrideCC stdenv gcc8_nolibc).mkDerivation {
       ps.seaborn
       (remote_pdb ps)
     ]))
+    which
+    pciutils
+    iproute
+    openssh
+    procps
+    rsync
   ];
 
   # conditionally used by .envrc
