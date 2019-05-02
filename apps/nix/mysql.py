@@ -124,7 +124,7 @@ def benchmark_native(storage: Storage, stats: Dict[str, List]) -> None:
 
 
 def benchmark_sgx_lkl(storage: Storage, stats: Dict[str, List]) -> None:
-    Network(NetworkKind.BRIDGE, storage.settings).setup()
+    Network(NetworkKind.TAP, storage.settings).setup()
     storage.setup(StorageKind.LKL)
     extra_env = dict(
         SGXLKL_IP4=storage.settings.local_dpdk_ip, SGXLKL_HDS="/dev/nvme0n1:/mnt/nvme"

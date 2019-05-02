@@ -99,8 +99,8 @@ def benchmark_native(settings: Settings, stats: Dict[str, List[int]]) -> None:
 
 
 def benchmark_sgx_lkl(settings: Settings, stats: Dict[str, List[int]]) -> None:
-    Network(NetworkKind.BRIDGE, settings).setup()
     extra_env = dict(SGXLKL_IP4=settings.local_dpdk_ip)
+    Network(NetworkKind.TAP, settings).setup()
     benchmark_iperf(settings, "iperf", "sgx-lkl", stats, extra_env=extra_env)
 
 

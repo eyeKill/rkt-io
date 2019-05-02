@@ -8,7 +8,7 @@ from helpers import ROOT, Settings, nix_build, run
 
 class NetworkKind(Enum):
     NATIVE = 1
-    BRIDGE = 2
+    TAP = 2
     DPDK = 3
 
 
@@ -66,7 +66,7 @@ class Network:
 
         subprocess.run(["sudo", "ip", "link", "del", "iperf-br"])
 
-        if self.kind == NetworkKind.BRIDGE:
+        if self.kind == NetworkKind.TAP:
             ip(["link", "add", "name", "iperf-br", "type", "bridge"])
             ip(["link", "set", "dev", "iperf-br", "up"])
             ip(["link", "set", self.settings.native_nic_ifname, "master", "iperf-br"])
