@@ -110,7 +110,9 @@ def benchmark_sgx_lkl(settings: Settings, stats: Dict[str, List[int]]) -> None:
 
 def benchmark_sgx_io(settings: Settings, stats: Dict[str, List[int]]):
     Network(NetworkKind.DPDK, settings).setup()
-    benchmark_iperf(settings, "iperf", "sgx-io", stats)
+    extra_env = dict(SGXLKL_DPDK_MTU="9000")
+
+    benchmark_iperf(settings, "iperf", "sgx-io", stats, extra_env=extra_env)
 
 
 def main() -> None:
