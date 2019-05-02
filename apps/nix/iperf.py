@@ -60,7 +60,9 @@ def _benchmark_iperf(
     with spawn(local_iperf, extra_env=env):
         while True:
             try:
-                proc = remote_iperf.run("bin/iperf", ["-c", settings.local_dpdk_ip, "-n", "1024"])
+                proc = remote_iperf.run(
+                    "bin/iperf", ["-c", settings.local_dpdk_ip, "-n", "1024"]
+                )
                 break
             except subprocess.CalledProcessError:
                 print(".")
@@ -99,8 +101,10 @@ def benchmark_native(settings: Settings, stats: Dict[str, List[int]]) -> None:
 
 
 def benchmark_sgx_lkl(settings: Settings, stats: Dict[str, List[int]]) -> None:
-    extra_env = dict(SGXLKL_IP4=settings.local_dpdk_ip)
     Network(NetworkKind.TAP, settings).setup()
+    extra_env = dict(
+        SGXLKL_IP4=settings.local_dpdk_ip, SGXLKL_TAP_OFFLOAD="1", SGXLKL_TAP_MTU="9000"
+    )
     benchmark_iperf(settings, "iperf", "sgx-lkl", stats, extra_env=extra_env)
 
 

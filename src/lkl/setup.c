@@ -214,6 +214,7 @@ static void lkl_poststart_dpdk(enclave_config_t* encl) {
         char ip[INET_ADDRSTRLEN];
         inet_ntop(AF_INET, &dpdk->net_ip4.s_addr, ip, INET_ADDRSTRLEN);
         SGXLKL_VERBOSE("dpdk iface addr: %s/%d\n", ip, dpdk->net_mask4);
+        SGXLKL_VERBOSE("dpdk iface mtu: %u\n", ip, dpdk->mtu);
         inet_ntop(AF_INET, &dpdk->net_gw4.s_addr, ip, INET_ADDRSTRLEN);
         SGXLKL_VERBOSE("gw addr: %s\n", ip);
 

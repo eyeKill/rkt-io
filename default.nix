@@ -139,6 +139,8 @@ in (overrideCC stdenv gcc8_nolibc).mkDerivation {
   #SGXLKL_GW4 = "10.218.101.254";
   SGXLKL_DPDK_MAC = "62:48:ed:5e:f7:d8";
   FSTEST_MNT = "/mnt/vdb";
+  SGXLKL_TAP_OFFLOAD="1";
+  SGXLKL_TAP_MTU="9000";
 
   shellHook = ''
     export DOCKER_HOST=unix://$PWD/.docker/docker.sock

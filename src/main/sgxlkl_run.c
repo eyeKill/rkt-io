@@ -665,6 +665,13 @@ static void register_net(enclave_config_t* encl, const char* tapstr, const char*
     encl->net_mask4 = mask4;
 }
 
+void start_userpci_daemon(enclave_config_t *encl) {
+    int r = spawn_lkl_userpci(userpci_pipe);
+    if (r < 0) {
+        sgxlkl_fail("sgx-lkl-userpci failed: %s\n", strerror(-r));
+    };
+}
+
 void register_spdk(enclave_config_t *encl,
                    struct spdk_context *ctx,
                    int *userpci_pipe)
@@ -710,30 +717,31 @@ void register_dpdk(enclave_config_t *encl,
     if (mask4 < 1 || mask4 > 32)
         sgxlkl_fail("Invalid IPv4 mask %s\n", mask4str);
 
-    int mtu = 0;
+    int mtu = 1500;
     if (mtustr) {
         mtu = atoi(mtustr);
         if (mtu < 1) {
             sgxlkl_fail("Invalid mtu %s\n", mtustr);
         }
-    } else {
-        mtu = 1500;
     }
 
     encl->num_dpdk_ifaces = rte_eth_dev_count_avail();
+    if (!encl->num_dpdk_ifaces) {
+        return;
+    }
     encl->dpdk_ifaces = (struct enclave_dpdk_config *)malloc(
         sizeof(struct enclave_dpdk_config) * encl->num_dpdk_ifaces);
 
-    // TODO add support for multiple interfaces
-    int r = dpdk_initialize_iface(encl, "dpdk0");
-    if (r < 0) {
-        sgxlkl_fail("failed to initialize dpdk interface: %s\n", strerror(-r));
-    };
     encl->dpdk_ifaces[0].net_dev_id = -1;
     encl->dpdk_ifaces[0].net_mask4 = mask4;
     encl->dpdk_ifaces[0].net_ip4 = ip4;
     encl->dpdk_ifaces[0].net_gw4 = gw4;
     encl->dpdk_ifaces[0].mtu = mtu;
+    // TODO add support for multiple interfaces
+    int r = dpdk_initialize_iface(encl, "dpdk0");
+    if (r < 0) {
+        sgxlkl_fail("failed to initialize dpdk interface: %s\n", strerror(-r));
+    };
     encl->dpdk_context = dpdk_initialize_context();
 }
 

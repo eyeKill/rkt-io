@@ -20,6 +20,12 @@ int main(int argc, char** argv)
     int pipe_fd = atoi(argv[1]);
     int uid = atoi(argv[2]);
     int exitcode = 0;
+    char* mtustr = getenv("SGXLKL_DPDK_MTU");
+    int mtu = 1500;
+
+    if (!mtustr) {
+        mtu = atoi(mtustr);
+    }
 
     // use stderr for logging
     rte_openlog_stream(stderr);
@@ -31,7 +37,7 @@ int main(int argc, char** argv)
 
     size_t port_num = rte_eth_dev_count_avail();
     for (int portid = 0; portid < port_num; portid++) {
-        int r = setup_iface(portid);
+        int r = setup_iface(portid, mtu);
         if (r < 0) {
             goto error;
         }

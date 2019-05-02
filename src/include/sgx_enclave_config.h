@@ -54,7 +54,7 @@ typedef struct enclave_dpdk_config {
     int net_mask4;
     size_t portid;
     int net_dev_id;
-    int mtu;
+    uint16_t mtu;
     uint8_t mac[6];
     struct rte_mempool *txpool, *rxpool;
 } enclave_dpdk_config_t;

@@ -259,7 +259,6 @@ static int sgxlkl_dpdk_rx(struct lkl_netdev *nd, struct lkl__iovec *iov, int cnt
 			 */
 			if (!nd_dpdk->busy_poll) {
 				_lthread_yield_cb(lthread_self(), __scheduler_enqueue, lthread_self());
-				//usleep(1);
 			}
 			return -1;
 		}
@@ -295,8 +294,7 @@ static int sgxlkl_dpdk_poll(struct lkl_netdev *nd)
 	 * while vmxnet3 is not supported e.g..
 	 */
 
-	//_lthread_yield_cb(lthread_self(), __scheduler_enqueue, lthread_self());
-	usleep(1);
+	_lthread_yield_cb(lthread_self(), __scheduler_enqueue, lthread_self());
 
 	return LKL_DEV_NET_POLL_RX | LKL_DEV_NET_POLL_TX;
 }

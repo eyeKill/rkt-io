@@ -39,7 +39,8 @@ int dpdk_initialize_iface(enclave_config_t* encl, const char *ifparams)
     }
 
     rte_eth_macaddr_get(iface->portid, &iface->mac);
-    rte_eth_dev_set_mtu(iface->portid, iface->mtu);
+
+    return 0;
 }
 
 struct dpdk_context *dpdk_initialize_context()

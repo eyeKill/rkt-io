@@ -83,6 +83,7 @@ class Network:
                     self.settings.native_nic_ifname,
                 ]
             )
+            ip(["link", "set", "dev", self.settings.native_nic_ifname, "mtu", "9000"])
 
         if self.kind != NetworkKind.DPDK:
             ip(["link", "set", self.settings.native_nic_ifname, "up"])

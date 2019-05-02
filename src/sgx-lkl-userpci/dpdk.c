@@ -18,7 +18,7 @@
 #define NUMQUEUE        1
 
 
-int setup_iface(int portid)
+int setup_iface(int portid, int mtu)
 {
     int ret = 0;
     struct rte_eth_conf portconf;
@@ -58,7 +58,7 @@ int setup_iface(int portid)
     memset(&portconf, 0, sizeof(portconf));
     //portconf.rxmode.offloads |= DEV_RX_OFFLOAD_TCP_LRO;
     //portconf.rxmode.offloads &= ~DEV_RX_OFFLOAD_KEEP_CRC;
-    portconf.rxmode.max_rx_pkt_len = ETHER_MAX_LEN,
+    portconf.rxmode.max_rx_pkt_len = ETHER_MAX_LEN;
 
     ret = rte_eth_dev_configure(portid, NUMQUEUE, NUMQUEUE, &portconf);
     if (ret < 0) {
@@ -84,6 +84,12 @@ int setup_iface(int portid)
         rte_eth_tx_queue_setup(portid, 0, NUMDESC, 0, &dev_info.default_txconf);
     if (ret < 0) {
       fprintf(stderr, "dpdk: failed to setup tx queue\n");
+      return ret;
+    }
+
+    ret = rte_eth_dev_set_mtu(portid, mtu);
+    if (ret < 0) {
+      fprintf(stderr, "dpdk: failed to set mtu\n");
       return ret;
     }
 
