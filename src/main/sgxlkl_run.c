@@ -716,6 +716,8 @@ void register_dpdk(enclave_config_t *encl,
         if (mtu < 1) {
             sgxlkl_fail("Invalid mtu %s\n", mtustr);
         }
+    } else {
+        mtu = 1500;
     }
 
     encl->num_dpdk_ifaces = rte_eth_dev_count_avail();
