@@ -102,6 +102,8 @@ let
       sha256 = "0gqz1j8gkrvb4vws0164ac75cbmjk3lj0jljrv0igpblgvgdshg4";
     };
   };
+
+  kernel = linuxPackages_4_14.kernel;
 in (overrideCC stdenv gcc8_nolibc).mkDerivation {
   name = "env";
 
@@ -119,8 +121,21 @@ in (overrideCC stdenv gcc8_nolibc).mkDerivation {
     libtool
     pkgconfig
     rr
-    (python3.withPackages(ps: [ ps.pandas (remote_pdb ps) ]))
+    linuxHeaders
+    flex
+    bison
+    bc
+    gettext
+    (python3.withPackages(ps: [
+      ps.pandas
+      ps.seaborn
+      (remote_pdb ps)
+    ]))
   ];
+
+  # conditionally used by .envrc
+  NIXOS_KERNELDIR = "${kernel.dev}/lib/modules/${kernel.modDirVersion}/build";
+
   buildInputs = [
     #(cryptsetup.overrideAttrs (old: {
     #  buildInputs = (old.buildInputs or []) ++ [
