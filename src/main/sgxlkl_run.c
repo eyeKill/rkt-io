@@ -724,24 +724,22 @@ void register_dpdk(enclave_config_t *encl,
             sgxlkl_fail("Invalid mtu %s\n", mtustr);
         }
     }
-
     encl->num_dpdk_ifaces = rte_eth_dev_count_avail();
-    if (!encl->num_dpdk_ifaces) {
-        return;
-    }
-    encl->dpdk_ifaces = (struct enclave_dpdk_config *)malloc(
-        sizeof(struct enclave_dpdk_config) * encl->num_dpdk_ifaces);
+    if (encl->num_dpdk_ifaces) {
+        encl->dpdk_ifaces = (struct enclave_dpdk_config *)malloc(
+            sizeof(struct enclave_dpdk_config) * encl->num_dpdk_ifaces);
 
-    encl->dpdk_ifaces[0].net_dev_id = -1;
-    encl->dpdk_ifaces[0].net_mask4 = mask4;
-    encl->dpdk_ifaces[0].net_ip4 = ip4;
-    encl->dpdk_ifaces[0].net_gw4 = gw4;
-    encl->dpdk_ifaces[0].mtu = mtu;
-    // TODO add support for multiple interfaces
-    int r = dpdk_initialize_iface(encl, "dpdk0");
-    if (r < 0) {
-        sgxlkl_fail("failed to initialize dpdk interface: %s\n", strerror(-r));
-    };
+        encl->dpdk_ifaces[0].net_dev_id = -1;
+        encl->dpdk_ifaces[0].net_mask4 = mask4;
+        encl->dpdk_ifaces[0].net_ip4 = ip4;
+        encl->dpdk_ifaces[0].net_gw4 = gw4;
+        encl->dpdk_ifaces[0].mtu = mtu;
+        // TODO add support for multiple interfaces
+        int r = dpdk_initialize_iface(encl, "dpdk0");
+        if (r < 0) {
+            sgxlkl_fail("failed to initialize dpdk interface: %s\n", strerror(-r));
+        };
+    }
     encl->dpdk_context = dpdk_initialize_context();
 }
 
