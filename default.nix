@@ -124,6 +124,7 @@ in (overrideCC stdenv gcc8_nolibc).mkDerivation {
     bison
     bc
     gettext
+    openssl
     (python3.withPackages(ps: [
       ps.pandas
       ps.seaborn
