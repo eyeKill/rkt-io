@@ -92,9 +92,16 @@ extern unsigned long hw_exceptions;
 static const char* DEFAULT_IPV4_ADDR = "10.0.1.1";
 static const char* DEFAULT_IPV4_GW = "10.0.1.254";
 static const int   DEFAULT_IPV4_MASK = 24;
+static const char* DEFAULT_IPV6_ADDR = "fd16:012a:4639:184d::1";
+static const char* DEFAULT_IPV6_GW = "fe80::1";
+static const int   DEFAULT_IPV6_MASK = 64;
 static const char* DEFAULT_DPDK_IPV4_ADDR = "10.0.2.1";
 static const char* DEFAULT_DPDK_IPV4_GW = "10.0.2.254";
 static const int   DEFAULT_DPDK_IPV4_MASK = 24;
+static const char* DEFAULT_DPDK_IPV6_ADDR = "fdbf:9188:5fbd:a895::1";
+static const char* DEFAULT_DPDK_IPV6_GW = "fe80::1";
+static const int   DEFAULT_DPDK_IPV6_MASK = 64;
+
 static const char* DEFAULT_HOSTNAME = "lkl";
 
 /* The default heap size will only be used if no heap size is specified and
@@ -201,6 +208,9 @@ static void usage(char* prog) {
     printf("SGXLKL_IP4: IPv4 address to assign to LKL (Default: %s).\n", DEFAULT_IPV4_ADDR);
     printf("SGXLKL_GW4: IPv4 gateway to assign to LKL (Default: %s).\n", DEFAULT_IPV4_GW);
     printf("SGXLKL_MASK4: CIDR mask for LKL to use (Default: %d).\n", DEFAULT_IPV4_MASK);
+    printf("SGXLKL_IP6: IPv6 address to assign to LKL (Default: %s).\n", DEFAULT_IPV6_ADDR);
+    printf("SGXLKL_GW6: IPv6 gateway to assign to LKL (Default: %s).\n", DEFAULT_IPV6_GW);
+    printf("SGXLKL_MASK6: CIDR mask for LKL to use (Default: %d).\n", DEFAULT_IPV6_MASK);
     printf("SGXLKL_HOSTNAME: Host name for LKL to use (Default: %s).\n", DEFAULT_HOSTNAME);
     printf("SGXLKL_HOSTNET: Use host network directly without going through the in-enclave network stack.\n");
     printf("\n## Disk ##\n");
@@ -596,8 +606,10 @@ static void *register_shm(char* path, size_t len) {
     return addr;
 }
 
-static void register_net(enclave_config_t* encl, const char* tapstr, const char* ip4str,
-        const char* mask4str, const char* gw4str, const char* hostname) {
+static void register_net(enclave_config_t* encl, const char* tapstr,
+             const char* ip4str, const char* mask4str, const char* gw4str,
+             const char* ip6str, const char* mask6str, const char* gw6str,
+             const char* hostname) {
     // Set hostname
     if(hostname) {
         strncpy(encl->hostname, hostname, sizeof(encl->hostname));
@@ -647,6 +659,12 @@ static void register_net(enclave_config_t* encl, const char* tapstr, const char*
     if (inet_pton(AF_INET, ip4str, &ip4) != 1)
         sgxlkl_fail("Invalid IPv4 address %s\n", ip4str);
 
+    // Read IPv6 addr if there is one
+    if (ip6str == NULL) ip6str = DEFAULT_IPV6_ADDR;
+    struct in6_addr ip6 = { 0 };
+    if (inet_pton(AF_INET6, ip6str, &ip6) != 1)
+        sgxlkl_fail("Invalid IPv6 address %s\n", ip6str);
+
     // Read IPv4 gateway if there is one
     if (gw4str == NULL) gw4str = DEFAULT_IPV4_GW;
     struct in_addr gw4 = { 0 };
@@ -655,14 +673,29 @@ static void register_net(enclave_config_t* encl, const char* tapstr, const char*
         sgxlkl_fail("Invalid IPv4 gateway %s\n", ip4str);
     }
 
+    // Read IPv6 gateway if there is one
+    if (gw6str == NULL) gw6str = DEFAULT_IPV6_GW;
+    struct in6_addr gw6 = { 0 };
+    if (gw6str != NULL && strlen(gw6str) > 0 &&
+            inet_pton(AF_INET6, gw6str, &gw6) != 1) {
+        sgxlkl_fail("Invalid IPv6 gateway %s\n", ip6str);
+    }
+
     // Read IPv4 mask str if there is one
     int mask4 = (mask4str == NULL ? DEFAULT_IPV4_MASK : atoi(mask4str));
     if (mask4 < 1 || mask4 > 32) sgxlkl_fail("Invalid IPv4 mask %s\n", mask4str);
+
+    // Read IPv6 mask str if there is one
+    int mask6 = (mask6str == NULL ? DEFAULT_IPV6_MASK : atoi(mask6str));
+    if (mask6 < 1 || mask6 > 128) sgxlkl_fail("Invalid IPv6 mask %s\n", mask6str);
 
     encl->net_fd = fd;
     encl->net_ip4 = ip4;
     encl->net_gw4 = gw4;
     encl->net_mask4 = mask4;
+    encl->net_ip6 = ip6;
+    encl->net_gw6 = gw6;
+    encl->net_mask6 = mask6;
 }
 
 void start_userpci_daemon(enclave_config_t *encl) {
@@ -696,6 +729,9 @@ void register_dpdk(enclave_config_t *encl,
                    const char *ip4str,
                    const char *mask4str,
                    const char *gw4str,
+                   const char *ip6str,
+                   const char *mask6str,
+                   const char *gw6str,
                    const char *mtustr)
 {
     if (ip4str == NULL)
@@ -705,6 +741,13 @@ void register_dpdk(enclave_config_t *encl,
     if (inet_pton(AF_INET, ip4str, &ip4) != 1)
         sgxlkl_fail("Invalid IPv4 address %s\n", ip4str);
 
+    if (ip6str == NULL)
+        ip6str = DEFAULT_DPDK_IPV6_ADDR;
+
+    struct in6_addr ip6 = {0};
+    if (inet_pton(AF_INET6, ip6str, &ip6) != 1)
+        sgxlkl_fail("Invalid IPv4 address %s\n", ip6str);
+
     if (gw4str == NULL)
         gw4str = DEFAULT_DPDK_IPV4_GW;
     struct in_addr gw4 = {0};
@@ -712,10 +755,21 @@ void register_dpdk(enclave_config_t *encl,
         inet_pton(AF_INET, gw4str, &gw4) != 1) {
         sgxlkl_fail("Invalid IPv4 gateway %s\n", ip4str);
     }
+    if (gw6str == NULL)
+        gw6str = DEFAULT_DPDK_IPV6_GW;
+    struct in_addr gw6 = {0};
+    if (gw6str != NULL && strlen(gw6str) > 0 &&
+        inet_pton(AF_INET6, gw6str, &gw6) != 1) {
+        sgxlkl_fail("Invalid IPv6 gateway %s\n", ip6str);
+    }
 
     int mask4 = (mask4str == NULL ? DEFAULT_IPV4_MASK : atoi(mask4str));
     if (mask4 < 1 || mask4 > 32)
         sgxlkl_fail("Invalid IPv4 mask %s\n", mask4str);
+
+    int mask6 = (mask6str == NULL ? DEFAULT_IPV6_MASK : atoi(mask6str));
+    if (mask6 < 1 || mask6 > 128)
+        sgxlkl_fail("Invalid IPv6 mask %s\n", mask6str);
 
     int mtu = 1500;
     if (mtustr) {
@@ -732,7 +786,8 @@ void register_dpdk(enclave_config_t *encl,
         encl->dpdk_ifaces[0].net_dev_id = -1;
         encl->dpdk_ifaces[0].net_mask4 = mask4;
         encl->dpdk_ifaces[0].net_ip4 = ip4;
-        encl->dpdk_ifaces[0].net_gw4 = gw4;
+        encl->dpdk_ifaces[0].net_ip6 = ip6;
+        encl->dpdk_ifaces[0].net_mask6 = mask6;
         encl->dpdk_ifaces[0].mtu = mtu;
         // TODO add support for multiple interfaces
         int r = dpdk_initialize_iface(encl, "dpdk0");
@@ -1300,7 +1355,10 @@ int main(int argc, char *argv[], char *envp[]) {
     set_shared_mem(&encl);
     set_tls(&encl);
     register_hds(&encl, root_hd);
-    register_net(&encl, getenv("SGXLKL_TAP"), getenv("SGXLKL_IP4"), getenv("SGXLKL_MASK4"), getenv("SGXLKL_GW4"), getenv("SGXLKL_HOSTNAME"));
+    register_net(&encl, getenv("SGXLKL_TAP"),
+                 getenv("SGXLKL_IP4"), getenv("SGXLKL_MASK4"), getenv("SGXLKL_GW4"),
+                 getenv("SGXLKL_IP6"), getenv("SGXLKL_MASK6"), getenv("SGXLKL_GW6"),
+                 getenv("SGXLKL_HOSTNAME"));
 
     register_spdk(&encl, &spdk_context, &userpci_pipe);
 
@@ -1308,6 +1366,9 @@ int main(int argc, char *argv[], char *envp[]) {
                   getenv("SGXLKL_DPDK_IP4"),
                   getenv("SGXLKL_DPDK_MASK4"),
                   getenv("SGXLKL_DPDK_GW4"),
+                  getenv("SGXLKL_DPDK_IP6"),
+                  getenv("SGXLKL_DPDK_MASK6"),
+                  getenv("SGXLKL_DPDK_GW6"),
                   getenv("SGXLKL_DPDK_MTU"));
 
     encl.cwd = getenv_str("SGXLKL_CWD", "/");

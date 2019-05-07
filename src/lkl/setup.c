@@ -182,7 +182,8 @@ static void lkl_prestart_dpdk(enclave_config_t *encl) {
         assert(netdev != NULL);
 
         struct lkl_netdev_args netdev_args = {
-            .mac = dpdk->mac, .offload = 0,
+            .mac = dpdk->mac,
+            .offload = BIT(LKL_VIRTIO_NET_F_MRG_RXBUF)
             //.offload= (// Host and guest can handle TSOv4
             //           BIT(LKL_VIRTIO_NET_F_GUEST_TSO4) |
             //           // Host and guest can handle TSOv6
@@ -209,40 +210,34 @@ static void lkl_poststart_dpdk(enclave_config_t* encl) {
         struct enclave_dpdk_config *dpdk = &encl->dpdk_ifaces[i];
         int res = 0;
         int ifidx = lkl_netdev_get_ifindex(dpdk->net_dev_id);
-        res = lkl_if_set_ipv4(ifidx, dpdk->net_ip4.s_addr, dpdk->net_mask4);
 
-        char ip[INET_ADDRSTRLEN];
+        char ip[INET6_ADDRSTRLEN];
         inet_ntop(AF_INET, &dpdk->net_ip4.s_addr, ip, INET_ADDRSTRLEN);
         SGXLKL_VERBOSE("dpdk iface addr: %s/%d\n", ip, dpdk->net_mask4);
+        inet_ntop(AF_INET6, &dpdk->net_ip6.s6_addr, ip, INET6_ADDRSTRLEN);
+        SGXLKL_VERBOSE("dpdk iface addr: %s/%d\n", ip, dpdk->net_mask6);
         SGXLKL_VERBOSE("dpdk iface mtu: %u\n", dpdk->mtu);
-        inet_ntop(AF_INET, &dpdk->net_gw4.s_addr, ip, INET_ADDRSTRLEN);
-        SGXLKL_VERBOSE("gw addr: %s\n", ip);
 
+        res = lkl_if_set_ipv4(ifidx, dpdk->net_ip4.s_addr, dpdk->net_mask4);
         if (res < 0) {
           fprintf(stderr, "Error: lkl_if_set_ipv4(): %s\n", lkl_strerror(res));
           exit(res);
-        }
-        res = lkl_if_up(ifidx);
-        if (res < 0) {
-          fprintf(stderr, "Error: lkl_if_up(eth0): %s\n", lkl_strerror(res));
-          exit(res);
-        }
-        if (dpdk->net_gw4.s_addr > 0) {
-          res = lkl_set_ipv4_gateway(dpdk->net_gw4.s_addr);
-          if (res < 0) {
-            fprintf(stderr, "Error: lkl_set_ipv4_gateway(%s): %s\n", ip,
-                    lkl_strerror(res));
-            exit(res);
-          }
         }
 
         if (dpdk->mtu) {
             lkl_if_set_mtu(ifidx, dpdk->mtu);
         }
-        res = lkl_if_up(1);
+
+        res = lkl_if_up(ifidx);
         if (res < 0) {
-            fprintf(stderr, "Error: lkl_if_up(1=lo): %s\n", lkl_strerror(res));
-            exit(res);
+          fprintf(stderr, "Error: lkl_if_up(eth0): %s\n", lkl_strerror(res));
+          exit(res);
+        }
+
+        res = lkl_if_set_ipv6(ifidx, dpdk->net_ip6.s6_addr, dpdk->net_mask6);
+        if (res < 0) {
+          fprintf(stderr, "Error: lkl_if_set_ipv6(): %s\n", lkl_strerror(res));
+          exit(res);
         }
     }
 }
@@ -752,26 +747,44 @@ static void lkl_poststart_net(enclave_config_t* encl, int net_dev_id) {
                     lkl_strerror(res));
             exit(res);
         }
+
         res = lkl_if_up(ifidx);
         if (res < 0) {
             fprintf(stderr, "Error: lkl_if_up(eth0): %s\n",
                     lkl_strerror(res));
             exit(res);
         }
-        if (encl->net_gw4.s_addr > 0) {
-            //res = lkl_set_ipv4_gateway(encl->net_gw4.s_addr);
-            //if (res < 0) {
-            //    fprintf(stderr, "Error: lkl_set_ipv4_gateway(): %s\n",
-            //        lkl_strerror(res));
-            //    exit(res);
-            //}
+
+        res = lkl_if_set_ipv6(ifidx, encl->net_ip6.s6_addr, encl->net_mask6);
+        if (res < 0) {
+            fprintf(stderr, "Error: lkl_if_set_ipv6(): %s\n",
+                    lkl_strerror(res));
+            exit(res);
         }
 
         if (sgxlkl_mtu) {
             lkl_if_set_mtu(ifidx, sgxlkl_mtu);
         }
+
+        //if (encl->net_gw4.s_addr > 0) {
+        //    res = lkl_set_ipv4_gateway(encl->net_gw4.s_addr);
+        //    if (res < 0) {
+        //        fprintf(stderr, "Error: lkl_set_ipv4_gateway(): %s\n",
+        //                lkl_strerror(res));
+        //        exit(res);
+        //    }
+        //}
+
+        //if (encl->net_gw6.s6_addr > 0) {
+        //  res = lkl_set_ipv6_gateway(encl->net_gw6.s6_addr);
+        //  if (res < 0) {
+        //    fprintf(stderr, "Error: lkl_set_ipv6_gateway(): %s\n",
+        //            lkl_strerror(res));
+        //    exit(res);
+        //  }
+        //}
     }
-    res = lkl_if_up(1);
+    res = lkl_if_up(1 /* loopback */);
     if (res < 0) {
         fprintf(stderr, "Error: lkl_if_up(1=lo): %s\n", lkl_strerror(res));
         exit(res);

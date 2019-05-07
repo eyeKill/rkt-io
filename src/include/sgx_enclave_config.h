@@ -50,8 +50,9 @@ typedef struct enclave_disk_config {
 
 typedef struct enclave_dpdk_config {
     struct in_addr net_ip4;
-    struct in_addr net_gw4;
     int net_mask4;
+    struct in6_addr net_ip6;
+    int net_mask6;
     size_t portid;
     int net_dev_id;
     uint16_t mtu;
@@ -75,11 +76,14 @@ typedef struct enclave_config {
     int net_fd;
     struct in_addr net_ip4;
     struct in_addr net_gw4;
+    struct in6_addr net_ip6;
+    struct in6_addr net_gw6;
+    int net_mask4;
+    int net_mask6;
     size_t num_dpdk_ifaces;
     struct enclave_dpdk_config *dpdk_ifaces;
     struct dpdk_context *dpdk_context;
     struct spdk_context *spdk_context;
-    int net_mask4;
     char hostname[32];
     char **argv;
     int argc;

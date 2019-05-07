@@ -62,28 +62,31 @@ class Network:
                 getpass.getuser(),
             ]
         )
+        ip(["link", "set", "dev", self.settings.tap_ifname, "mtu", "9000"])
         ip(["link", "set", "dev", self.settings.tap_ifname, "up"])
 
         subprocess.run(["sudo", "ip", "link", "del", "iperf-br"])
 
         if self.kind == NetworkKind.TAP:
-            ip(["link", "add", "name", "iperf-br", "type", "bridge"])
+            ip(["link", "add", "name", "iperf-br", "mtu", "9000", "type", "bridge"])
             ip(["link", "set", "dev", "iperf-br", "up"])
             ip(["link", "set", self.settings.native_nic_ifname, "master", "iperf-br"])
             ip(["link", "set", self.settings.tap_ifname, "master", "iperf-br"])
-            run(["sudo", "sysctl", "-w", "net.ipv4.ip_forward=1"])
-            ip(["addr", "add", "dev", "iperf-br", self.settings.tap_bridge_cidr])
-        elif self.kind == NetworkKind.NATIVE:
-            ip(
+            run(
                 [
-                    "addr",
-                    "add",
-                    self.settings.cidr,
-                    "dev",
-                    self.settings.native_nic_ifname,
+                    "sudo",
+                    "sysctl",
+                    "-w",
+                    "net.ipv4.ip_forward=1",
+                    "net.ipv6.conf.all.forwarding=1",
                 ]
             )
-            ip(["link", "set", "dev", self.settings.native_nic_ifname, "mtu", "9000"])
+            for cidr in [self.settings.tap_bridge_cidr, self.settings.tap_bridge_cidr6]:
+                ip(["addr", "add", "dev", "iperf-br", cidr])
+        elif self.kind == NetworkKind.NATIVE:
+            for cidr in [self.settings.cidr, self.settings.cidr6]:
+                ip(["addr", "add", cidr, "dev", self.settings.native_nic_ifname])
 
         if self.kind != NetworkKind.DPDK:
+            ip(["link", "set", "dev", self.settings.native_nic_ifname, "mtu", "9000"])
             ip(["link", "set", self.settings.native_nic_ifname, "up"])

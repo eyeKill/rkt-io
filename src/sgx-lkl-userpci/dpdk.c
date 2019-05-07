@@ -66,6 +66,12 @@ int setup_iface(int portid, int mtu)
       return ret;
     }
 
+    ret = rte_eth_dev_set_mtu(portid, mtu);
+    if (ret < 0) {
+      fprintf(stderr, "dpdk: failed to set mtu\n");
+      return ret;
+    }
+
     ret = rte_eth_rx_queue_setup(portid, 0, NUMDESC, 0,
                                  &dev_info.default_rxconf, rxpool);
     if (ret < 0) {
@@ -84,12 +90,6 @@ int setup_iface(int portid, int mtu)
         rte_eth_tx_queue_setup(portid, 0, NUMDESC, 0, &dev_info.default_txconf);
     if (ret < 0) {
       fprintf(stderr, "dpdk: failed to setup tx queue\n");
-      return ret;
-    }
-
-    ret = rte_eth_dev_set_mtu(portid, mtu);
-    if (ret < 0) {
-      fprintf(stderr, "dpdk: failed to set mtu\n");
       return ret;
     }
 

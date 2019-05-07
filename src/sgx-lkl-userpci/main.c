@@ -23,7 +23,7 @@ int main(int argc, char** argv)
     char* mtustr = getenv("SGXLKL_DPDK_MTU");
     int mtu = 1500;
 
-    if (!mtustr) {
+    if (mtustr) {
         mtu = atoi(mtustr);
     }
 
