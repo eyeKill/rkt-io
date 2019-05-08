@@ -158,10 +158,7 @@ def main() -> None:
 
     graphs = []
     for arg in sys.argv[1:]:
-        if arg.startswith("mysql") or arg.startswith("fio"):
-            df = pd.read_csv(arg, delimiter="\t")
-        else:
-            df = pd.read_csv(arg)
+        df = pd.read_csv(arg, delimiter="\t")
 
         if arg.startswith("fio-throughput"):
             graphs.append(("FIO-IOPS", fio_iops_graph(df)))
