@@ -16,7 +16,7 @@ HW_MODE=yes
 default: all
 
 # Default is to build everything
-all: sgx-lkl-musl sgx-lkl
+all: sgx-lkl-musl sgx-lkl gdb/sgx-lkl-gdb
 
 sim: HW_MODE=no
 sim: all
@@ -206,6 +206,9 @@ sgx-lkl: sgx-lkl-musl-config ${MBEDTLS}/mbedtls.a ${LIBUUID_HOST_BUILD}/lib/libu
     SPDK_SGX_LDFLAGS="$(SPDK_SGX_LDFLAGS)" \
     SPDK_NATIVE_CFLAGS="${SPDK_NATIVE_CFLAGS}" \
     SPDK_NATIVE_LDFLAGS="${SPDK_NATIVE_LDFLAGS}"
+
+gdb/sgx-lkl-gdb:
+	cd gdb && ./setup.sh
 
 $(ENCLAVE_DEBUG_KEY):
 	@mkdir -p $(dir $@ )
