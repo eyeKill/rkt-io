@@ -131,6 +131,7 @@ in (overrideCC stdenv gcc8_nolibc).mkDerivation {
       (remote_pdb ps)
     ]))
     which
+    wget
     pciutils
     iproute
     openssh
