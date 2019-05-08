@@ -35,10 +35,12 @@ def _postprocess_iperf(
             stats[f"cpu_{key}"].append(cpu[key])
 
         moved_bytes = 0
-        seconds = 0
+        seconds = 0.0
         for stream in intervall["streams"]:
             moved_bytes += stream["bytes"]
             seconds += stream["seconds"]
+
+        seconds /= len(intervall["streams"])
 
         stats["system"].append(system)
         stats["bytes"].append(moved_bytes)
