@@ -753,14 +753,14 @@ void register_dpdk(enclave_config_t *encl,
     struct in_addr gw4 = {0};
     if (gw4str != NULL && strlen(gw4str) > 0 &&
         inet_pton(AF_INET, gw4str, &gw4) != 1) {
-        sgxlkl_fail("Invalid IPv4 gateway %s\n", ip4str);
+        sgxlkl_fail("Invalid IPv4 gateway %s\n", gw4str);
     }
     if (gw6str == NULL)
         gw6str = DEFAULT_DPDK_IPV6_GW;
-    struct in_addr gw6 = {0};
+    struct in6_addr gw6 = {0};
     if (gw6str != NULL && strlen(gw6str) > 0 &&
         inet_pton(AF_INET6, gw6str, &gw6) != 1) {
-        sgxlkl_fail("Invalid IPv6 gateway %s\n", ip6str);
+        sgxlkl_fail("Invalid IPv6 gateway %s\n", gw6str);
     }
 
     int mask4 = (mask4str == NULL ? DEFAULT_IPV4_MASK : atoi(mask4str));
