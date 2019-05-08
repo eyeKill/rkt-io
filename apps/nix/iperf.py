@@ -61,14 +61,14 @@ def _benchmark_iperf(
         while True:
             try:
                 proc = remote_iperf.run(
-                    "bin/iperf", ["-c", settings.local_dpdk_ip, "-n", "1024"]
+                    "bin/iperf", ["-c", settings.local_dpdk_ip6, "-n", "1024"]
                 )
                 break
             except subprocess.CalledProcessError:
                 print(".")
                 pass
 
-        iperf_args = ["-c", settings.local_dpdk_ip, "--json"]
+        iperf_args = ["-P", "4", "-c", settings.local_dpdk_ip6, "--json"]
         if direction == "send":
             iperf_args += ["-R"]
 
@@ -103,7 +103,9 @@ def benchmark_native(settings: Settings, stats: Dict[str, List[int]]) -> None:
 def benchmark_sgx_lkl(settings: Settings, stats: Dict[str, List[int]]) -> None:
     Network(NetworkKind.TAP, settings).setup()
     extra_env = dict(
-        SGXLKL_IP4=settings.local_dpdk_ip, SGXLKL_TAP_OFFLOAD="1", SGXLKL_TAP_MTU="9000"
+        SGXLKL_IP6=settings.local_dpdk_ip6,
+        SGXLKL_TAP_OFFLOAD="1",
+        SGXLKL_TAP_MTU="9000"
     )
     benchmark_iperf(settings, "iperf", "sgx-lkl", stats, extra_env=extra_env)
 
@@ -120,9 +122,9 @@ def main() -> None:
 
     settings = create_settings()
 
+    benchmark_sgx_io(settings, stats)
     benchmark_native(settings, stats)
     benchmark_sgx_lkl(settings, stats)
-    benchmark_sgx_io(settings, stats)
 
     csv = f"iperf-{NOW}.tsv"
     print(csv)

@@ -94,7 +94,7 @@ def benchmark_mysql(
         extra_env=env,
     ):
         common_flags = [
-            f"--mysql-host={storage.settings.local_dpdk_ip}",
+            f"--mysql-host={storage.settings.local_dpdk_ip6}",
             "--mysql-db=root",
             "--mysql-user=root",
             "--mysql-password=root",
@@ -104,7 +104,7 @@ def benchmark_mysql(
         while True:
             try:
                 proc = nc_command(storage.settings).run(
-                    "bin/nc", ["-z", "-v", storage.settings.local_dpdk_ip, "3306"]
+                    "bin/nc", ["-z", "-v", storage.settings.local_dpdk_ip6, "3306"]
                 )
                 break
             except subprocess.CalledProcessError:
@@ -127,7 +127,8 @@ def benchmark_sgx_lkl(storage: Storage, stats: Dict[str, List]) -> None:
     Network(NetworkKind.TAP, storage.settings).setup()
     storage.setup(StorageKind.LKL)
     extra_env = dict(
-        SGXLKL_IP4=storage.settings.local_dpdk_ip, SGXLKL_HDS="/dev/nvme0n1:/mnt/nvme"
+        SGXLKL_IP6=storage.settings.local_dpdk_ip6,
+        SGXLKL_HDS="/dev/nvme0n1:/mnt/nvme"
     )
     benchmark_mysql(
         storage, "mariadb", "sgx-lkl", "/mnt/nvme", stats, extra_env=extra_env
