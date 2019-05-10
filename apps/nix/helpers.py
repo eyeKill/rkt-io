@@ -40,9 +40,8 @@ class Chdir(object):
 def spawn(*args: str, **kwargs) -> Iterator:
     env = os.environ.copy()
 
-    extra_env = kwargs.pop("extra_env", None)
-    if extra_env is not None:
-        env.update(extra_env)
+    extra_env = kwargs.pop("extra_env", {})
+    env.update(extra_env)
     env_string = []
     for k, v in extra_env.items():
         env_string.append(f"{k}={v}")

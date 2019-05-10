@@ -72,6 +72,8 @@ in {
     command = [ "bin/iperf" "-s" ];
   };
 
+  curl-remote = pkgsMusl.curl;
+
   iperf-remote = pkgsMusl.iperf;
 
   iperf-client = runImage {
