@@ -110,19 +110,19 @@ load-dpdk-driver: ${DPDK_BUILD_NATIVE}/kmod/igb_uio.ko ${DPDK_BUILD_NATIVE}/kmod
 	insmod ${DPDK_BUILD_NATIVE}/kmod/rte_kni.ko
 	insmod ${DPDK_BUILD_NATIVE}/kmod/igb_uio.ko
 
-# LKL's static library and include/ header directory
-lkl ${LIBLKL} ${LKL_BUILD}/include: ${DPDK_BUILD_SGX}/.build ${HOST_MUSL_CC} | ${LKL}/.git ${LKL_BUILD} src/lkl/override/defconfig
+lkl-config ${LKL}/arch/lkl/defconfig: src/lkl/override/defconfig | ${LKL}/.git ${LKL_BUILD}
 	# Override lkl's defconfig with our own
 	cp -Rv src/lkl/override/defconfig ${LKL}/arch/lkl/defconfig
 	cp -Rv src/lkl/override/include/uapi/asm-generic/stat.h ${LKL}/include/uapi/asm-generic/stat.h
 	grep "include \"sys/stat.h" lkl/tools/lkl/include/lkl.h > /dev/null || sed  -i '/define _LKL_H/a \\n#include "sys/stat.h"\n#include "time.h"' lkl/tools/lkl/include/lkl.h
 	# Set bootmem size (default in LKL is 64MB)
 	sed -i 's/static unsigned long mem_size = .*;/static unsigned long mem_size = ${BOOT_MEM} \* 1024 \* 1024;/g' lkl/arch/lkl/kernel/setup.c
-	+DESTDIR=${LKL_BUILD} ${MAKE} -C ${LKL}/tools/lkl -j`tools/ncore.sh` CC=${HOST_MUSL_CC} PREFIX="" \
+
+# LKL's static library and include/ header directory
+lkl ${LIBLKL} ${LKL_BUILD}/include: ${DPDK_BUILD_SGX}/.build ${HOST_MUSL_CC} ${LKL}/arch/lkl/defconfig
+	+DESTDIR=${LKL_BUILD} ${MAKE} V=1 -C ${LKL}/tools/lkl -j`tools/ncore.sh` CC=${HOST_MUSL_CC} PREFIX="" \
 		${LKL}/tools/lkl/liblkl.a
 	mkdir -p ${LKL_BUILD}/lib
-	# they don't seem to recompile anything unless I touch this:
-	rm ${LKL}/tools/lkl/Makefile.conf
 	cp ${LKL}/tools/lkl/liblkl.a $(LKL_BUILD)/lib
 	+DESTDIR=${LKL_BUILD} ${MAKE} -C ${LKL}/tools/lkl -j`tools/ncore.sh` CC=${HOST_MUSL_CC} PREFIX="" \
 		TARGETS="" headers_install
@@ -131,6 +131,10 @@ lkl ${LIBLKL} ${LKL_BUILD}/include: ${DPDK_BUILD_SGX}/.build ${HOST_MUSL_CC} | $
 	# Bugfix, lkl_host.h redefines struct iovec in older versions of LKL.
 	grep "CONFIG_AUTO_LKL_POSIX_HOST" ${LKL_BUILD}/include/lkl_host.h > /dev/null && find ${LKL_BUILD}/include/ -type f -exec sed -i 's/struct iovec/struct lkl__iovec/' {} \; || true # struct lkl_iovec already exists
 	+${MAKE} headers_install -C ${LKL} ARCH=lkl INSTALL_HDR_PATH=${LKL_BUILD}/
+
+lkl-rebuild:
+	make -C ${LKL} ARCH=lkl install INSTALL_PATH=${LKL}/tools/lkl/ -j`tools/ncore.sh`
+	rm ${LIBLKL}
 
 tools: ${TOOLS_OBJ}
 
