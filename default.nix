@@ -133,6 +133,9 @@ in (overrideCC stdenv gcc8_nolibc).mkDerivation {
     which
     wget
     pciutils
+    utillinux
+    kmod
+    e2fsprogs
     iproute
     openssh
     procps
