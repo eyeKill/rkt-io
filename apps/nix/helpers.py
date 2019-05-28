@@ -121,9 +121,11 @@ def flamegraph_env(name: str) -> Dict[str, str]:
         return {}
 
     flamegraph = f"{name}.svg"
+    perf = f"{name}.perf.data"
     print(flamegraph)
     return dict(
         FLAMEGRAPH_FILENAME=flamegraph,
+        PERF_FILENAME=perf,
         SGXLKL_ENABLE_FLAMEGRAPH="1",
     )
 

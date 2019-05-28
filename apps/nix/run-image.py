@@ -17,7 +17,7 @@ def get_debugger(perf_data: str) -> List[str]:
     elif os.environ.get("SGXLKL_ENABLE_STRACE", None) is not None:
         return ["strace"]
     elif os.environ.get("SGXLKL_ENABLE_FLAMEGRAPH", None) is not None:
-        return ["perf", "record", "-o", perf_data, "-g", "-F99", "--"]
+        return ["perf", "record", "-o", perf_data, "-a", "-g", "-F99", "--"]
     return []
 
 
@@ -65,6 +65,10 @@ def main(args: List[str]) -> None:
             if flamegraph is None:
                 flamegraph = os.path.join(tmpdirname, f"flamegraph-{NOW}.svg")
             generate_flamegraph(perf_data, flamegraph)
+            perf = os.environ.get("PERF_FILENAME", None)
+            if perf is not None:
+                shutil.move(perf_data, perf)
+                print(perf)
 
 
 if __name__ == "__main__":
