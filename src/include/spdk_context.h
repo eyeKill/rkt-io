@@ -1,7 +1,8 @@
-#ifndef _SPDK_H
-#define _SPDK_H
+#ifndef _SPDK_CONTEXT_H
+#define _SPDK_CONTEXT_H
 
 #include <stdbool.h>
+#include <stddef.h>
 #include <pthread.h>
 
 struct spdk_ctrlr_entry {
@@ -9,11 +10,13 @@ struct spdk_ctrlr_entry {
 	struct spdk_ctrlr_entry	*next;
 	char			name[1024];
 };
+
 struct spdk_ns_entry {
 	struct spdk_nvme_ctrlr	*ctrlr;
 	struct spdk_nvme_ns	*ns;
 	struct spdk_ns_entry		*next;
-	struct spdk_nvme_qpair	*qpair;
+	struct spdk_nvme_qpair **qpairs;
+	size_t qpairs_num;
 };
 
 struct spdk_context {

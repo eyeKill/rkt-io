@@ -2,8 +2,7 @@
 #define _MUSLKL_SPDK_H
 
 #include <lkl_host.h>
-
-#include "spdk_context.h"
+#include <spdk_context.h>
 
 struct spdk_dev {
     // filled out by the caller

@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <pthread.h>
+#include <sys/sysinfo.h>
 
 #include <spdk/stdinc.h>
 #include <spdk/nvme.h>
@@ -21,8 +22,13 @@ void spdk_context_detach(struct spdk_context* ctx)
 	while (ns_entry) {
 		struct spdk_ns_entry *next = ns_entry->next;
 
-		if (ns_entry->qpair) {
-			spdk_nvme_ctrlr_free_io_qpair(ns_entry->qpair);
+		if (ns_entry->qpairs) {
+			for (int i = 0; i < ns_entry->qpairs_num; i++) {
+				if (!ns_entry->qpairs[i]) {
+					spdk_nvme_ctrlr_free_io_qpair(ns_entry->qpairs[i]);
+				}
+			}
+			free(ns_entry->qpairs);
 		}
 		ns_entry = next;
 	}
@@ -161,6 +167,8 @@ static void attach_cb(void *_ctx,
 
 static int register_qpairs(struct spdk_context *ctx)
 {
+	uint32_t cores =  get_nprocs();
+
 	struct spdk_ns_entry *ns_entry = ctx->namespaces;
 	while (ns_entry != NULL) {
 		/*
@@ -175,10 +183,19 @@ static int register_qpairs(struct spdk_context *ctx)
 		 *  qpair.  This enables extremely efficient I/O processing by making all
 		 *  I/O operations completely lockless.
 		 */
-		ns_entry->qpair = spdk_nvme_ctrlr_alloc_io_qpair(ns_entry->ctrlr, NULL, 0);
-		if (ns_entry->qpair == NULL) {
+		ns_entry->qpairs = calloc(cores, sizeof(struct spdk_nvme_qpair *));
+		if (!ns_entry->qpairs) {
 			fprintf(stderr, "spdk: spdk_nvme_ctrlr_alloc_io_qpair() failed\n");
 			return -ENOMEM;
+		}
+		ns_entry->qpairs_num = cores;
+		for (int i = 0; i < cores; i++) {
+			ns_entry->qpairs[i] = spdk_nvme_ctrlr_alloc_io_qpair(ns_entry->ctrlr, NULL, 0);
+			if (!ns_entry->qpairs[i]) {
+				fprintf(stderr,
+						"spdk: spdk_nvme_ctrlr_alloc_io_qpair() failed\n");
+				return -ENOMEM;
+			}
 		}
 
 		ns_entry = ns_entry->next;

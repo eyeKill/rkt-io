@@ -59,7 +59,7 @@ spdk-config-${1} ${SPDK_CONFIG}: ${CURDIR}/src/spdk/override/config.mk | ${SPDK_
 	cp ${CURDIR}/src/spdk/override/config.mk ${SPDK_CONFIG}
 	echo 'CONFIG_DPDK_DIR=$(DPDK_BUILD)' >> ${SPDK_CONFIG}
 
-spdk-cflags-${1} ${SPDK_BUILD}/mk/cc.flags.mk: | ${DPDK_CC} ${SPDK_BUILD}/mk
+spdk-cflags-${1} ${SPDK_BUILD}/mk/cc.flags.mk: ${LIBUUID_HOST_BUILD}/lib/libuuid.a | ${DPDK_CC} ${SPDK_BUILD}/mk
 	echo CFLAGS="-I${DPDK_BUILD}/include -I${LIBUUID_HOST_BUILD}/include -msse4.2" > ${SPDK_BUILD}/mk/cc.flags.mk
 	echo LDFLAGS="-L${DPDK_BUILD}/lib" >> ${SPDK_BUILD}/mk/cc.flags.mk
 
@@ -119,8 +119,11 @@ lkl-config ${LKL}/arch/lkl/defconfig: src/lkl/override/defconfig | ${LKL}/.git $
 	sed -i 's/static unsigned long mem_size = .*;/static unsigned long mem_size = ${BOOT_MEM} \* 1024 \* 1024;/g' lkl/arch/lkl/kernel/setup.c
 
 # LKL's static library and include/ header directory
-lkl ${LIBLKL} ${LKL_BUILD}/include: ${DPDK_BUILD_SGX}/.build ${HOST_MUSL_CC} ${LKL}/arch/lkl/defconfig
-	+DESTDIR=${LKL_BUILD} ${MAKE} V=1 -C ${LKL}/tools/lkl -j`tools/ncore.sh` CC=${HOST_MUSL_CC} PREFIX="" \
+lkl ${LIBLKL} ${LKL_BUILD}/include: ${SPDK_BUILD_SGX}/.build ${HOST_MUSL_CC} ${LKL}/arch/lkl/defconfig
+	+DESTDIR=${LKL_BUILD} ${MAKE} V=1 -C ${LKL}/tools/lkl -j`tools/ncore.sh` \
+		CC=${HOST_MUSL_CC} \
+		SPDK_SGX_CFLAGS="${SPDK_SGX_CFLAGS}" \
+		PREFIX="" \
 		${LKL}/tools/lkl/liblkl.a
 	mkdir -p ${LKL_BUILD}/lib
 	cp ${LKL}/tools/lkl/liblkl.a $(LKL_BUILD)/lib
@@ -132,9 +135,11 @@ lkl ${LIBLKL} ${LKL_BUILD}/include: ${DPDK_BUILD_SGX}/.build ${HOST_MUSL_CC} ${L
 	grep "CONFIG_AUTO_LKL_POSIX_HOST" ${LKL_BUILD}/include/lkl_host.h > /dev/null && find ${LKL_BUILD}/include/ -type f -exec sed -i 's/struct iovec/struct lkl__iovec/' {} \; || true # struct lkl_iovec already exists
 	+${MAKE} headers_install -C ${LKL} ARCH=lkl INSTALL_HDR_PATH=${LKL_BUILD}/
 
-lkl-rebuild:
-	make -C ${LKL} ARCH=lkl install INSTALL_PATH=${LKL}/tools/lkl/ -j`tools/ncore.sh`
-	rm ${LIBLKL}
+lkl-rebuild: ${HOST_MUSL_CC}
+	${MAKE} -C ${LKL} ARCH=lkl install INSTALL_PATH=${LKL}/tools/lkl/ -j`tools/ncore.sh` \
+		CC=${HOST_MUSL_CC} \
+		SPDK_SGX_CFLAGS="${SPDK_SGX_CFLAGS}"
+	rm -f ${LIBLKL}
 
 tools: ${TOOLS_OBJ}
 
@@ -142,7 +147,10 @@ tools: ${TOOLS_OBJ}
 ${TOOLS_BUILD}/%: ${TOOLS}/%.c ${HOST_MUSL_CC} ${LKL_LIB} | ${TOOLS_BUILD}
 	${HOST_MUSL_CC} ${SGXLKL_CFLAGS} --static -I${LKL_BUILD}/include/ -o $@ $<
 
-${CRYPTSETUP_BUILD}/lib/libcryptsetup.a ${CRYPTSETUP_BUILD}/lib/libpopt.a ${CRYPTSETUP_BUILD}/lib/libdevmapper.a ${CRYPTSETUP_BUILD}/lib/libuuid.a ${CRYPTSETUP_BUILD}/lib/libjson-c.a ${MBEDTLS}/mbedtls.a ${LIBUUID_HOST_BUILD}/lib/libuuid.a: ${LKL_BUILD}/include
+${CRYPTSETUP_BUILD}/lib/libcryptsetup.a ${CRYPTSETUP_BUILD}/lib/libpopt.a ${CRYPTSETUP_BUILD}/lib/libdevmapper.a ${CRYPTSETUP_BUILD}/lib/libjson-c.a ${MBEDTLS}/mbedtls.a: ${LKL_BUILD}/include
+	+${MAKE} -C ${MAKE_ROOT}/third_party $@
+
+${CRYPTSETUP_BUILD}/lib/libuuid.a ${LIBUUID_HOST_BUILD}/lib/libuuid.a: ${HOST_MUSL_CC}
 	+${MAKE} -C ${MAKE_ROOT}/third_party $@
 
 # More headers required by SGX-Musl not exported by LKL, given by a custom tool's output

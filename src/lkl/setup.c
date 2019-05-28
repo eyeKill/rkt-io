@@ -626,7 +626,7 @@ static void lkl_poststart_root_disk(struct enclave_disk_config *disk) {
     lkl_mknods();
 }
 
-#define DEV_PATH_LEN 10
+#define DEV_PATH_LEN 12
 
 static int device_path(int dev_id, char* dev) {
     // We assign dev paths from /dev/vda to /dev/vdz, assuming we won't need
@@ -641,12 +641,8 @@ static int device_path(int dev_id, char* dev) {
     return 0;
 }
 
-static int spdk_mountpoint(int dev_id, char* dev) {
-    if (device_path(dev_id, dev) < 0) {
-        return 1;
-    };
-    memcpy(dev, "/mnt", sizeof("/mnt") - 1);
-    return 0;
+static void spdk_mountpoint(int dev_id, char* dev) {
+    snprintf(dev, DEV_PATH_LEN, "/mnt/spdk%d", dev_id);
 }
 
 static void lkl_start_spdk(enclave_config_t *encl) {
@@ -673,16 +669,12 @@ static void lkl_start_spdk(enclave_config_t *encl) {
         memcpy(&dev->ns_entry, ns_entry, sizeof(struct spdk_ns_entry));
         rc = sgxlkl_register_spdk_device(dev);
         if (rc < 0) {
-            fprintf(stderr, "Error: unable to allocate memory spdk devices\n");
+            fprintf(stderr, "Error: unable to register spdk devices\n");
             exit(1);
         }
         char dev_path[DEV_PATH_LEN], mnt[DEV_PATH_LEN];
-        if (device_path(spdk_devs[idx].dev_id, dev_path) < 0) {
-            exit(1);
-        }
-        if (spdk_mountpoint(spdk_devs[idx].dev_id, mnt) < 0) {
-            exit(1);
-        }
+        int rc = snprintf(dev_path, DEV_PATH_LEN, "/dev/spdk%d",spdk_devs[idx].dev_id);
+        spdk_mountpoint(spdk_devs[idx].dev_id, mnt);
         SGXLKL_VERBOSE("spdk: mount(%s, %s)\n", dev_path, mnt);
         rc = lkl_mount_blockdev(dev_path, mnt, "ext4", 0, NULL);
         if (rc < 0) {
@@ -696,8 +688,7 @@ static void lkl_start_spdk(enclave_config_t *encl) {
 static void lkl_stop_spdk() {
     for (size_t i = 0; i < num_spdk_devs; i++) {
         char mnt[DEV_PATH_LEN];
-        int rc = spdk_mountpoint(spdk_devs[i].dev_id, mnt);
-        assert(rc >= 0);
+        spdk_mountpoint(spdk_devs[i].dev_id, mnt);
         int err = lkl_umount_timeout(mnt, 0, UMOUNT_DISK_TIMEOUT);
         if (err < 0) {
             fprintf(stderr, "Error: lkl_mount_umount(%s)=%s (%d)\n", mnt, lkl_strerror(err), err);
