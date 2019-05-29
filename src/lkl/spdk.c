@@ -37,7 +37,7 @@ static void poll_thread(void *arg)
 	struct spdk_dev *dev = arg;
 	struct spdk_nvme_qpair *qpair;
 	// In future we want to process one queue per core instead!
-	for (;;) {
+	while (!dev->stop_polling) {
 		for (int i = 0; i < dev->ns_entry.qpairs_num; i++) {
 			qpair = dev->ns_entry.qpairs[i];
 			if (qpair) {
@@ -53,6 +53,7 @@ int sgxlkl_register_spdk_device(struct spdk_dev *dev)
 	struct lkl_ifreq ifr;
 	int fd, err;
 
+	dev->stop_polling = false;
 	dev->poll_tid = lkl_host_ops.thread_create(poll_thread, dev);
 	if (dev->poll_tid == 0) {
 		fprintf(stderr, "spdk: failed to start spdk poll thread\n");
@@ -85,18 +86,21 @@ void final_flush_complete(void* ctx)
 void sgxlkl_unregister_spdk_device(struct spdk_dev *dev)
 {
 	// drain also i/o queues here!
-	bool ready = false;
+	bool ready;
 	struct spdk_nvme_qpair *qpair;
 
-	while (!ready) {
-		for (int i = 0; i < dev->ns_entry.qpairs_num; i++) {
-			qpair = dev->ns_entry.qpairs[i];
-			if (qpair) {
+	for (int i = 0; i < dev->ns_entry.qpairs_num; i++) {
+		qpair = dev->ns_entry.qpairs[i];
+		if (qpair) {
+			ready = false;
+			spdk_nvme_ns_cmd_flush(dev->ns_entry.ns, qpair, final_flush_complete, &ready);
+			while (!ready) {
 				spdk_nvme_qpair_process_completions(qpair, 0);
 			}
 		}
 	}
 
+	dev->stop_polling = true;
 	if (dev->poll_tid > 0) {
 		lkl_host_ops.thread_join(dev->poll_tid);
 	}

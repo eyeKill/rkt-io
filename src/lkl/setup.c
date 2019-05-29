@@ -1013,6 +1013,7 @@ void __lkl_exit() {
 
     setworkingdir("/");
 
+    lkl_stop_spdk();
     long res;
     for (int i = num_disks - 1; i >= 0; --i) {
         res = lkl_umount_timeout(disks[i].mnt, 0, UMOUNT_DISK_TIMEOUT);
@@ -1038,7 +1039,6 @@ void __lkl_exit() {
         }
     }
 
-    lkl_stop_spdk();
     //spdk_context_detach(spdk_context);
 
     res = lkl_sys_halt();
