@@ -17,7 +17,7 @@ all: ${CRYPTSETUP_BUILD}/lib/libcryptsetup.a ${MBEDTLS}/mbedtls.a
 
 MAKE_ROOT=$(dir $(realpath $(firstword $(MAKEFILE_LIST))))
 
-${CRYPTSETUP_BUILD}:
+${CRYPTSETUP_BUILD} ${LIBUUID_HOST_BUILD} ${CRYPTSETUP_BUILD}/libuuid:
 	@mkdir -p $@
 
 # libcryptsetup
@@ -57,25 +57,27 @@ ${CRYPTSETUP_BUILD}/lib/libdevmapper.a: ${DEVICEMAPPER} ${HOST_MUSL_CC} ${CRYPTS
 	+CC=${HOST_MUSL_CC} ${MAKE} -C ${DEVICEMAPPER} device-mapper
 	+CC=${HOST_MUSL_CC} ${MAKE} -C ${DEVICEMAPPER}/libdm install
 
-${CRYPTSETUP_BUILD}/lib/libuuid.a: ${UTILLINUX} ${HOST_MUSL_CC} ${CRYPTSETUP_BUILD}
-	cd ${UTILLINUX}; [ -f configure ] || CC=${HOST_MUSL_CC} CFLAGS="${CRYPTSETUP_CFLAGS} -fPIC -Wl,--dynamic-linker=${HOST_MUSL_BUILD}/lib/libc.so" ./autogen.sh
-	cd ${UTILLINUX}; [ -f Makefile ] || CC=${HOST_MUSL_CC} CFLAGS="${CRYPTSETUP_CFLAGS} -fPIC -Wl,--dynamic-linker=${HOST_MUSL_BUILD}/lib/libc.so" ./configure \
-		--prefix=${CRYPTSETUP_BUILD}/ --enable-static \
-		--disable-all-programs --enable-libuuid --enable-uuid \
-		--without-ncurses --without-ncursesw --without-tinfo \
-		--disable-bash-completion
-	+CC=${HOST_MUSL_CC} ${MAKE} -C ${UTILLINUX} all install
-	cp ${UTILLINUX}/.libs/libuuid.* ${CRYPTSETUP_BUILD}/lib/
+${UTILLINUX}/configure:
+	cd ${UTILLINUX}; ./autogen.sh
 
-${LIBUUID_HOST_BUILD}/lib/libuuid.a: ${UTILLINUX}
-	cd ${UTILLINUX}; [ -f configure ] || CFLAGS="${CRYPTSETUP_CFLAGS} -fPIC" ./autogen.sh
-	cd ${UTILLINUX}; [ -f Makefile ] || CFLAGS="${CRYPTSETUP_CFLAGS} -fPIC" ./configure \
+${CRYPTSETUP_BUILD}/lib/libuuid.a: ${UTILLINUX} ${HOST_MUSL_CC} ${CRYPTSETUP_BUILD} ${CRYPTSETUP_BUILD}/libuuid ${UTILLINUX}/configure
+	cd ${CRYPTSETUP_BUILD}/libuuid; [ -f Makefile ] || CC=${HOST_MUSL_CC} CFLAGS="${CRYPTSETUP_CFLAGS} -fPIC -Wl,--dynamic-linker=${HOST_MUSL_BUILD}/lib/libc.so" \
+		${UTILLINUX}/configure \
 		--prefix=${CRYPTSETUP_BUILD}/ --enable-static \
 		--disable-all-programs --enable-libuuid --enable-uuid \
 		--without-ncurses --without-ncursesw --without-tinfo \
 		--disable-bash-completion
-	+CC=${HOST_MUSL_CC} ${MAKE} -C ${UTILLINUX} all install
-	install --target ${LIBUUID_HOST_BUILD}/lib -D ${UTILLINUX}/.libs/libuuid.a
+	+CC=${HOST_MUSL_CC} ${MAKE} -C ${CRYPTSETUP_BUILD}/libuuid all install
+	cp ${CRYPTSETUP_BUILD}/libuuid/.libs/libuuid.* ${CRYPTSETUP_BUILD}/lib/
+
+${LIBUUID_HOST_BUILD}/lib/libuuid.a: ${UTILLINUX} ${UTILLINUX}/configure ${LIBUUID_HOST_BUILD}
+	cd ${LIBUUID_HOST_BUILD}; [ -f Makefile ] || CFLAGS="${CRYPTSETUP_CFLAGS} -fPIC" ${UTILLINUX}/configure \
+		--prefix=${CRYPTSETUP_BUILD}/ --enable-static \
+		--disable-all-programs --enable-libuuid --enable-uuid \
+		--without-ncurses --without-ncursesw --without-tinfo \
+		--disable-bash-completion
+	+CC=${HOST_MUSL_CC} ${MAKE} -C ${LIBUUID_HOST_BUILD} all install
+	install --target ${LIBUUID_HOST_BUILD}/lib -D ${LIBUUID_HOST_BUILD}/.libs/libuuid.a
 	install --target ${LIBUUID_HOST_BUILD}/include/uuid -D ${UTILLINUX}/libuuid/src/uuid.h
 
 ${CRYPTSETUP_BUILD}/lib/libpopt.a: ${POPT} ${HOST_MUSL_CC} ${CRYPTSETUP_BUILD}
