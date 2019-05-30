@@ -145,7 +145,7 @@ def benchmark_sgx_lkl(storage: Storage, stats: Dict[str, List], latency_stats: D
 
 def benchmark_sgx_io(storage: Storage, stats: Dict[str, List], latency_stats: Dict[str, List]) -> None:
     storage.setup(StorageKind.SPDK)
-    benchmark_fio(storage, "sgx-io", "fio", "/mnt/vdb", stats, latency_stats)
+    benchmark_fio(storage, "sgx-io", "fio", "/mnt/spdk0", stats, latency_stats)
 
 
 def main() -> None:
