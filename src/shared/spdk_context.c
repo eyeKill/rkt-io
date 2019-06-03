@@ -167,7 +167,8 @@ static void attach_cb(void *_ctx,
 
 static int register_qpairs(struct spdk_context *ctx)
 {
-	uint32_t cores =  get_nprocs();
+	//uint32_t cores =  get_nprocs();
+	uint32_t cores = 1;
 
 	struct spdk_ns_entry *ns_entry = ctx->namespaces;
 	while (ns_entry != NULL) {

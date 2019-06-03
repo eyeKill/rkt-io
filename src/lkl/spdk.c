@@ -66,11 +66,12 @@ int sgxlkl_register_spdk_device(struct spdk_dev *dev)
 		fprintf(stderr, "spdk: cannot open /dev/spdk-control: %s\n", lkl_strerror(-fd));
 		return fd;
 	}
+	dev->ns_entry.ctl_fd = fd;
 
 	err = lkl_sys_ioctl(fd, SPDK_CTL_ADD, (long)&dev->ns_entry);
 
-	lkl_sys_close(fd);
 	if (err < 0) {
+		lkl_sys_close(fd);
 		fprintf(stderr, "spdk: ioctl SPDK_CTL_ADD failed: %s\n", lkl_strerror(-fd));
 	}
 
@@ -89,6 +90,13 @@ void sgxlkl_unregister_spdk_device(struct spdk_dev *dev)
 	bool ready;
 	struct spdk_nvme_qpair *qpair;
 
+	dev->stop_polling = true;
+	if (dev->poll_tid > 0) {
+		lkl_host_ops.thread_join(dev->poll_tid);
+	}
+
+	close(dev->ns_entry.ctl_fd);
+
 	for (int i = 0; i < dev->ns_entry.qpairs_num; i++) {
 		qpair = dev->ns_entry.qpairs[i];
 		if (qpair) {
@@ -98,10 +106,5 @@ void sgxlkl_unregister_spdk_device(struct spdk_dev *dev)
 				spdk_nvme_qpair_process_completions(qpair, 0);
 			}
 		}
-	}
-
-	dev->stop_polling = true;
-	if (dev->poll_tid > 0) {
-		lkl_host_ops.thread_join(dev->poll_tid);
 	}
 }

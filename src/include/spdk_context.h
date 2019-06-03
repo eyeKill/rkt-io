@@ -17,6 +17,7 @@ struct spdk_ns_entry {
 	struct spdk_ns_entry		*next;
 	struct spdk_nvme_qpair **qpairs;
 	size_t qpairs_num;
+	int ctl_fd;
 };
 
 struct spdk_context {
