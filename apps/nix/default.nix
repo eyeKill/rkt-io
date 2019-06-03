@@ -165,6 +165,11 @@ in {
 
   mariadbPkg = mysql;
 
+  perl = runImage {
+    pkg = pkgsMusl.perl;
+    command = [ "bin/perl" "--help"];
+  };
+
   mariadb-native = runImage {
     pkg = mysql;
     native = true;
