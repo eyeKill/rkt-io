@@ -32,33 +32,10 @@ void spdk_yield_thread() {
 	_lthread_yield_cb(lthread_self(), __scheduler_enqueue, lthread_self());
 }
 
-static void poll_thread(void *arg)
-{
-	struct spdk_dev *dev = arg;
-	struct spdk_nvme_qpair *qpair;
-	// In future we want to process one queue per core instead!
-	while (!dev->stop_polling) {
-		for (int i = 0; i < dev->ns_entry.qpairs_num; i++) {
-			qpair = dev->ns_entry.qpairs[i];
-			if (qpair) {
-				spdk_nvme_qpair_process_completions(qpair, 0);
-			}
-		}
-		_lthread_yield_cb(lthread_self(), __scheduler_enqueue, lthread_self());
-	}
-}
-
 int sgxlkl_register_spdk_device(struct spdk_dev *dev)
 {
 	struct lkl_ifreq ifr;
 	int fd, err;
-
-	dev->stop_polling = false;
-	dev->poll_tid = lkl_host_ops.thread_create(poll_thread, dev);
-	if (dev->poll_tid == 0) {
-		fprintf(stderr, "spdk: failed to start spdk poll thread\n");
-		return -EAGAIN;
-	}
 
 	fd = lkl_sys_open("/dev/spdk-control", LKL_O_RDONLY, 0);
 
@@ -67,6 +44,7 @@ int sgxlkl_register_spdk_device(struct spdk_dev *dev)
 		return fd;
 	}
 	dev->ns_entry.ctl_fd = fd;
+
 
 	err = lkl_sys_ioctl(fd, SPDK_CTL_ADD, (long)&dev->ns_entry);
 
@@ -89,11 +67,6 @@ void sgxlkl_unregister_spdk_device(struct spdk_dev *dev)
 	// drain also i/o queues here!
 	bool ready;
 	struct spdk_nvme_qpair *qpair;
-
-	dev->stop_polling = true;
-	if (dev->poll_tid > 0) {
-		lkl_host_ops.thread_join(dev->poll_tid);
-	}
 
 	close(dev->ns_entry.ctl_fd);
 
