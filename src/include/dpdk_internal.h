@@ -1,8 +1,8 @@
 #ifndef _DPDK_INTERNAL_H
 #define _DPDK_INTERNAL_H
 
-#include <rte_config.h>
 #include <eal_internal_cfg.h>
+#include <rte_config.h>
 
 struct dpdk_context {
     struct rte_eth_devices *devices;

@@ -1,23 +1,23 @@
 #ifndef _SPDK_CONTEXT_H
 #define _SPDK_CONTEXT_H
 
+#include <pthread.h>
 #include <stdbool.h>
 #include <stddef.h>
-#include <pthread.h>
 
 struct spdk_ctrlr_entry {
-	struct spdk_nvme_ctrlr	*ctrlr;
-	struct spdk_ctrlr_entry	*next;
-	char			name[1024];
+    struct spdk_nvme_ctrlr *ctrlr;
+    struct spdk_ctrlr_entry *next;
+    char name[1024];
 };
 
 struct spdk_ns_entry {
-	struct spdk_nvme_ctrlr	*ctrlr;
-	struct spdk_nvme_ns	*ns;
-	struct spdk_ns_entry		*next;
-	struct spdk_nvme_qpair **qpairs;
-	size_t qpairs_num;
-	int ctl_fd;
+    struct spdk_nvme_ctrlr *ctrlr;
+    struct spdk_nvme_ns *ns;
+    struct spdk_ns_entry *next;
+    struct spdk_nvme_qpair **qpairs;
+    size_t qpairs_num;
+    int ctl_fd;
 };
 
 struct spdk_context {
@@ -27,8 +27,8 @@ struct spdk_context {
     pthread_t ctrlr_thread_id;
 };
 
-int spdk_initialize(struct spdk_context* ctx, bool primary);
-void spdk_context_detach(struct spdk_context* ctx);
-void spdk_context_free(struct spdk_context* ctx);
+int spdk_initialize(struct spdk_context *ctx, bool primary);
+void spdk_context_detach(struct spdk_context *ctx);
+void spdk_context_free(struct spdk_context *ctx);
 
 #endif

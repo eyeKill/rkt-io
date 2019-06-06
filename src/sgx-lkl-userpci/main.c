@@ -1,9 +1,9 @@
-#include <stdio.h>
 #include <assert.h>
-#include <unistd.h>
-#include <sys/stat.h>
 #include <fcntl.h>
+#include <stdio.h>
 #include <stdlib.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 #include <rte_ethdev.h>
 #include <rte_log.h>
@@ -11,8 +11,7 @@
 #include "dpdk.h"
 #include "spdk_context.h"
 
-int main(int argc, char** argv)
-{
+int main(int argc, char **argv) {
     if (argc < 3) {
         fprintf(stderr, "USAGE: %s pipe-fd uid\n", argv[0]);
         return 1;
@@ -20,7 +19,7 @@ int main(int argc, char** argv)
     int pipe_fd = atoi(argv[1]);
     int uid = atoi(argv[2]);
     int exitcode = 0;
-    char* mtustr = getenv("SGXLKL_DPDK_MTU");
+    char *mtustr = getenv("SGXLKL_DPDK_MTU");
     int mtu = 1500;
 
     if (mtustr) {
@@ -52,7 +51,8 @@ int main(int argc, char** argv)
     }
     snprintf(cmd, needed, cmd_tmpl, uid);
 
-    #warning "Rewrite this in C for production code!. Call bash scripts from setuid is insecure for a reason"
+#warning \
+    "Rewrite this in C for production code!. Call bash scripts from setuid is insecure for a reason"
     int r = setuid(0);
     if (r != 0) {
         fprintf(stderr, "%s: failed to setuid: %d\n", argv[0], r);

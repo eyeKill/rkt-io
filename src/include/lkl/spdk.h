@@ -8,7 +8,7 @@ struct spdk_dev {
     // filled out by the caller
     struct spdk_ns_entry ns_entry;
     // set by sgxlkl_register_spdk_device
-	lkl_thread_t poll_tid;
+    lkl_thread_t poll_tid;
     bool stop_polling;
     int dev_id;
 };
