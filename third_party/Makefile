@@ -102,8 +102,8 @@ ${CRYPTSETUP_BUILD}/lib/libcryptsetup.a: ${CRYPTSETUP} ${CRYPTSETUP_BUILD}/lib/l
 	+CC=${HOST_MUSL_CC} ${MAKE} -C ${CRYPTSETUP} install-includeHEADERS
 
 ${PROTOBUFC_BUILD}/include ${PROTOBUFC_BUILD}/lib/libprotobuf-c.a: ${PROTOBUFC} ${PROTOBUFC_BUILD}
-	cd ${PROTOBUFC} && autoreconf -f -i
-	cd ${PROTOBUFC} && CFLAGS="${THIRD_PARTY_CFLAGS}" ./configure --prefix=${PROTOBUFC_BUILD} --disable-shared --with-pic
+	cd ${PROTOBUFC} && [ -f ./configure ] || autoreconf -f -i
+	cd ${PROTOBUFC} && [ -f Makefile ] || CFLAGS="${THIRD_PARTY_CFLAGS}" ./configure --prefix=${PROTOBUFC_BUILD} --disable-shared --with-pic
 	cd ${PROTOBUFC} && $(MAKE) install-libLTLIBRARIES
 	cd ${PROTOBUFC} && $(MAKE) install-nobase_includeHEADERS
 
