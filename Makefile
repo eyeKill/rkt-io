@@ -110,7 +110,18 @@ load-dpdk-driver: ${DPDK_BUILD_NATIVE}/kmod/igb_uio.ko ${DPDK_BUILD_NATIVE}/kmod
 	insmod ${DPDK_BUILD_NATIVE}/kmod/rte_kni.ko
 	insmod ${DPDK_BUILD_NATIVE}/kmod/igb_uio.ko
 
-lkl-config ${LKL}/arch/lkl/defconfig: src/lkl/override/defconfig | ${LKL}/.git ${LKL_BUILD}
+${WIREGUARD}:
+	+${MAKE} -C ${MAKE_ROOT}/third_party $@
+
+${CRYPTSETUP_BUILD}/lib/libcryptsetup.a ${CRYPTSETUP_BUILD}/lib/libpopt.a ${CRYPTSETUP_BUILD}/lib/libdevmapper.a ${CRYPTSETUP_BUILD}/lib/libjson-c.a ${MBEDTLS}/mbedtls.a ${PROTOBUFC_BUILD}/lib/libprotobuf-c.a ${PROTOBUFC_RPC}/protobuf-c-rpc.a: ${LKL_BUILD}/include
+	+${MAKE} -C ${MAKE_ROOT}/third_party $@
+
+${CRYPTSETUP_BUILD}/lib/libuuid.a ${LIBUUID_HOST_BUILD}/lib/libuuid.a: ${HOST_MUSL_CC}
+	+${MAKE} -C ${MAKE_ROOT}/third_party $@
+
+lkl-config ${LKL}/arch/lkl/defconfig: src/lkl/override/defconfig | ${WIREGUARD} ${LKL}/.git ${LKL_BUILD}
+	# Add Wireguard
+	cd ${LKL} && (if ! ${WIREGUARD}/contrib/kernel-tree/create-patch.sh | patch -p1 --dry-run --reverse --force >/dev/null 2>&1; then ${WIREGUARD}/contrib/kernel-tree/create-patch.sh | patch --forward -p1; fi) && cd -
 	# Override lkl's defconfig with our own
 	cp -Rv src/lkl/override/defconfig ${LKL}/arch/lkl/defconfig
 	cp -Rv src/lkl/override/include/uapi/asm-generic/stat.h ${LKL}/include/uapi/asm-generic/stat.h
@@ -147,12 +158,6 @@ tools: ${TOOLS_OBJ}
 ${TOOLS_BUILD}/%: ${TOOLS}/%.c ${HOST_MUSL_CC} ${LKL_LIB} | ${TOOLS_BUILD}
 	${HOST_MUSL_CC} ${SGXLKL_CFLAGS} --static -I${LKL_BUILD}/include/ -o $@ $<
 
-${CRYPTSETUP_BUILD}/lib/libcryptsetup.a ${CRYPTSETUP_BUILD}/lib/libpopt.a ${CRYPTSETUP_BUILD}/lib/libdevmapper.a ${CRYPTSETUP_BUILD}/lib/libjson-c.a ${MBEDTLS}/mbedtls.a: ${LKL_BUILD}/include
-	+${MAKE} -C ${MAKE_ROOT}/third_party $@
-
-${CRYPTSETUP_BUILD}/lib/libuuid.a ${LIBUUID_HOST_BUILD}/lib/libuuid.a: ${HOST_MUSL_CC}
-	+${MAKE} -C ${MAKE_ROOT}/third_party $@
-
 # More headers required by SGX-Musl not exported by LKL, given by a custom tool's output
 ${LKL_SGXMUSL_HEADERS}: ${LKL_BUILD}/include/lkl/%.h: ${TOOLS_BUILD}/lkl_%
 	$< > $@
@@ -170,10 +175,9 @@ sgx-lkl-musl-config:
 		--prefix=${SGX_LKL_MUSL_BUILD} \
 		--lklheaderdir=${LKL_BUILD}/include/ \
 		--lkllib=${LIBLKL} \
-		--sgxlklheaderdir=${MAKE_ROOT}/src/include \
+		--sgxlklincludes="${MAKE_ROOT}/src/include ${CRYPTSETUP_BUILD}/include/ $(LINUX_SGX)/common/inc $(LINUX_SGX)/common/inc/internal"\
 		--sgxlkllib=${BUILD_DIR}/sgxlkl/libsgxlkl.a \
-		--cryptsetupheaderdir=${CRYPTSETUP_BUILD}/include/ \
-		--cryptsetuplib="${CRYPTSETUP_BUILD}/lib/libcryptsetup.a ${CRYPTSETUP_BUILD}/lib/libpopt.a ${CRYPTSETUP_BUILD}/lib/libdevmapper.a ${CRYPTSETUP_BUILD}/lib/libuuid.a ${CRYPTSETUP_BUILD}/lib/libjson-c.a" \
+		--sgxlkllibs="${CRYPTSETUP_BUILD}/lib/libcryptsetup.a ${CRYPTSETUP_BUILD}/lib/libpopt.a ${CRYPTSETUP_BUILD}/lib/libdevmapper.a ${CRYPTSETUP_BUILD}/lib/libuuid.a ${CRYPTSETUP_BUILD}/lib/libjson-c.a ${PROTOBUFC_BUILD}/lib/libprotobuf-c.a ${PROTOBUFC_RPC}/protobuf-c-rpc.a" \
 		--disable-shared \
 		--enable-sgx-hw=${HW_MODE}
 
@@ -199,7 +203,7 @@ SPDK_NATIVE_CFLAGS = -msse4.2 -I${DPDK_BUILD_NATIVE}/include -I${SPDK_BUILD_NATI
 SPDK_NATIVE_LDFLAGS = -L${DPDK_BUILD_NATIVE}/lib -L${SPDK_BUILD_NATIVE}/build/lib -L${LIBUUID_HOST_BUILD}/lib ${SPDK_LIBS}
 SPDK_NATIVE_LDFLAGS += -luuid
 
-sgx-lkl-musl: ${LIBLKL} ${LKL_SGXMUSL_HEADERS} ${CRYPTSETUP_BUILD}/lib/libcryptsetup.a sgx-lkl-musl-config sgx-lkl $(ENCLAVE_DEBUG_KEY) ${BUILD_DIR}/init_array.o ${SPDK_BUILD_SGX}/.build | ${SGX_LKL_MUSL_BUILD}
+sgx-lkl-musl: ${LIBLKL} ${LKL_SGXMUSL_HEADERS} ${CRYPTSETUP_BUILD}/lib/libcryptsetup.a ${PROTOBUFC_BUILD}/lib/libprotobuf-c.a ${PROTOBUFC_RPC}/protobuf-c-rpc.a sgx-lkl-musl-config sgx-lkl $(ENCLAVE_DEBUG_KEY) ${BUILD_DIR}/init_array.o | ${SGX_LKL_MUSL_BUILD}
 	+${MAKE} -C ${SGX_LKL_MUSL} CFLAGS="$(MUSL_CFLAGS)" \
     SPDK_SGX_CFLAGS="$(SPDK_SGX_CFLAGS)" \
     SPDK_SGX_LDFLAGS="$(SPDK_SGX_LDFLAGS)"
@@ -245,6 +249,7 @@ install: $(BUILD_DIR)/libsgxlkl.so $(BUILD_DIR)/sgx-lkl-run
 	cp $(BUILD_DIR)/libsgxlkl.so $(PREFIX)/lib
 	cp $(BUILD_DIR)/sgx-lkl-run $(PREFIX)/bin
 	cp $(BUILD_DIR)/sgx-lkl-sign $(PREFIX)/bin
+	cp $(BUILD_DIR)/sgx-lkl-ctl $(PREFIX)/bin
 	cp $(TOOLS)/sgx-lkl-java $(PREFIX)/bin
 	cp $(TOOLS)/sgx-lkl-disk $(PREFIX)/bin
 
@@ -253,6 +258,7 @@ uninstall:
 	rm -f $(PREFIX)/lib/libsgxlkl.so
 	rm -f $(PREFIX)/bin/sgx-lkl-run
 	rm -f $(PREFIX)/bin/sgx-lkl-sign
+	rm -f $(PREFIX)/bin/sgx-lkl-ctl
 	rm -f $(PREFIX)/bin/sgx-lkl-java
 	rm -f $(PREFIX)/bin/sgx-lkl-disk
 

@@ -20,7 +20,6 @@
  */
 typedef struct k_sigaction k_sigaction_t;
 
-int host_syscall_SYS_clock_getres(clockid_t clk_id, struct timespec *res);
 int host_syscall_SYS_clock_gettime(clockid_t clk_id, struct timespec *tp);
 int host_syscall_SYS_close(int fd);
 int host_syscall_SYS_fcntl(int fd, intptr_t cmd, intptr_t arg);
@@ -28,7 +27,6 @@ int host_syscall_SYS_fdatasync(int fd);
 int host_syscall_SYS_fstat(int fd, struct stat *buf);
 pid_t host_syscall_SYS_gettid(void);
 int host_syscall_SYS_ioctl(int fd, unsigned long request, void *arg);
-off_t host_syscall_SYS_lseek(int fd, off_t offset, int whence);
 void *host_syscall_SYS_mmap(void *addr, size_t length, int prot, int flags, int fd, off_t offset);
 int host_syscall_SYS_mprotect(void *addr, size_t len, int prot);
 void *host_syscall_SYS_mremap(void *old_address, size_t old_size, size_t new_size, int flags, void *new_address);
@@ -39,8 +37,6 @@ ssize_t host_syscall_SYS_read(int fd, void *buf, size_t count);
 ssize_t host_syscall_SYS_readv(int fd, struct iovec *iov, int iovcnt);
 int host_syscall_SYS_pipe(int pipefd[2]);
 int host_syscall_SYS_poll(struct pollfd *fds, nfds_t nfds, int timeout);
-ssize_t host_syscall_SYS_preadv(int fd, struct iovec *iov, int iovcnt, off_t offset, long ofs32);
-ssize_t host_syscall_SYS_pwritev(int fd, const struct iovec *iov, int iovcnt, off_t offset, long ofs32);
 ssize_t host_syscall_SYS_pread64(int fd, void *buf, size_t count, off_t offset);
 ssize_t host_syscall_SYS_pwrite64(int fd, const void *buf, size_t count, off_t offset);
 int host_syscall_SYS_rt_sigaction(int signum, struct sigaction *act, struct sigaction *oldact, unsigned long nsig);

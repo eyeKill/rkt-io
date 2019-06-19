@@ -7,15 +7,28 @@
 #include <stdlib.h>
 #include "syscall.h"
 
+#include "sgx_enclave_config.h"
+
+extern size_t num_disks;
+extern struct enclave_disk_config *disks;
+
+static struct enclave_disk_config *get_disk_config(int fd) {
+    for (int i = 0; i < num_disks; i++) {
+        if (disks[i].fd == fd)
+            return &disks[i];
+    }
+    return NULL;
+}
+
 static int fd_get_capacity(struct lkl_disk disk, unsigned long long *res) {
     off_t off;
 
-    off = host_syscall_SYS_lseek(disk.fd, 0, SEEK_END);
-    if (off < 0)
-        return -1;
-
-    *res = off;
-    return 0;
+    struct enclave_disk_config *disk_config;
+    if (disk_config = get_disk_config(disk.fd)) {
+        *res = disk_config->capacity;
+        return 0;
+    }
+    return -1;
 }
 
 // Reads and write requests sent to the following functions are always sector-
@@ -47,19 +60,9 @@ static int blk_request(struct lkl_disk disk, struct lkl_blk_req *req) {
     switch (req->type) {
     case LKL_DEV_BLK_TYPE_READ:
         err = do_plain_rw(&host_syscall_SYS_pread64, disk, req);
-        // Uncomment the following and comment the previous line if
-        // you need scatter-gather I/O functions.
-        /*err = host_syscall_SYS_preadv(disk.fd, (struct iovec*)(req->buf), req->count,
-            (long)(req->sector*512), // offset low 32 bits
-            (long)((req->sector*512)>>32) // offset high 32 bits
-        );*/
         break;
     case LKL_DEV_BLK_TYPE_WRITE:
         err = do_plain_rw(&host_syscall_SYS_pwrite64, disk, req);
-        /*err = host_syscall_SYS_pwritev(disk.fd, (struct iovec*)(req->buf), req->count,
-            (long)(req->sector*512),
-            (long)((req->sector*512)>>32)
-        );*/
         break;
     case LKL_DEV_BLK_TYPE_FLUSH:
     case LKL_DEV_BLK_TYPE_FLUSH_OUT:

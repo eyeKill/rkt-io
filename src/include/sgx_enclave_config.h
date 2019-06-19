@@ -1,4 +1,3 @@
-
 #ifndef SGX_ENCLAVE_CONFIG_H
 #define SGX_ENCLAVE_CONFIG_H
 
@@ -7,11 +6,13 @@
 #include <stdlib.h>
 #include <elf.h>
 #include "mpmc_queue.h"
-//#include "ring_buff.h"
+#include "time.h"
 
 #ifdef SGXLKL_HW
+#include "attest_ias.h"
 #include <setjmp.h>
 #include <pthread.h>
+#include "sgx_report.h"
 #endif
 
 /* Mode (SIM/HW) */
@@ -36,16 +37,22 @@ typedef struct {
 #define SGXLKL_DISK_MNT_MAX_PATH_LEN 255
 
 typedef struct enclave_disk_config {
+    /* Provided by sgx-lkl-run at runtime. */
     int fd;
-    char mnt[SGXLKL_DISK_MNT_MAX_PATH_LEN + 1];
-    int ro;
-    int enc;
-    char *key;
-    size_t key_len;
-    char *roothash;
-    size_t roothash_offset;
     size_t capacity;
     char *mmap;
+    int enc;                // Encrypted?
+    /* Provided by user via sgx-lkl-run config together with the host file
+     * system path. */
+    char mnt[SGXLKL_DISK_MNT_MAX_PATH_LEN + 1];  // "/" for root disk
+    /* Provided by user at runtime after (remote attestation). */
+    int ro;                 // Read-only?
+    char *key;              // Encryption key
+    size_t key_len;         // Key length
+    char *roothash;         // Root hash (for dm-verity)
+    size_t roothash_offset; // Merkle tree offset (for dm-verity)
+    /* Used at runtime */
+    int mounted;            // Has been mounted
 } enclave_disk_config_t;
 
 typedef struct enclave_dpdk_config {
@@ -60,6 +67,28 @@ typedef struct enclave_dpdk_config {
     struct rte_mempool *txpool, *rxpool;
 } enclave_dpdk_config_t;
 
+typedef struct enclave_wg_peer_config {
+    char *key;
+    char *allowed_ips;
+    char *endpoint;
+
+} enclave_wg_peer_config_t;
+
+typedef struct enclave_wg_config {
+    struct in_addr ip;
+    uint16_t listen_port;
+    char *key;
+    size_t num_peers;
+    enclave_wg_peer_config_t *peers;
+} enclave_wg_config_t;
+
+#ifdef SGXLKL_HW
+typedef struct attestation_info {
+    sgx_quote_t *quote;
+    size_t quote_size;
+    attestation_verification_report_t *ias_report;
+} attestation_info_t;
+#endif
 
 /* Untrusted config provided by the user */
 typedef struct enclave_config {
@@ -69,10 +98,11 @@ typedef struct enclave_config {
     void *heap;
     size_t heapsize;
     size_t stacksize;
-    struct mpmcq syscallq;
-    struct mpmcq returnq;
+    struct mpmcq *syscallq;
+    struct mpmcq *returnq;
     size_t num_disks;
-    struct enclave_disk_config *disks; /* Array of disk configurations, length = num_disks */
+    enclave_disk_config_t *disks; /* Array of disk configurations, length = num_disks */
+    int mmap_files; /* ENCLAVE_MMAP_FILES_{NONE, SHARED, or PRIVATE} */
     int net_fd;
     struct in_addr net_ip4;
     struct in_addr net_gw4;
@@ -85,25 +115,49 @@ typedef struct enclave_config {
     struct dpdk_context *dpdk_context;
     struct spdk_context *spdk_context;
     char hostname[32];
+    int hostnet;
+    int tap_offload;
+    int tap_mtu;
+    enclave_wg_config_t wg;
     char **argv;
     int argc;
-    Elf64_auxv_t* auxv;
+    Elf64_auxv_t *auxv;
     char *cwd;
     void* base; /* Base address of lkl/libc code */
     void *(*ifn)(struct enclave_config *);
-    size_t backoff_factor;
-    unsigned backoff_maxpause;
+    size_t espins;
+    size_t esleep;
     long sysconf_nproc_conf;
     long sysconf_nproc_onln;
+    struct timespec clock_res[8];
     void *shm_common;
     void *shm_enc_to_out;
     void *shm_out_to_enc;
     int mode; /* SGXLKL_HW_MODE or SGXLKL_SIM_MODE */
     void *vvar;
     int fsgsbase; /* Can we use FSGSBASE instructions within the enclave? */
-#ifndef SGXLKL_HW
+    int verbose;
+    int kernel_verbose;
+    char *kernel_cmd;
+    uint16_t remote_attest_port;
+    uint16_t remote_cmd_port;
+    int remote_cmd_eth0;
+    int remote_config;
+#ifdef SGXLKL_HW
+    sgx_target_info_t *quote_target_info;
+    /* Pointer to report struct that will be used by enclave to store
+     * generated enclave report. */
+    sgx_report_t *report;
+    /* Pointer to attestation info containing quote and
+     * IAS attestation report generated from enclave
+     * report. "Populated" outside after enclave has
+     * generated report. */
+    attestation_info_t *att_info;
+    uint64_t report_nonce;
+#else
     void (*sim_exit_handler) (int);
 #endif
+    char *app_config;
 } enclave_config_t;
 
 enum SlotState { DONE, WRITTEN };
@@ -153,20 +207,22 @@ typedef enum { ACTIVE = 0, OUTSIDE = 1, UNUSED = 2, AVAILABLE = 3 } thread_state
  * In-calls
  * These values are used in sgxcrt.c directly. Adjust when making changes here.
  */
-#define SGXLKL_ENTER_THREAD_CREATE    0
-#define SGXLKL_ENTER_SYSCALL_RESUME   1
-#define SGXLKL_ENTER_HANDLE_SIGNAL    2
+#define SGXLKL_ENTER_THREAD_CREATE     0
+#define SGXLKL_ENTER_RESUME            1
+#define SGXLKL_ENTER_HANDLE_SIGNAL     2
 
 /* Exit reasons */
-#define SGXLKL_EXIT_TERMINATE        0
-#define SGXLKL_EXIT_SYSCALL          1
-#define SGXLKL_EXIT_ERROR            2
-#define SGXLKL_EXIT_SLEEP            3
-#define SGXLKL_EXIT_CPUID            4
-#define SGXLKL_EXIT_DORESUME         5
+#define SGXLKL_EXIT_TERMINATE          0
+#define SGXLKL_EXIT_SYSCALL            1
+#define SGXLKL_EXIT_ERROR              2
+#define SGXLKL_EXIT_SLEEP              3
+#define SGXLKL_EXIT_CPUID              4
+#define SGXLKL_EXIT_DORESUME           5
+#define SGXLKL_EXIT_REPORT             6
 
 /* Error codes */
-#define SGXLKL_UNEXPECTED_CALLID     1
+#define SGXLKL_UNEXPECTED_CALLID       1
+#define SGXLKL_CONFIG_ASSERT_VIOLATION 2
 
 /* Enclave parameters, maintained within enclave */
 typedef struct {
@@ -211,6 +267,12 @@ void     set_eh_handling(uint64_t val);
 
 void ecall_cpuid(gprsgx_t *regs);
 void ecall_rdtsc(gprsgx_t *regs, uint64_t ts);
+
+void ereport(void *target, char *report_data, char *report);
+
+int in_enclave_range(void *addr, size_t len);
+enclave_config_t *enclave_config_copy_and_check(enclave_config_t *untrusted);
+void enclave_config_free(enclave_config_t *encl);
 
 #endif
 

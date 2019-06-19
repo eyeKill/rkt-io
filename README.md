@@ -23,17 +23,19 @@ SGX-LKL has been tested on Ubuntu 16.04 and 18.04. To run SGX-LKL in SGX
 enclaves, the Intel SGX driver (available at
 https://github.com/01org/linux-sgx-driver and
 https://01.org/intel-software-guard-extensions/downloads) is required. We have
-tested SGX-LKL with driver versions 1.9 to 2.4. SGX-LKL also provides a
+tested SGX-LKL with driver versions 1.9 to 2.5. SGX-LKL also provides a
 simulation mode for which no SGX-enabled CPU is needed. Furthermore the
-following packages are required to build SGX-LKL: `make`, `gcc`, `bc`,
-`python`, `xutils-dev` (for `makedepend`), `bison`, `flex`, `libgcrypt20-dev`,
-`libjson-c-dev`, `autopoint`, `pkgconf`, `autoconf`, `libtool`,
-`automake` and `linux-headers` for the installed kernel.
+following packages are required to build SGX-LKL:
+`make`, `gcc`, `g++`, `bc`, `python`, `xutils-dev` (for `makedepend`), `bison`,
+`flex`, `libgcrypt20-dev`, `libjson-c-dev`, `automake`, `autopoint`,
+`autoconf`, `pkgconf`, `libtool`, `libcurl4-openssl-dev`, `libprotobuf-dev`,
+`libprotobuf-c-dev`, `protobuf-compiler`, `protobuf-c-compiler`, `libssl-dev`
+ and `linux-headers` for the installed kernel.
 
 Install these with:
 
 ```
-sudo apt-get install make gcc bc python xutils-dev bison flex libgcrypt20-dev libjson-c-dev autopoint pkgconf autoconf automake libtool linux-headers-$(uname -r)
+sudo apt-get install make gcc g++ bc python xutils-dev bison flex libgcrypt20-dev libjson-c-dev automake autopoint autoconf pkgconf libtool libcurl4-openssl-dev libprotobuf-dev libprotobuf-c-dev protobuf-compiler protobuf-c-compiler libssl-dev linux-headers-$(uname -r)
 ```
 
 Compilation has been tested with versions 5.4 and 7.3 of gcc. Older versions
@@ -60,34 +62,47 @@ The interface can be removed again by running the following command:
 sudo ip tuntap del dev sgxlkl_tap0 mode tap
 ```
 
-If you require your application to be reachable from/reach other hosts,
-additional `iptable` rules to forward corresponding traffic might be needed.
-For example, for redis which listens on port 6379 by default:
-
+In order to communicate with an SGX-LKL enclave from a different host and/or
+allowing an application to reach other hosts, additional `iptable` rules to
+forward corresponding traffic might be needed.
 
 ```
-# Forward traffic from host's public interface port 60321 to SGX-LKL port 6379
-sudo iptables -t nat -I PREROUTING -p tcp -d `hostname -i` --dport 60321 -j DNAT --to-destination 10.0.1.1:6379
+# Enable packet forwarding
+sudo sysctl -w net.ipv4.ip_forward=1
+# Forward traffic to enclave attestation endpoint
+sudo iptables -t nat -I PREROUTING -p tcp -i eth0 --dport 56000 -j DNAT --to-destination 10.0.1.1:56000
+# Forward traffic to enclave Wireguard endpoint
+sudo iptables -t nat -I PREROUTING -p udp -i eth0 --dport 56002 -j DNAT --to-destination 10.0.1.1:56002
+
+# Allow forwarding to/from TAP
 sudo iptables -I FORWARD -m state -d 10.0.1.0/24 --state NEW,RELATED,ESTABLISHED -j ACCEPT
 sudo iptables -I FORWARD -m state -s 10.0.1.0/24 --state NEW,RELATED,ESTABLISHED -j ACCEPT
 
-sudo sysctl -w net.ipv4.ip_forward=1
-```
-
-If SGX-LKL should be allowed to access the internet or other networks,
-masquerading might also be needed:
-
-```
-# Same as above, can be skipped if run before
-sudo sysctl -w net.ipv4.ip_forward=1
-
+# If enclave needs establish new connections to external hosts, masquerade
+# outgoing traffic from enclave
 sudo iptables -t nat -A POSTROUTING -s 10.0.1.0/24 ! -d 10.0.1.0/24 -j MASQUERADE
+```
+
+If you run an application that needs to be publicly accessible (i.e. not over
+Wireguard), additional rules to forward corresponding traffic might be needed.
+For example, for redis which listens on port 6379 by default:
+
+```
+# Forward traffic from host's public interface TCP port 60321 to SGX-LKL port 6379
+sudo iptables -t nat -I PREROUTING -p tcp -d `hostname -i` --dport 60321 -j DNAT --to-destination 10.0.1.1:6379
 ```
 
 DNS resolution is configured via `/etc/resolv.conf` as usual, so if this is
 required, ensure that a valid nameserver configuration is in place on the root
 disk image, e.g. by copying the host configuration (see
 `apps/miniroot/Makefile` for an example).
+
+### Network encryption
+
+SGX-LKL uses Wireguard for protecting network traffic between an SGX-LKL
+application and other trusted nodes. See [Network
+encryption](https://github.com/lsds/sgx-lkl/wiki/Network-encryption) for
+information how to set up and use network encryption for SGX-LKL.
 
 Building SGX-LKL manually
 -------------------------
@@ -98,6 +113,24 @@ To build sgx-lkl in hardware mode run:
 
 ```
     make
+    make sgx-lkl-sign
+```
+
+### Release mode
+
+SGX-LKL has a "Release Mode" which enables/disables certain features for
+hardening. In particuar, it ensures that enclave secrets are provided to
+SGX-LKL over a secure channel and that an untrusted party is unable to control
+SGX-LKL remotely. In release mode, the application configuration must be
+provided remotely (`SGXLKL_REMOTE_CONFIG` is always set to `1`), remote control
+is only available over Wireguard (`SGXLKL_REMOTE_CMD_ETH0` is always set to
+`0`), and it requires that exactly one Wireguard peer is provided at startup.
+You can find more information in the
+[wiki](https://github.com/lsds/sgx-lkl/wiki/Remote-Attestation-and-Remote-Control#4-server-launch-enclave)
+on why this is necessary. To build SGX-LKL in release mode run:
+
+```
+    make RELEASE=true
     make sgx-lkl-sign    # This signs the SGX-LKL enclave library as a debug enclave
 ```
 
@@ -425,37 +458,6 @@ protection. For more information on cryptsetup as well as
 dm-crypt/dm-verity/dm-integrity see
 https://gitlab.com/cryptsetup/cryptsetup/wikis/DMCrypt.
 
-### Support for non-PIE binaries
-
-SGX-LKL supports non-PIE binaries, but in order to do so needs to be able to
-map to address 0x0 of the virtual address space. Non-PIE Linux binaries by
-default expect their `.text` segments to be mapped at address 0x400000. SGX
-requires the base address to be naturally aligned to the enclave size.
-Therefore, it is not possible to use 0x400000 as base address in cases where
-the enclave is larger than 4 MB (0x400000 bytes). Instead, the enclaves needs
-to be mapped to address 0x0 to adhere to the alignment requirement. By default,
-Linux does not allow fixed mappings at address 0x0. To permit this, run:
-
-```
-sysctl -w vm.mmap_min_addr="0"
-```
-
-To change the system configuration permanently use:
-
-```
-echo "vm.mmap_min_addr = 0" > /etc/sysctl.d/mmap_min_addr.conf
-/etc/init.d/procps restart
-```
-
-By default, SGX-LKL maps the enclave at an arbitrary free space in memory. To
-run a non-PIE binary and map the enclave at the beginning of the address space,
-use `SGXLKL_NON_PIE=1`, e.g.:
-
-```
-cd apps/helloworld
-make sgxlkl-disk.img
-SGXLKL_NON_PIE=1 sgx-lkl-run sgxlkl-disk.img app/helloworld-nonpie
-```
 
 ### Configuring SGX-LKL
 
@@ -509,6 +511,15 @@ Note that for the debugging options to have an effect, SGX-LKL must be built
 with `DEBUG=true`.
 
 
+Remote attestation
+---------------------------------
+SGX-LKL provides capabilities for remote attestation including support for
+Intel Attestation Service (IAS) verification. See [Remote Attestation and
+Remote
+Control](https://github.com/lsds/sgx-lkl/wiki/Remote-Attestation-and-Remote-Control)
+for information on how to remotely attest an SGX-LKL application and how to
+provide enclave secrets securely.
+
 
 Debugging SGX-LKL (applications)
 ---------------------------------
@@ -546,12 +557,24 @@ signal handler for `SIGSEGV` signals, gdb will pause execution. When
 continuing, SGX-LKL will pass on the signal to the in-enclave signal handler
 registered by the application.
 
+<<<<<<< HEAD
 Support for profiling SGX-LKL with perf is currently limited to simulation
 mode. Only SGX-LKL symbols but no symbols of the application or its
 dependencies are available to perf due to the in-enclave linking/loading.
 
 Take a look in the [wiki](https://github.com/lsds/sgx-lkl/wiki/Debugging) for
 further debugging options.
+
+Support for profiling SGX-LKL with perf is currently limited to simulation
+mode. Only SGX-LKL symbols but no symbols of the application or its
+dependencies are available to perf due to the in-enclave linking/loading.
+
+Take a look in the [wiki](https://github.com/lsds/sgx-lkl/wiki/Debugging) for
+further debugging options.
+=======
+Take a look in the
+[wiki](https://github.com/lsds/sgx-lkl/wiki/Debugging-and-Profiling) for more
+information on debugging, tracing and profiling.
 
 DPDK
 ----
