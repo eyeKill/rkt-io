@@ -187,7 +187,7 @@ int parse_sgxlkl_config_from_str(char *str, char **err) {
 }
 
 int sgxlkl_configured(int opt) {
-    assert(opt < sizeof(sgxlkl_config));
+    assert(opt < (sizeof(sgxlkl_config) / sizeof(sgxlkl_config[0])));
 
     if (sgxlkl_config[opt].inited)
         return 1;
@@ -196,7 +196,7 @@ int sgxlkl_configured(int opt) {
 }
 
 int sgxlkl_config_bool(int opt_key) {
-    assert(opt_key < sizeof(sgxlkl_config));
+    assert(opt_key < (sizeof(sgxlkl_config) / sizeof(sgxlkl_config[0])));
     assert(sgxlkl_config[opt_key].type == TYPE_BOOL);
 
     struct sgxlkl_config_elem *opt = &sgxlkl_config[opt_key];
@@ -209,7 +209,7 @@ int sgxlkl_config_bool(int opt_key) {
 }
 
 uint64_t sgxlkl_config_uint64(int opt_key) {
-    assert(opt_key < sizeof(sgxlkl_config));
+    assert(opt_key < (sizeof(sgxlkl_config) / sizeof(sgxlkl_config[0])));
     assert(sgxlkl_config[opt_key].type == TYPE_UINT);
 
     struct sgxlkl_config_elem *opt = &sgxlkl_config[opt_key];
@@ -222,7 +222,7 @@ uint64_t sgxlkl_config_uint64(int opt_key) {
 }
 
 char *sgxlkl_config_str(int opt_key) {
-    assert(opt_key < sizeof(sgxlkl_config));
+    assert(opt_key < (sizeof(sgxlkl_config) / sizeof(sgxlkl_config[0])));
     assert(sgxlkl_config[opt_key].type == TYPE_CHAR || sgxlkl_config[opt_key].type == TYPE_JSON);
 
     struct sgxlkl_config_elem *opt = &sgxlkl_config[opt_key];
