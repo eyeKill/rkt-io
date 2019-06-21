@@ -96,25 +96,17 @@ static struct sgxlkl_config_elem sgxlkl_config[] = {
  /* 58 */ {"SGXLKL_WG_KEY",                   "wg_key",                   TYPE_CHAR, {.def_char = NULL}, 0},
  /* 59 */ {"SGXLKL_WG_PEERS",                 "wg_peers",                 TYPE_CHAR, {.def_char = ""}, 0},
  /* 60 */ {"SGXLKL_IP6",                      "ip6",                      TYPE_CHAR, {.def_char = DEFAULT_SGXLKL_IP6}, 0},
- /* 61 */ {"SGXLKL_MASK6",                    "ip6",                      TYPE_CHAR, {.def_char = DEFAULT_SGXLKL_MASK6}, 0},
+ /* 61 */ {"SGXLKL_MASK6",                    "mask6",                    TYPE_UINT, {.def_uint = DEFAULT_SGXLKL_MASK6}, 0},
  /* 62 */ {"SGXLKL_GW6",                      "gw6",                      TYPE_CHAR, {.def_char = DEFAULT_SGXLKL_GW6}, 0},
  /* 63 */ {"SGXLKL_DPDK_IP4",                 "dpdk_ip4",                 TYPE_CHAR, {.def_char = DEFAULT_SGXLKL_DPDK_IP4}, 0},
  /* 64 */ {"SGXLKL_DPDK_GW4",                 "dpdk_gw4",                 TYPE_CHAR, {.def_char = DEFAULT_SGXLKL_DPDK_GW4}, 0},
- /* 65 */ {"SGXLKL_DPDK_MASK4",               "dpdk_mask4",               TYPE_CHAR, {.def_char = DEFAULT_SGXLKL_DPDK_MASK4}, 0},
+ /* 65 */ {"SGXLKL_DPDK_MASK4",               "dpdk_mask4",               TYPE_UINT, {.def_char = DEFAULT_SGXLKL_DPDK_MASK4}, 0},
  /* 66 */ {"SGXLKL_DPDK_IP6",                 "dpdk_ip6",                 TYPE_CHAR, {.def_char = DEFAULT_SGXLKL_DPDK_IP6}, 0},
  /* 67 */ {"SGXLKL_DPDK_GW6",                 "dpdk_gw6",                 TYPE_CHAR, {.def_char = DEFAULT_SGXLKL_DPDK_GW6}, 0},
- /* 68 */ {"SGXLKL_DPDK_MASK6",               "dpdk_mask6",               TYPE_CHAR, {.def_uint = DEFAULT_SGXLKL_DPDK_MASK6}, 0},
- /* 69 */ {"SGXLKL_DPDK_CWD",                 "cwd",                      TYPE_CHAR, {.def_char = DEFAULT_SGXLKL_CWD}, 0},
+ /* 68 */ {"SGXLKL_DPDK_MASK6",               "dpdk_mask6",               TYPE_UINT, {.def_uint = DEFAULT_SGXLKL_DPDK_MASK6}, 0},
+ /* 69 */ {"SGXLKL_DPDK_MTU",                 "mtu",                      TYPE_UINT, {.def_uint = DEFAULT_SGXLKL_DPDK_MTU}, 0},
+ /* 70 */ {"SGXLKL_CWD",                      "cwd",                      TYPE_CHAR, {.def_char = DEFAULT_SGXLKL_CWD}, 0},
 };
-
-#define SGXLKL_DPDK_IP4                 62
-#define SGXLKL_DPDK_GW4                 63
-#define SGXLKL_DPDK_MASK4               64
-#define SGXLKL_DPDK_IP6                 65
-#define SGXLKL_DPDK_GW6                 66
-#define SGXLKL_DPDK_MASK6               67
-#define SGXLKL_DPDK_MTU                 68
-#define SGXLKL_CWD                      69
 
 static inline struct sgxlkl_config_elem *config_elem_by_key(const char *key) {
     for (int i = 0; i < sizeof(sgxlkl_config)/sizeof(sgxlkl_config[0]); i++) {

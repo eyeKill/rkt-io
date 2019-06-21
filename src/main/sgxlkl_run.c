@@ -720,7 +720,7 @@ void register_spdk(enclave_config_t *encl,
 void register_dpdk(enclave_config_t *encl,
                    const char *ip4str, int mask4, const char *gw4str,
                    const char *ip6str, int mask6, const char *gw6str,
-                   const char *mtustr)
+                   const int mtu)
 {
     struct in_addr ip4 = {0};
     if (inet_pton(AF_INET, ip4str, &ip4) != 1)
@@ -747,13 +747,6 @@ void register_dpdk(enclave_config_t *encl,
     if (mask6 < 1 || mask6 > 128)
         sgxlkl_fail("Invalid IPv6 mask %d\n", mask6);
 
-    int mtu = 1500;
-    if (mtustr) {
-        mtu = atoi(mtustr);
-        if (mtu < 1) {
-            sgxlkl_fail("Invalid mtu %s\n", mtustr);
-        }
-    }
     encl->num_dpdk_ifaces = rte_eth_dev_count_avail();
     if (encl->num_dpdk_ifaces) {
         encl->dpdk_ifaces = (struct enclave_dpdk_config *)malloc(
@@ -1664,7 +1657,7 @@ int main(int argc, char *argv[], char *envp[]) {
                   sgxlkl_config_str(SGXLKL_DPDK_IP6),
                   (int) sgxlkl_config_uint64(SGXLKL_DPDK_MASK6),
                   sgxlkl_config_str(SGXLKL_DPDK_GW6),
-                  sgxlkl_config_str(SGXLKL_DPDK_MTU));
+                  (int) sgxlkl_config_uint64(SGXLKL_DPDK_MTU));
 
     encl.cwd = sgxlkl_config_str(SGXLKL_CWD);
 
