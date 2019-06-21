@@ -119,7 +119,6 @@ in (overrideCC stdenv gcc8_nolibc).mkDerivation {
     autoconf
     libtool
     pkgconfig
-    linuxHeaders
     flex
     bison
     bc
@@ -140,6 +139,8 @@ in (overrideCC stdenv gcc8_nolibc).mkDerivation {
     openssh
     procps
     rsync
+    protobufc
+    protobuf
   ];
 
   # conditionally used by .envrc
@@ -153,9 +154,12 @@ in (overrideCC stdenv gcc8_nolibc).mkDerivation {
     #  NIX_LDFLAGS = ""; # -lgcc breaks static linking
     #  configureFlags = (old.configureFlags or []) ++ [ "--enable-static" ];
     #}))
+    protobuf
     libgcrypt
     libgcc
     json_c
+    curl
+    linuxHeaders
   ];
 
   SGXLKL_TAP = "sgxlkl_tap0";
