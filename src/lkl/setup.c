@@ -59,6 +59,7 @@ struct enclave_disk_config *disks;
 static struct spdk_context *spdk_context;
 static size_t num_spdk_devs = 0;
 static struct spdk_dev *spdk_devs;
+static char *initial_cwd = NULL;
 
 static void lkl_add_disks(struct enclave_disk_config *disks, size_t num_disks) {
     for (size_t i = 0; i < num_disks; ++i) {
@@ -521,6 +522,77 @@ static void lkl_run_in_kernel_stack(void *(*start_routine) (void *), void* arg) 
     }
 }
 
+#define DEV_PATH_LEN 12
+
+static int device_path(int dev_id, char* dev) {
+    // We assign dev paths from /dev/vda to /dev/vdz, assuming we won't need
+    // support for more than 26 disks.
+    if ('a' + (dev_id - 1) > 'z') {
+        fprintf(stderr, "Error: Too many disks (maximum is 26). Failed to mount disk %d at %s.\n", dev_id);
+        // Adjust number to number of mounted disks.
+        num_disks = 26;
+        return 1;
+    }
+    snprintf(dev, DEV_PATH_LEN, "/dev/vd%c", 'a' + dev_id - 1);
+    return 0;
+}
+
+static void spdk_mountpoint(int dev_id, char* dev) {
+    snprintf(dev, DEV_PATH_LEN, "/mnt/spdk%d", dev_id);
+}
+
+static void lkl_start_spdk(struct spdk_context *ctx) {
+    int rc = sgxlkl_spdk_initialize();
+    if (rc < 0) {
+        fprintf(stderr, "Error: unable to initialize spdk, %s\n",
+                strerror(-rc));
+        exit(rc);
+    }
+
+    for (struct spdk_ns_entry *ns_entry = ctx->namespaces; ns_entry; ns_entry = ns_entry->next) {
+        num_spdk_devs++;
+    }
+    spdk_devs = (struct spdk_dev*) calloc(num_spdk_devs, sizeof(struct spdk_dev));
+    if (!spdk_devs) {
+        fprintf(stderr, "Error: unable to allocate memory spdk devices\n");
+        exit(1);
+    }
+
+    size_t idx = 0;
+    for (struct spdk_ns_entry *ns_entry = ctx->namespaces; ns_entry; ns_entry = ns_entry->next) {
+        struct spdk_dev *dev = &spdk_devs[idx];
+        memcpy(&dev->ns_entry, ns_entry, sizeof(struct spdk_ns_entry));
+        rc = sgxlkl_register_spdk_device(dev);
+        if (rc < 0) {
+            fprintf(stderr, "Error: unable to register spdk devices\n");
+            exit(1);
+        }
+        char dev_path[DEV_PATH_LEN], mnt[DEV_PATH_LEN];
+        int rc = snprintf(dev_path, DEV_PATH_LEN, "/dev/spdk%d",spdk_devs[idx].dev_id);
+        spdk_mountpoint(spdk_devs[idx].dev_id, mnt);
+        SGXLKL_VERBOSE("spdk: mount(%s, %s)\n", dev_path, mnt);
+        rc = lkl_mount_blockdev(dev_path, mnt, "ext4", 0, NULL);
+        if (rc < 0) {
+            fprintf(stderr, "Error: lkl_mount_blockdev(%s, %s)=%s (%d)\n", dev_path, mnt, lkl_strerror(rc), rc);
+            exit(rc);
+        }
+        idx++;
+    }
+}
+
+static void lkl_stop_spdk() {
+    for (size_t i = 0; i < num_spdk_devs; i++) {
+        char mnt[DEV_PATH_LEN];
+        spdk_mountpoint(spdk_devs[i].dev_id, mnt);
+        int err = lkl_umount_timeout(mnt, 0, UMOUNT_DISK_TIMEOUT);
+        if (err < 0) {
+            fprintf(stderr, "Error: lkl_mount_umount(%s)=%s (%d)\n", mnt, lkl_strerror(err), err);
+        }
+        sgxlkl_unregister_spdk_device(&spdk_devs[i]);
+    }
+    free(spdk_devs);
+}
+
 static void lkl_mount_virtual() {
     lkl_mount_devtmpfs("/dev");
     lkl_prepare_rootfs("/proc", 0700);
@@ -530,6 +602,27 @@ static void lkl_mount_virtual() {
     lkl_prepare_rootfs("/run", 0700);
     lkl_mount_runfs();
     lkl_mknods();
+}
+
+static void setworkingdir(char* path) {
+    if (strcmp(path, "/") == 0) {
+        return;
+    }
+    char *local_path = strdup(path);
+    if (!local_path) {
+        fprintf(stderr, "Error: setworkingdir(%s): %s\n", path, strerror(errno));
+        exit(1);
+    }
+    int ret = lkl_sys_chdir(local_path);
+    free(local_path);
+
+    if (ret == 0) {
+        return;
+    }
+    SGXLKL_VERBOSE("CWD %s\n", path);
+
+    fprintf(stderr, "Error: lkl_sys_chdir(%s): %s\n", path, lkl_strerror(ret));
+    exit(1);
 }
 
 static void lkl_mount_root_disk(struct enclave_disk_config *disk) {
@@ -556,7 +649,6 @@ static void lkl_mount_root_disk(struct enclave_disk_config *disk) {
     lkl_cd.disk_path = dev_str;
     lkl_cd.readonly = disk->ro;
     lkl_cd.disk_config = disk;
-
 
     if (disk->roothash != NULL) {
         lkl_run_in_kernel_stack((void * (*)(void *)) &lkl_activate_verity_disk_thread, (void *) &lkl_cd);
@@ -627,77 +719,6 @@ static void lkl_mount_root_disk(struct enclave_disk_config *disk) {
     lkl_mount_procfs();
 }
 
-#define DEV_PATH_LEN 12
-
-static int device_path(int dev_id, char* dev) {
-    // We assign dev paths from /dev/vda to /dev/vdz, assuming we won't need
-    // support for more than 26 disks.
-    if ('a' + (dev_id - 1) > 'z') {
-        fprintf(stderr, "Error: Too many disks (maximum is 26). Failed to mount disk %d at %s.\n", dev_id);
-        // Adjust number to number of mounted disks.
-        num_disks = 26;
-        return 1;
-    }
-    snprintf(dev, DEV_PATH_LEN, "/dev/vd%c", 'a' + dev_id - 1);
-    return 0;
-}
-
-static void spdk_mountpoint(int dev_id, char* dev) {
-    snprintf(dev, DEV_PATH_LEN, "/mnt/spdk%d", dev_id);
-}
-
-static void lkl_start_spdk(enclave_config_t *encl) {
-    struct spdk_context *ctx = encl->spdk_context;
-    int rc = sgxlkl_spdk_initialize();
-    if (rc < 0) {
-        fprintf(stderr, "Error: unable to initialize spdk, %s\n",
-                strerror(-rc));
-        exit(rc);
-    }
-
-    for (struct spdk_ns_entry *ns_entry = ctx->namespaces; ns_entry; ns_entry = ns_entry->next) {
-        num_spdk_devs++;
-    }
-    spdk_devs = (struct spdk_dev*) calloc(num_spdk_devs, sizeof(struct spdk_dev));
-    if (!spdk_devs) {
-        fprintf(stderr, "Error: unable to allocate memory spdk devices\n");
-        exit(1);
-    }
-
-    size_t idx = 0;
-    for (struct spdk_ns_entry *ns_entry = ctx->namespaces; ns_entry; ns_entry = ns_entry->next) {
-        struct spdk_dev *dev = &spdk_devs[idx];
-        memcpy(&dev->ns_entry, ns_entry, sizeof(struct spdk_ns_entry));
-        rc = sgxlkl_register_spdk_device(dev);
-        if (rc < 0) {
-            fprintf(stderr, "Error: unable to register spdk devices\n");
-            exit(1);
-        }
-        char dev_path[DEV_PATH_LEN], mnt[DEV_PATH_LEN];
-        int rc = snprintf(dev_path, DEV_PATH_LEN, "/dev/spdk%d",spdk_devs[idx].dev_id);
-        spdk_mountpoint(spdk_devs[idx].dev_id, mnt);
-        SGXLKL_VERBOSE("spdk: mount(%s, %s)\n", dev_path, mnt);
-        rc = lkl_mount_blockdev(dev_path, mnt, "ext4", 0, NULL);
-        if (rc < 0) {
-            fprintf(stderr, "Error: lkl_mount_blockdev(%s, %s)=%s (%d)\n", dev_path, mnt, lkl_strerror(rc), rc);
-            exit(rc);
-        }
-        idx++;
-    }
-}
-
-static void lkl_stop_spdk() {
-    for (size_t i = 0; i < num_spdk_devs; i++) {
-        char mnt[DEV_PATH_LEN];
-        spdk_mountpoint(spdk_devs[i].dev_id, mnt);
-        int err = lkl_umount_timeout(mnt, 0, UMOUNT_DISK_TIMEOUT);
-        if (err < 0) {
-            fprintf(stderr, "Error: lkl_mount_umount(%s)=%s (%d)\n", mnt, lkl_strerror(err), err);
-        }
-        sgxlkl_unregister_spdk_device(&spdk_devs[i]);
-    }
-    free(spdk_devs);
-}
 
 void lkl_mount_disks(struct enclave_disk_config* _disks, size_t _num_disks) {
     num_disks = _num_disks;
@@ -752,6 +773,10 @@ void lkl_mount_disks(struct enclave_disk_config* _disks, size_t _num_disks) {
             sgxlkl_fail("Error: lkl_mount_blockdev()=%s (%d)\n", lkl_strerror(err), err);
         disks[i].mounted = 1;
     }
+
+    lkl_start_spdk(spdk_context);
+
+    setworkingdir(initial_cwd);
 }
 
 void lkl_poststart_net(enclave_config_t* encl, int net_dev_id) {
@@ -809,27 +834,6 @@ void lkl_poststart_net(enclave_config_t* encl, int net_dev_id) {
         fprintf(stderr, "Error: lkl_if_up(1=lo): %s\n", lkl_strerror(res));
         exit(res);
     }
-}
-
-static void setworkingdir(char* path) {
-    if (strcmp(path, "/") == 0) {
-        return;
-    }
-    char *local_path = strdup(path);
-    if (!local_path) {
-        fprintf(stderr, "Error: setworkingdir(%s): %s\n", path, strerror(errno));
-        exit(1);
-    }
-    int ret = lkl_sys_chdir(local_path);
-    free(local_path);
-
-    if (ret == 0) {
-        return;
-    }
-    SGXLKL_VERBOSE("CWD %s\n", path);
-
-    fprintf(stderr, "Error: lkl_sys_chdir(%s): %s\n", path, lkl_strerror(ret));
-    exit(1);
 }
 
 static void init_wireguard(enclave_config_t *encl) {
@@ -1013,7 +1017,6 @@ void lkl_start_init(enclave_config_t* encl) {
         lkl_poststart_net(encl, net_dev_id);
 
     sgxlkl_register_dpdk_context(encl->dpdk_context);
-    lkl_start_spdk(encl);
     // Set interface status/IP/routes
     if (!sgxlkl_use_host_network) {
         lkl_prestart_dpdk(encl);
@@ -1021,8 +1024,7 @@ void lkl_start_init(enclave_config_t* encl) {
     }
 
     spdk_context = encl->spdk_context;
-
-    setworkingdir(encl->cwd);
+    initial_cwd = encl->cwd;
 
     // Set up wireguard
     init_wireguard(encl);
