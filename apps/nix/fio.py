@@ -110,7 +110,11 @@ def benchmark_fio(
     env.update(extra_env)
     fio = nix_build(attr)
     proc = run([fio], extra_env=env)
-    jsondata = json.loads(proc.stdout)
+    try:
+        jsondata = json.loads(proc.stdout)
+    except json.decoder.JSONDecodeError:
+        print(proc.stdout.decode("utf-8"))
+        raise
     parse_json_plus(jsondata, system, latency_stats)
 
     operation_set = set(["read", "write", "trim"])
@@ -156,9 +160,9 @@ def main() -> None:
 
     storage = Storage(settings)
 
-    benchmark_native(storage, stats, latency_stats)
     benchmark_sgx_lkl(storage, stats, latency_stats)
     benchmark_sgx_io(storage, stats, latency_stats)
+    benchmark_native(storage, stats, latency_stats)
 
     csv = f"fio-throughput-{NOW}.tsv"
     print(csv)
