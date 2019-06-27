@@ -76,20 +76,20 @@ let
     esac
   '';
 
-  gcc8_nolibc = wrapCCWith {
-    cc = gcc8.cc;
+  gcc7_nolibc = wrapCCWith {
+    cc = gcc7.cc;
     bintools = wrapBintoolsWith {
       bintools = binutils-unwrapped;
       libc = null;
     };
     extraBuildCommands = ''
-      sed -i '2i if ! [[ $@ == *'musl-gcc.specs'* ]]; then exec ${gcc8}/bin/gcc -L${glibc}/lib -L${glibc.static}/lib "$@"; fi' \
+      sed -i '2i if ! [[ $@ == *'musl-gcc.specs'* ]]; then exec ${gcc7}/bin/gcc -L${glibc}/lib -L${glibc.static}/lib "$@"; fi' \
         $out/bin/gcc
 
-      sed -i '2i if ! [[ $@ == *'musl-gcc.specs'* ]]; then exec ${gcc8}/bin/g++ -L${glibc}/lib -L${glibc.static}/lib "$@"; fi' \
+      sed -i '2i if ! [[ $@ == *'musl-gcc.specs'* ]]; then exec ${gcc7}/bin/g++ -L${glibc}/lib -L${glibc.static}/lib "$@"; fi' \
         $out/bin/g++
 
-      sed -i '2i if ! [[ $@ == *'musl-gcc.spec'* ]]; then exec ${gcc8}/bin/cpp "$@"; fi' \
+      sed -i '2i if ! [[ $@ == *'musl-gcc.spec'* ]]; then exec ${gcc7}/bin/cpp "$@"; fi' \
         $out/bin/cpp
     '';
   };
@@ -104,7 +104,7 @@ let
   };
 
   kernel = linuxPackages_4_14.kernel;
-in (overrideCC stdenv gcc8_nolibc).mkDerivation {
+in (overrideCC stdenv gcc7_nolibc).mkDerivation {
   name = "env";
 
   nativeBuildInputs = [
