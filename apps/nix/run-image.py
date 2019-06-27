@@ -7,7 +7,9 @@ import subprocess
 import sys
 import tempfile
 from datetime import datetime
-from typing import List
+from typing import List, Optional, Dict
+from contextlib import contextmanager
+
 NOW = datetime.now().strftime("%Y%m%d-%H%M%S")
 
 
@@ -31,9 +33,42 @@ def generate_flamegraph(perf_data: str, flamegraph: str) -> None:
             ["flamegraph.pl"], stdin=stackcollapse.stdout, stdout=f
         )
     flamegraph_proc.communicate()
-    print(flamegraph, file=sys.stderr)
 
 
+@contextmanager
+def debug_mount_env(image: str):
+    env = os.environ.copy()
+    if os.environ.get("SGXLKL_ENABLE_FLAMEGRAPH", None) is None or image == "NONE":
+        yield env
+        return
+
+    with tempfile.TemporaryDirectory(prefix="dbgmount-") as tmpdirname:
+        subprocess.run(["sudo", "mount", image, tmpdirname])
+        env["SGXLKL_DEBUGMOUNT"] = tmpdirname
+
+        try:
+            yield env
+        finally:
+            subprocess.run(["sudo", "umount", tmpdirname])
+
+
+def run(image: str, debugger: List[str], cmd: List[str], env: Dict[str, str], tmpdirname: str):
+    native_mode = image == "NONE"
+
+    if native_mode:
+        proc = subprocess.Popen(debugger + cmd, env=env)
+    else:
+        tmp_fsimage = os.path.join(tmpdirname, "fs.img")
+        shutil.copyfile(image, tmp_fsimage)
+
+        proc = subprocess.Popen(debugger + ["sgx-lkl-run", tmp_fsimage] + cmd, env=env)
+
+        def stop_proc(signum, frame) -> None:
+            proc.terminate()
+        signal.signal(signal.SIGINT, stop_proc)
+        proc.wait()
+
+ 
 def main(args: List[str]) -> None:
     if len(args) < 3:
         print(f"USAGE: {sys.argv[0]} image", file=sys.stderr)
@@ -41,22 +76,12 @@ def main(args: List[str]) -> None:
     image = args[1]
     cmd = args[2:]
 
-    native_mode = image == "NONE"
-
-    with tempfile.TemporaryDirectory(prefix="iperf-") as tmpdirname:
+    with tempfile.TemporaryDirectory(prefix="run-image-") as tmpdirname:
         perf_data = os.path.join(tmpdirname, "perf.data")
         debugger = get_debugger(perf_data)
         try:
-            if native_mode:
-                proc = subprocess.Popen(debugger + cmd)
-            else:
-                tmp_fsimage = os.path.join(tmpdirname, "fs.img")
-                shutil.copyfile(image, tmp_fsimage)
-                proc = subprocess.Popen(debugger + ["sgx-lkl-run", tmp_fsimage] + cmd)
-            def stop_proc(signum, frame) -> None:
-                proc.terminate()
-            signal.signal(signal.SIGINT, stop_proc)
-            proc.wait()
+            with debug_mount_env(image) as env:
+                run(image, debugger, cmd, env, tmpdirname)
         finally:
             if os.environ.get("SGXLKL_ENABLE_FLAMEGRAPH", None) is None:
                 return
@@ -68,7 +93,6 @@ def main(args: List[str]) -> None:
             perf = os.environ.get("PERF_FILENAME", None)
             if perf is not None:
                 shutil.move(perf_data, perf)
-                print(perf)
 
 
 if __name__ == "__main__":
