@@ -113,7 +113,7 @@ $(LIB_SGX_LKL_BUILD)/spdk-fix-permissions.sh: sgx-lkl-userpci/spdk-fix-permissio
 	install -m755 $^ $@
 
 $(LIB_SGX_LKL_BUILD)/sgx-lkl-userpci: $(LIB_SGX_LKL_BUILD)/sgx-lkl-userpci-pre
-	sudo install -m4755 $^ $@ || install -m755 $^ $@
+	sudo install -m4755 $^ $@
 
 # sgx-lkl-ctl ----
 CTL_SRCS = $(wildcard attestation/*.c) $(wildcard ctl/*.c) wireguard/wireguard.c shared/sgxlkl_util.c  main/messages.pb-c.c sgx/sgxlkl_ctl.pb-c.c
