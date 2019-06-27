@@ -60,7 +60,7 @@ ${CRYPTSETUP_BUILD}/lib/libdevmapper.a: ${DEVICEMAPPER} ${HOST_MUSL_CC} ${CRYPTS
 	+CC=${HOST_MUSL_CC} ${MAKE} -C ${DEVICEMAPPER} device-mapper
 	+CC=${HOST_MUSL_CC} ${MAKE} -C ${DEVICEMAPPER}/libdm install
 
-${UTILLINUX}/configure:
+${UTILLINUX}/configure: ${UTILLINUX}
 	cd ${UTILLINUX}; ./autogen.sh
 
 ${CRYPTSETUP_BUILD}/lib/libuuid.a: ${UTILLINUX} ${HOST_MUSL_CC} ${CRYPTSETUP_BUILD} ${CRYPTSETUP_BUILD}/libuuid ${UTILLINUX}/configure
