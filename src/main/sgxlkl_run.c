@@ -486,7 +486,7 @@ static void register_hd(enclave_config_t* encl, char* path, char* mnt, int reado
     off_t size = disk_stat.st_size;
     if ((disk_stat.st_mode & S_IFMT) == S_IFBLK) {
         if (ioctl(fd, BLKGETSIZE64, &size) < 0) {
-            sgxlkl_fail("Failed to get block device size of %s: %lu\n", path, size);
+            sgxlkl_fail("Failed to get block device size of %s: %s\n", path, strerror(-errno));
         }
     }
 
