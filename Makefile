@@ -33,7 +33,7 @@ endef
 
 build-hw:
 	make DEBUG=true
-	make -C .profiling sgx-lkl-sign
+	make sgx-lkl-sign
 
 build-hw-profiling: .profiling
 	$(call build-target,.profiling,DEBUG=opt)
