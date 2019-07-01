@@ -22,7 +22,7 @@ sim: HW_MODE=no
 sim: all
 
 define build-target
-	git -C ${1} checkout -f $(git rev-parse HEAD)
+	git -C ${1} checkout -f $(shell git rev-parse HEAD)
 	git --no-pager diff --staged | git -C ${1} apply || true
 	git -C ${1} submodule update --init
 	make -C ${1} ${2}
