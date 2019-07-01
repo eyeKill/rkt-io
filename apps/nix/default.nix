@@ -124,7 +124,7 @@ in {
 
   hdparm = runImage {
     pkg = busybox;
-    command = [ "bin/hdparm" "-Tt" "/dev/vdb" ];
+    command = [ "bin/hdparm" "-Tt" "/dev/spdk0" ];
   };
 
   redis = runImage {
