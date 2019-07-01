@@ -21,6 +21,30 @@ all: sgx-lkl-musl sgx-lkl gdb/sgx-lkl-gdb
 sim: HW_MODE=no
 sim: all
 
+define build-target
+	git -C ${1} checkout -f $(git rev-parse HEAD)
+	git --no-pager diff --staged | git -C ${1} apply || true
+	git -C ${1} submodule update --init
+	make -C ${1} ${2}
+endef
+
+.profiling .sim .sim-profiling:
+	git worktree add $@ HEAD
+
+build-hw:
+	make DEBUG=true
+	make -C .profiling sgx-lkl-sign
+
+build-hw-profiling: .profiling
+	$(call build-target,.profiling,DEBUG=opt)
+	make -C .profiling sgx-lkl-sign
+
+build-sim: .sim
+	$(call build-target,.sim,sim DEBUG=true)
+
+build-sim-profiling: .sim-profiling
+	$(call build-target,.sim-profiling,sim DEBUG=opt)
+
 MAKE_ROOT=$(dir $(realpath $(firstword $(MAKEFILE_LIST))))
 
 # Vanilla Musl compiler
