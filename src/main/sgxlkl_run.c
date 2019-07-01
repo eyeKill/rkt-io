@@ -486,7 +486,7 @@ static void register_hd(enclave_config_t* encl, char* path, char* mnt, int reado
     off_t size = disk_stat.st_size;
     if ((disk_stat.st_mode & S_IFMT) == S_IFBLK) {
         if (ioctl(fd, BLKGETSIZE64, &size) < 0) {
-            sgxlkl_fail("Failed to get block device size of %s: %s\n", path, strerror(-errno));
+            sgxlkl_fail("Failed to get block device size of %s: %s\n", path, strerror(errno));
         }
     }
 
@@ -616,9 +616,9 @@ static void *register_shm(char* path, size_t len) {
 }
 
 static void register_net(enclave_config_t* encl, const char* tapstr,
-             const char* ip4str, int mask4, const char* gw4str,
-             const char* ip6str, int mask6, const char* gw6str,
-             const char* hostname) {
+                         const char* ip4str, int mask4, const char* gw4str,
+                         const char* ip6str, int mask6, const char* gw6str,
+                         const char* hostname) {
     // Set hostname
     strncpy(encl->hostname, hostname, sizeof(encl->hostname));
     encl->hostname[sizeof(encl->hostname) - 1] = '\0';
@@ -673,14 +673,12 @@ static void register_net(enclave_config_t* encl, const char* tapstr,
         sgxlkl_fail("Invalid IPv4 gateway %s\n", gw4str);
     }
 
-    // Read IPv6 addr if there is one
+    if (mask4 < 1 || mask4 > 32) sgxlkl_fail("Invalid IPv4 mask %d\n", mask4);
+
     struct in6_addr ip6 = { 0 };
     if (inet_pton(AF_INET6, ip6str, &ip6) != 1)
         sgxlkl_fail("Invalid IPv6 address %s\n", ip6str);
 
-    if (mask4 < 1 || mask4 > 32) sgxlkl_fail("Invalid IPv4 mask %d\n", mask4);
-
-    // Read IPv6 gateway if there is one
     struct in6_addr gw6 = { 0 };
     if (gw6str != NULL && strlen(gw6str) > 0 &&
         inet_pton(AF_INET6, gw6str, &gw6) != 1) {
