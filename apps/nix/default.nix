@@ -127,6 +127,12 @@ in {
     command = [ "bin/hdparm" "-Tt" "/dev/spdk0" ];
   };
 
+  hdparm-native = runImage {
+    pkg = busybox;
+    native = true;
+    command = [ "bin/hdparm" "-Tt" "/dev/spdk0" ];
+  };
+
   redis = runImage {
     pkg = pkgsMusl.redis.overrideAttrs (old: {
       makeFlags = old.makeFlags + " MALLOC=libc";
