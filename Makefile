@@ -101,7 +101,7 @@ DPDK_CONFIG = ${DPDK_BUILD}/.config
 SPDK_CONFIG = ${SPDK_BUILD}/mk/config.mk
 DPDK_CC := ${CC}
 # Since we are only using the native DPDK for initializing, we can always compile it unoptimized
-DPDK_EXTRA_CFLAGS := -g -O0
+DPDK_EXTRA_CFLAGS := -g
 # pseudo target for default CC so we use add a dependency on our musl compiler in dpdk_build
 $(CC):
 	:

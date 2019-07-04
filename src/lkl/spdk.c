@@ -10,6 +10,7 @@
 #include <linux/spdk.h>
 #include <lkl_host.h>
 #include <stdio.h>
+#include <spdk_bench.h>
 
 #include "lkl/spdk.h"
 #include "lkl/virtio.h"
@@ -34,6 +35,9 @@ void spdk_yield_thread() {
 int sgxlkl_register_spdk_device(struct spdk_dev *dev) {
     struct lkl_ifreq ifr;
     int fd, err;
+
+    // Uncomment for benchmarking
+    //run_spdk_bench(&dev->ns_entry);
 
     fd = lkl_sys_open("/dev/spdk-control", LKL_O_RDONLY, 0);
 

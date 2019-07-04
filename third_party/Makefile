@@ -61,7 +61,7 @@ ${CRYPTSETUP_BUILD}/lib/libdevmapper.a: ${DEVICEMAPPER} ${HOST_MUSL_CC} ${CRYPTS
 	+CC=${HOST_MUSL_CC} ${MAKE} -C ${DEVICEMAPPER}/libdm install
 
 ${UTILLINUX}/configure: ${UTILLINUX}
-	cd ${UTILLINUX}; ./autogen.sh
+	cd ${UTILLINUX}; [[ -f ${UTILLINUX}/configure ]] || ./autogen.sh
 
 ${CRYPTSETUP_BUILD}/lib/libuuid.a: ${UTILLINUX} ${HOST_MUSL_CC} ${CRYPTSETUP_BUILD} ${CRYPTSETUP_BUILD}/libuuid ${UTILLINUX}/configure
 	cd ${CRYPTSETUP_BUILD}/libuuid; [ -f Makefile ] || CC=${HOST_MUSL_CC} CFLAGS="${THIRD_PARTY_CFLAGS} -fPIC -Wl,--dynamic-linker=${HOST_MUSL_BUILD}/lib/libc.so" \
