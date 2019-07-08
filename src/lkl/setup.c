@@ -59,7 +59,6 @@ struct enclave_disk_config *disks;
 static struct spdk_context *spdk_context;
 static size_t num_spdk_devs = 0;
 static struct spdk_dev *spdk_devs;
-static char *initial_cwd = NULL;
 
 static void lkl_add_disks(struct enclave_disk_config *disks, size_t num_disks) {
     for (size_t i = 0; i < num_disks; ++i) {
@@ -604,22 +603,17 @@ static void lkl_mount_virtual() {
     lkl_mknods();
 }
 
-static void setworkingdir(char* path) {
-    if (strcmp(path, "/") == 0) {
-        return;
+static void lkl_set_working_dir(const char* path) {
+    SGXLKL_VERBOSE("Set working directory %s\n", path);
+    char *copy = strdup(path);
+    if (!copy) {
+        fprintf(stderr, "Error: lkl_sys_chdir(%s): %s\n", path, lkl_strerror(errno));
     }
-    char *local_path = strdup(path);
-    if (!local_path) {
-        fprintf(stderr, "Error: setworkingdir(%s): %s\n", path, strerror(errno));
-        exit(1);
-    }
-    int ret = lkl_sys_chdir(local_path);
-    free(local_path);
-
+    int ret = lkl_sys_chdir(copy);
+    free(copy);
     if (ret == 0) {
         return;
     }
-    SGXLKL_VERBOSE("CWD %s\n", path);
 
     fprintf(stderr, "Error: lkl_sys_chdir(%s): %s\n", path, lkl_strerror(ret));
     exit(1);
@@ -719,8 +713,7 @@ static void lkl_mount_root_disk(struct enclave_disk_config *disk) {
     lkl_mount_procfs();
 }
 
-
-void lkl_mount_disks(struct enclave_disk_config* _disks, size_t _num_disks) {
+void lkl_mount_disks(struct enclave_disk_config* _disks, size_t _num_disks, const char *cwd) {
     num_disks = _num_disks;
     if (num_disks <= 0)
         sgxlkl_fail("No root disk provided. Aborting...\n");
@@ -776,7 +769,9 @@ void lkl_mount_disks(struct enclave_disk_config* _disks, size_t _num_disks) {
 
     lkl_start_spdk(spdk_context);
 
-    setworkingdir(initial_cwd);
+    if (cwd) {
+        lkl_set_working_dir(cwd);
+    }
 }
 
 void lkl_poststart_net(enclave_config_t* encl, int net_dev_id) {
@@ -1036,7 +1031,6 @@ void lkl_start_init(enclave_config_t* encl) {
     }
 
     spdk_context = encl->spdk_context;
-    initial_cwd = encl->cwd;
 
     // Set up wireguard
     init_wireguard(encl);
@@ -1070,11 +1064,13 @@ void lkl_exit() {
         printf("Application runtime: %lld.%.9lds\n", runtime.tv_sec, runtime.tv_nsec);
     }
 
-    setworkingdir("/");
-
-    lkl_stop_spdk();
     // Stop attestation/remote control server
     enclave_cmd_servers_stop();
+
+    // Switch back to root so we can unmount all filesystems
+    lkl_set_working_dir("/");
+
+    lkl_stop_spdk();
 
     // Unmount disks
     long res;

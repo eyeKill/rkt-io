@@ -697,13 +697,6 @@ static void register_net(enclave_config_t* encl, const char* tapstr,
     encl->net_mask6 = mask6;
 }
 
-void start_userpci_daemon(enclave_config_t *encl) {
-    int r = spawn_lkl_userpci(userpci_pipe);
-    if (r < 0) {
-        sgxlkl_fail("sgx-lkl-userpci failed: %s\n", strerror(-r));
-    };
-}
-
 void register_spdk(enclave_config_t *encl,
                    struct spdk_context *ctx,
                    int *userpci_pipe)
@@ -1542,8 +1535,8 @@ int main(int argc, char *argv[], char *envp[]) {
     static struct option long_options[] = {
         {"version",  no_argument,       0, 'v' },
         {"usage",    no_argument,       0, 'u' },
-        {"help",     no_argument,       0, 'h' },
-        {"help-tls", no_argument,       0, 't' },
+        {"help-tls", no_argument,       0, 't' }, // Check for help-tls first
+        {"help",     no_argument,       0, 'h' }, // as help is a prefix of it.
         {"config",   required_argument, 0, 'c' },
         {"app",      required_argument, 0, 'a' },
         {0,          0,                 0,  0  }
@@ -1639,6 +1632,7 @@ int main(int argc, char *argv[], char *envp[]) {
     encl.verbose = sgxlkl_config_bool(SGXLKL_VERBOSE);
     encl.kernel_verbose = sgxlkl_config_bool(SGXLKL_KERNEL_VERBOSE);
     encl.kernel_cmd = sgxlkl_config_str(SGXLKL_CMDLINE);
+    encl.cwd = sgxlkl_config_str(SGXLKL_CWD);
     encl.remote_attest_port = (uint16_t) sgxlkl_config_uint64(SGXLKL_REMOTE_ATTEST_PORT);
     encl.remote_cmd_port = (uint16_t) sgxlkl_config_uint64(SGXLKL_REMOTE_CMD_PORT);
     encl.remote_cmd_eth0 = sgxlkl_config_bool(SGXLKL_REMOTE_CMD_ETH0);
@@ -1665,8 +1659,6 @@ int main(int argc, char *argv[], char *envp[]) {
                   (int) sgxlkl_config_uint64(SGXLKL_DPDK_MASK6),
                   sgxlkl_config_str(SGXLKL_DPDK_GW6),
                   (int) sgxlkl_config_uint64(SGXLKL_DPDK_MTU));
-
-    encl.cwd = sgxlkl_config_str(SGXLKL_CWD);
 
     register_net(&encl, sgxlkl_config_str(SGXLKL_TAP),
                         sgxlkl_config_str(SGXLKL_IP4),

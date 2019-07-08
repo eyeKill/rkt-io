@@ -122,8 +122,8 @@ typedef struct enclave_config {
     char **argv;
     int argc;
     Elf64_auxv_t *auxv;
-    char *cwd;
     void* base; /* Base address of lkl/libc code */
+    char* cwd;
     void *(*ifn)(struct enclave_config *);
     size_t espins;
     size_t esleep;
