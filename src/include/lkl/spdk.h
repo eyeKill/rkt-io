@@ -17,4 +17,7 @@ int sgxlkl_spdk_initialize();
 int sgxlkl_register_spdk_device(struct spdk_dev *dev);
 void sgxlkl_unregister_spdk_device(struct spdk_dev *dev);
 
+void *sgxlkl_spdk_malloc(size_t size);
+void spdklkl_spdk_free(void *ptr);
+
 #endif

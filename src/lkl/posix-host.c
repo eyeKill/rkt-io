@@ -21,6 +21,7 @@
 #include <lkl_host.h>
 #include "lkl/iomem.h"
 #include "lkl/jmp_buf.h"
+#include "lkl/spdk.h"
 #include <lthread.h>
 
 /* Let's see if the host has semaphore.h */
@@ -426,7 +427,8 @@ struct lkl_host_operations sgxlkl_host_ops = {
     .timer_set_oneshot = timer_set_oneshot,
     .timer_free = timer_free,
     .print = print,
-    .mem_alloc = malloc,
+    .mem_alloc = sgxlkl_spdk_malloc,
+    .mem_free = spdklkl_spdk_free,
     .mem_free = free,
     .ioremap = lkl_ioremap,
     .iomem_access = lkl_iomem_access,

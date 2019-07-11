@@ -32,6 +32,14 @@ void spdk_yield_thread() {
     _lthread_yield_cb(lthread_self(), __scheduler_enqueue, lthread_self());
 }
 
+void *sgxlkl_spdk_malloc(size_t size) {
+    return spdk_dma_malloc(size, 0x1000, NULL);
+}
+
+void spdklkl_spdk_free(void *ptr) {
+    spdk_dma_free(ptr);
+}
+
 int sgxlkl_register_spdk_device(struct spdk_dev *dev) {
     struct lkl_ifreq ifr;
     int fd, err;
