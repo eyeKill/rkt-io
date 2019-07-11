@@ -1023,7 +1023,6 @@ void lkl_start_init(enclave_config_t* encl) {
     if (!sgxlkl_use_host_network)
         lkl_poststart_net(encl, net_dev_id);
 
-    sgxlkl_register_dpdk_context(encl->dpdk_context);
     // Set interface status/IP/routes
     if (!sgxlkl_use_host_network) {
         lkl_prestart_dpdk(encl);
