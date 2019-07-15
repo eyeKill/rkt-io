@@ -145,7 +145,7 @@ ${CRYPTSETUP_BUILD}/lib/libuuid.a ${LIBUUID_HOST_BUILD}/lib/libuuid.a: ${HOST_MU
 
 lkl-config ${LKL}/arch/lkl/defconfig: src/lkl/override/defconfig | ${WIREGUARD} ${LKL}/.git ${LKL_BUILD}
 	# Add Wireguard
-	cd ${LKL} && (if ! ${WIREGUARD}/contrib/kernel-tree/create-patch.sh | patch -p1 --dry-run --reverse --force >/dev/null 2>&1; then ${WIREGUARD}/contrib/kernel-tree/create-patch.sh | patch --forward -p1; fi) && cd -
+	cd ${LKL} && (if ! bash ${WIREGUARD}/contrib/kernel-tree/create-patch.sh | patch -p1 --dry-run --reverse --force >/dev/null 2>&1; then bash ${WIREGUARD}/contrib/kernel-tree/create-patch.sh | patch --forward -p1; fi) && cd -
 	# Override lkl's defconfig with our own
 	cp -Rv src/lkl/override/defconfig ${LKL}/arch/lkl/defconfig
 	cp -Rv src/lkl/override/include/uapi/asm-generic/stat.h ${LKL}/include/uapi/asm-generic/stat.h
