@@ -88,7 +88,7 @@ spdk-cflags-${1} ${SPDK_BUILD}/mk/cc.flags.mk: ${LIBUUID_HOST_BUILD}/lib/libuuid
 	echo LDFLAGS="-L${DPDK_BUILD}/lib" >> ${SPDK_BUILD}/mk/cc.flags.mk
 
 spdk-${1} ${SPDK_BUILD}/.build: ${DPDK_BUILD}/.build spdk-source-$(1) ${SPDK_CONFIG} ${SPDK_BUILD}/mk/cc.flags.mk | ${DPDK_CC}
-	make -C ${SPDK_BUILD} CC=${DPDK_CC}
+	make -C ${SPDK_BUILD} -j`tools/ncore.sh` CC=${DPDK_CC}
 	touch ${SPDK_BUILD}/.build
 endef
 
