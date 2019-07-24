@@ -41,7 +41,7 @@ let
     debugSymbols = false;
   });
 
-  mysql = pkgsMusl.mysql55.overrideAttrs (old: {
+  mysql = (pkgsMusl.callPackage ./mysql-5.5.x.nix {}).overrideAttrs (old: {
     patches = [ ./mysql.patch ];
   });
   mysqlDatadir = "/var/lib/mysql";
