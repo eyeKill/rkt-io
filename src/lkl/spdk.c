@@ -36,7 +36,7 @@ void *sgxlkl_spdk_malloc(size_t size) {
     return spdk_dma_malloc(size, 0x1000, NULL);
 }
 
-void spdklkl_spdk_free(void *ptr) {
+void sgxlkl_spdk_free(void *ptr) {
     spdk_dma_free(ptr);
 }
 
