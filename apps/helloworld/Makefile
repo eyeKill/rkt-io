@@ -28,7 +28,7 @@ $(PROG_NONPIE): $(PROG_C)
 $(DISK): $(PROG) $(PROG_NONPIE)
 	dd if=/dev/zero of="$@" count=$(IMAGE_SIZE_MB) bs=1M
 	mkfs.ext4 "$@"
-	$(ESCALATE_CMD) /bin/bash -euxo pipefail -c '\
+	$(ESCALATE_CMD) bash -euxo pipefail -c '\
 		mkdir -p $(MOUNTPOINT); \
 		mount -t ext4 -o loop "$@" $(MOUNTPOINT); \
 		mkdir -p $(MOUNTPOINT)/app; \
