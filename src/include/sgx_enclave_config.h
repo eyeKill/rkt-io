@@ -111,6 +111,7 @@ typedef struct enclave_config {
     int net_mask4;
     int net_mask6;
     size_t num_dpdk_ifaces;
+    int enable_sgxio;
     struct enclave_dpdk_config *dpdk_ifaces;
     struct dpdk_context *dpdk_context;
     struct spdk_context *spdk_context;

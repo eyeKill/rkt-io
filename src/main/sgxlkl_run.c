@@ -1649,16 +1649,19 @@ int main(int argc, char *argv[], char *envp[]) {
     set_wg(&encl);
     register_hds(&encl, root_hd);
 
-    register_spdk(&encl, &spdk_context, &userpci_pipe);
+    encl.enable_sgxio = sgxlkl_config_bool(SGXLKL_ENABLE_SGXIO);
+    if (encl.enable_sgxio) {
+      register_spdk(&encl, &spdk_context, &userpci_pipe);
 
-    register_dpdk(&encl,
-                  sgxlkl_config_str(SGXLKL_DPDK_IP4),
-                  (int) sgxlkl_config_uint64(SGXLKL_DPDK_MASK4),
-                  sgxlkl_config_str(SGXLKL_DPDK_GW4),
-                  sgxlkl_config_str(SGXLKL_DPDK_IP6),
-                  (int) sgxlkl_config_uint64(SGXLKL_DPDK_MASK6),
-                  sgxlkl_config_str(SGXLKL_DPDK_GW6),
-                  (int) sgxlkl_config_uint64(SGXLKL_DPDK_MTU));
+      register_dpdk(&encl,
+                    sgxlkl_config_str(SGXLKL_DPDK_IP4),
+                    (int) sgxlkl_config_uint64(SGXLKL_DPDK_MASK4),
+                    sgxlkl_config_str(SGXLKL_DPDK_GW4),
+                    sgxlkl_config_str(SGXLKL_DPDK_IP6),
+                    (int) sgxlkl_config_uint64(SGXLKL_DPDK_MASK6),
+                    sgxlkl_config_str(SGXLKL_DPDK_GW6),
+                    (int) sgxlkl_config_uint64(SGXLKL_DPDK_MTU));
+    }
 
     register_net(&encl, sgxlkl_config_str(SGXLKL_TAP),
                         sgxlkl_config_str(SGXLKL_IP4),
