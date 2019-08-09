@@ -1513,6 +1513,19 @@ int getopt_sgxlkl(int argc, char *argv[], struct option long_options[]) {
         return -1;
 }
 
+char* build_kernel_cmdline(const char* kernel_cmd, bool enable_sgxio) {
+    const char *disable_dma_alloc = "spdk_dma_alloc=no";
+    // TODO: never freed
+    char *s = malloc(strlen(kernel_cmd) +
+                     (!enable_sgxio ? strlen(disable_dma_alloc) : 0 ) +
+                     1);
+    if (!s) sgxlkl_fail("Failed to allocate kernel cmd line: %s\n", strerror(errno));
+    // in real code you would check for errors in malloc here
+    strcpy(s, kernel_cmd);
+    if (!enable_sgxio) strcat(s, disable_dma_alloc);
+    return s;
+}
+
 int main(int argc, char *argv[], char *envp[]) {
     size_t ecs = 0;
     size_t ntsyscall = 1;
@@ -1624,6 +1637,7 @@ int main(int argc, char *argv[], char *envp[]) {
     backoff_factor = sgxlkl_config_uint64(SGXLKL_SSLEEP);
 
     // Ethread config
+    encl.enable_sgxio = sgxlkl_config_bool(SGXLKL_ENABLE_SGXIO);
     encl.stacksize = sgxlkl_config_uint64(SGXLKL_STACK_SIZE);
     encl.max_user_threads = sgxlkl_config_uint64(SGXLKL_MAX_USER_THREADS);
     encl.maxsyscalls = encl.max_user_threads + sgxlkl_config_uint64(SGXLKL_ETHREADS);
@@ -1631,7 +1645,7 @@ int main(int argc, char *argv[], char *envp[]) {
     encl.esleep = sgxlkl_config_uint64(SGXLKL_ESLEEP);
     encl.verbose = sgxlkl_config_bool(SGXLKL_VERBOSE);
     encl.kernel_verbose = sgxlkl_config_bool(SGXLKL_KERNEL_VERBOSE);
-    encl.kernel_cmd = sgxlkl_config_str(SGXLKL_CMDLINE);
+    encl.kernel_cmd = build_kernel_cmdline(sgxlkl_config_str(SGXLKL_CMDLINE), encl.enable_sgxio);
     encl.cwd = sgxlkl_config_str(SGXLKL_CWD);
     encl.remote_attest_port = (uint16_t) sgxlkl_config_uint64(SGXLKL_REMOTE_ATTEST_PORT);
     encl.remote_cmd_port = (uint16_t) sgxlkl_config_uint64(SGXLKL_REMOTE_CMD_PORT);
@@ -1649,7 +1663,6 @@ int main(int argc, char *argv[], char *envp[]) {
     set_wg(&encl);
     register_hds(&encl, root_hd);
 
-    encl.enable_sgxio = sgxlkl_config_bool(SGXLKL_ENABLE_SGXIO);
     if (encl.enable_sgxio) {
       register_spdk(&encl, &spdk_context, &userpci_pipe);
 

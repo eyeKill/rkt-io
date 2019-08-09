@@ -56,7 +56,7 @@ extern struct timespec sgxlkl_app_starttime;
 
 size_t num_disks = 0;
 struct enclave_disk_config *disks;
-static struct spdk_context *spdk_context;
+static struct spdk_context *spdk_context = NULL;
 static size_t num_spdk_devs = 0;
 static struct spdk_dev *spdk_devs;
 
@@ -767,7 +767,9 @@ void lkl_mount_disks(struct enclave_disk_config* _disks, size_t _num_disks, cons
         disks[i].mounted = 1;
     }
 
-    lkl_start_spdk(spdk_context);
+    if (spdk_context) {
+      lkl_start_spdk(spdk_context);
+    }
 
     if (cwd) {
         lkl_set_working_dir(cwd);
