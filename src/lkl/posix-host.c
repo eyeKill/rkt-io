@@ -32,7 +32,7 @@
 #define SHARE_SEM 0
 #endif /* _POSIX_SEMAPHORES */
 
-#define LKL_STDOUT_FILENO 1
+#define LKL_STDERR_FILENO 2
 #define NSEC_PER_SEC 1000000000L
 
 static void panic(void) {
@@ -43,7 +43,7 @@ static void panic(void) {
 }
 
 static void print(const char *str, int len) {
-    write(LKL_STDOUT_FILENO, str, len);
+    write(LKL_STDERR_FILENO, str, len);
 }
 
 struct lkl_mutex {
