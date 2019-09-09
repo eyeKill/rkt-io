@@ -115,6 +115,7 @@ typedef struct enclave_config {
     struct enclave_dpdk_config *dpdk_ifaces;
     struct dpdk_context *dpdk_context;
     struct spdk_context *spdk_context;
+    struct spdk_dma_memory *spdk_dma_memory;
     char hostname[32];
     int hostnet;
     int tap_offload;

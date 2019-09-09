@@ -16,6 +16,7 @@ struct spdk_dev {
 int sgxlkl_spdk_initialize();
 int sgxlkl_register_spdk_device(struct spdk_dev *dev);
 void sgxlkl_unregister_spdk_device(struct spdk_dev *dev);
+void sgxlkl_register_spdk_dma_memory(struct spdk_dma_memory* ctx);
 
 void *sgxlkl_spdk_malloc(size_t size);
 void sgxlkl_spdk_free(void *ptr);

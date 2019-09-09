@@ -27,8 +27,11 @@ struct spdk_context {
     pthread_t ctrlr_thread_id;
 };
 
+struct spdk_dma_memory  {
+  size_t nr_allocations;
+  void **allocations;
+};
+
 int spdk_initialize(struct spdk_context *ctx, bool primary);
-void spdk_context_detach(struct spdk_context *ctx);
-void spdk_context_free(struct spdk_context *ctx);
 
 #endif

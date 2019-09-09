@@ -45,6 +45,7 @@
 #include "sgxlkl_util.h"
 #include "dpdk.h"
 #include "spdk_context.h"
+#include "spdk_hugetbl.h"
 #include "userpci.h"
 #include "lkl/linux/virtio_net.h"
 
@@ -112,6 +113,10 @@ static pthread_spinlock_t _stderr_print_lock = {0};
 
 static int userpci_pipe = 0;
 struct spdk_context spdk_context = {};
+struct spdk_dma_memory spdk_dma_memory = {
+    .nr_allocations = 0,
+    .allocations = NULL,
+};
 
 static size_t backoff_maxpause;
 static size_t backoff_factor;
@@ -716,6 +721,11 @@ void register_spdk(enclave_config_t *encl,
     }
     encl->spdk_context = ctx;
 }
+
+ void register_spdk_hugetbl(enclave_config_t *encl) {
+      spdk_alloc_hugetbl(&spdk_dma_memory);
+      encl->spdk_dma_memory = &spdk_dma_memory;
+ }
 
 void register_dpdk(enclave_config_t *encl,
                    const char *ip4str, int mask4, const char *gw4str,
@@ -1412,6 +1422,8 @@ static void sgxlkl_cleanup(void) {
     if (userpci_pipe) {
         close(userpci_pipe);
     }
+
+    spdk_free_hugetbl(&spdk_dma_memory);
 }
 
 /* Determines path of libsgxlkl.so (lkl + musl) */
@@ -1674,6 +1686,8 @@ int main(int argc, char *argv[], char *envp[]) {
                     (int) sgxlkl_config_uint64(SGXLKL_DPDK_MASK6),
                     sgxlkl_config_str(SGXLKL_DPDK_GW6),
                     (int) sgxlkl_config_uint64(SGXLKL_DPDK_MTU));
+
+      register_spdk_hugetbl(&encl);
     }
 
     register_net(&encl, sgxlkl_config_str(SGXLKL_TAP),

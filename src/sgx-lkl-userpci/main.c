@@ -26,6 +26,9 @@ int main(int argc, char **argv) {
         mtu = atoi(mtustr);
     }
 
+    // create files with world-writeable permissions (i.e. in /dev/hugepages)
+    umask(0);
+
     // use stderr for logging
     rte_openlog_stream(stderr);
 

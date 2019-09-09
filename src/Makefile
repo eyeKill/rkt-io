@@ -66,7 +66,7 @@ ifeq ($(HW_MODE),yes)
 endif
 
 #all: $(LIB_SGX_LKL_BUILD)/sgx-lkl-deploy
-all: builddirs $(LIB_SGX_LKL_BUILD)/sgx/libsgx.a $(LIB_SGX_LKL_BUILD)/sgxlkl/libsgxlkl.a $(LIB_SGX_LKL_BUILD)/sgx-lkl-sign $(LIB_SGX_LKL_BUILD)/sgx-lkl-run $(LIB_SGX_LKL_BUILD)/sgx-lkl-ctl $(LIB_SGX_LKL_BUILD)/sgx-lkl-userpci $(LIB_SGX_LKL_BUILD)/spdk-fix-permissions
+all: builddirs $(LIB_SGX_LKL_BUILD)/sgx/libsgx.a $(LIB_SGX_LKL_BUILD)/sgxlkl/libsgxlkl.a $(LIB_SGX_LKL_BUILD)/sgx-lkl-sign $(LIB_SGX_LKL_BUILD)/sgx-lkl-run $(LIB_SGX_LKL_BUILD)/sgx-lkl-ctl $(LIB_SGX_LKL_BUILD)/sgx-lkl-userpci $(LIB_SGX_LKL_BUILD)/sgx-lkl-virt2phy $(LIB_SGX_LKL_BUILD)/spdk-fix-permissions
 
 builddirs:
 	mkdir -p $(LIB_SGX_LKL_BUILD)/sgx
@@ -99,7 +99,7 @@ ${SIGN_OBJS}: $(LIB_SGX_LKL_BUILD)/sgx/%.o: sgx/%.c
 
 # sgx-lkl-userpci ----
 
-SGX_LKL_USERPCI_SRCS=$(wildcard sgx-lkl-userpci/*.c) $(wildcard shared/spdk_context.c)
+SGX_LKL_USERPCI_SRCS=$(wildcard sgx-lkl-userpci/*.c) shared/spdk_context.c
 SGX_LKL_USERPCI_OBJS=$(addprefix $(LIB_SGX_LKL_BUILD)/sgx-lkl-userpci.d/,$(SGX_LKL_USERPCI_SRCS:.c=.o))
 
 $(SGX_LKL_USERPCI_OBJS): $(LIB_SGX_LKL_BUILD)/sgx-lkl-userpci.d/%.o: %.c
@@ -113,6 +113,13 @@ $(LIB_SGX_LKL_BUILD)/spdk-fix-permissions.sh: sgx-lkl-userpci/spdk-fix-permissio
 	install -m755 $^ $@
 
 $(LIB_SGX_LKL_BUILD)/sgx-lkl-userpci: $(LIB_SGX_LKL_BUILD)/sgx-lkl-userpci-pre
+	sudo install -m4755 $^ $@
+
+# sgx-lkl-virt2phy ----
+$(LIB_SGX_LKL_BUILD)/sgx-lkl-virt2phy-pre: sgx-lkl-virt2phy/main.c
+	$(CC) $^ -o $@
+
+$(LIB_SGX_LKL_BUILD)/sgx-lkl-virt2phy: $(LIB_SGX_LKL_BUILD)/sgx-lkl-virt2phy-pre
 	sudo install -m4755 $^ $@
 
 # sgx-lkl-ctl ----

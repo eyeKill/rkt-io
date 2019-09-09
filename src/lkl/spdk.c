@@ -18,6 +18,9 @@
 #include "lthread_int.h"
 #include "spdk_context.h"
 
+unsigned long spdk_dma_memory_start = 0;
+unsigned long spdk_dma_memory_end = 0;
+
 int spdk_env_dpdk_post_init(void);
 
 int sgxlkl_spdk_initialize() {
@@ -90,4 +93,23 @@ void sgxlkl_unregister_spdk_device(struct spdk_dev *dev) {
             }
         }
     }
+}
+
+void sgxlkl_register_spdk_dma_memory(struct spdk_dma_memory* ctx) {
+    void* lowest_address = (void*) -1;
+    void* highest_address = (void*) 0;
+    const size_t gigabyte = 1024 * 1024 * 1024;
+
+    for (size_t i = 0; i < ctx->nr_allocations; i++) {
+        // Allocations bigger then 1GB might fail.
+        if (ctx->allocations[i] < lowest_address) {
+            lowest_address = ctx->allocations[i];
+        }
+        if ((ctx->allocations[i] + gigabyte) > highest_address) {
+            highest_address = ctx->allocations[i] + gigabyte;
+        }
+    }
+
+    spdk_dma_memory_start = lowest_address;
+    spdk_dma_memory_end = highest_address;
 }
