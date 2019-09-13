@@ -74,7 +74,7 @@ static void spdk_context_cleanup(struct spdk_context *ctx) {
 
 static bool probe_cb(void *ctx, const struct spdk_nvme_transport_id *trid,
                      struct spdk_nvme_ctrlr_opts *opts) {
-    printf("spdk: Attaching to %s\n", trid->traddr);
+    fprintf(stderr, "spdk: Attaching to %s\n", trid->traddr);
 
     return true;
 }
@@ -92,7 +92,7 @@ static int register_ns(struct spdk_context *ctx, struct spdk_nvme_ctrlr *ctrlr,
     const struct spdk_nvme_ctrlr_data *cdata = spdk_nvme_ctrlr_get_data(ctrlr);
 
     if (!spdk_nvme_ns_is_active(ns)) {
-        printf(
+        fprintf(stderr,
             "spdk: Controller %-20.20s (%-20.20s): Skipping inactive NS %u\n",
             cdata->mn, cdata->sn, spdk_nvme_ns_get_id(ns));
         return 0;

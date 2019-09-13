@@ -33,6 +33,10 @@ int spdk_alloc_hugetbl(struct spdk_dma_memory *ctx) {
     //size_t gigabytes = (hugetbl_size - gigabyte) / gigabyte;
     // FIXME right now, we get holes in our allocation when allocating more then 16 GB
     size_t gigabytes = 15;
+    if (hugetbl_size < (15 * gigabyte)) {
+      fprintf(stderr, "spdk: not enough hugetable memory: required: %ld, got: %ld\n", 15 * gigabyte, hugetbl_size);
+      return -ENOMEM;
+    }
 
     void** allocations = calloc(gigabytes, sizeof(void*));
     ctx->nr_allocations = gigabytes;
@@ -42,7 +46,7 @@ int spdk_alloc_hugetbl(struct spdk_dma_memory *ctx) {
         // Allocations bigger then 1GB might fail.
         allocations[i] = spdk_dma_malloc(gigabyte, 0x1000, NULL);
         if (!allocations[i]) {
-            fprintf(stderr, "spdk: could not allocate hugetable memory\n");
+            fprintf(stderr, "spdk: could not allocate hugetable memory, only got %u GB\n", i - 1);
             goto alloc_failed;
         }
     }
