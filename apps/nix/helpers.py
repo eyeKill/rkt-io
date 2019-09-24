@@ -113,7 +113,7 @@ class Settings:
 
 
 def nix_build(attr: str) -> str:
-    return run(["nix-build", "-A", str(attr)]).stdout.decode("utf-8").strip()
+    return run(["nix-build", "-A", attr, "--out-link", attr]).stdout.decode("utf-8").strip()
 
 
 def flamegraph_env(name: str) -> Dict[str, str]:
