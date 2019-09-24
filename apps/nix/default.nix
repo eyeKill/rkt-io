@@ -122,6 +122,19 @@ in {
     command = fioCommand;
   };
 
+  fio-scone = runImage {
+    pkg = lib.makeOverridable ({ stdenv }: stdenv.mkDerivation {
+      name = "fio-scone";
+      src = null;
+      unpackPhase = ":";
+      installPhase = ''
+        install -D ${./fio-scone-bin} $out/bin/fio
+      '';
+    }) { inherit stdenv; };
+    native = true;
+    command = fioCommand;
+  };
+
   fio = runImage {
     pkg = fio;
     command = fioCommand;
