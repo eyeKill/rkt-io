@@ -244,9 +244,10 @@ in {
         numjobs=4
         time_based=1
         runtime=10
+        thread
 
         [file1]
-        size=1G
+        size=15G
         iodepth=16
       '';
       "fio-seq-RW.job" = ''
@@ -260,10 +261,11 @@ in {
         direct=0
         numjobs=4
         time_based=1
-        runtime=900
+        runtime=60
+        thread
 
         [file1]
-        size=1G
+        size=10G
         iodepth=16
       '';
       "fio-rand-read.job" = ''
@@ -278,6 +280,7 @@ in {
         numjobs=4
         time_based=1
         runtime=900
+        thread
 
         [file1]
         size=1G
