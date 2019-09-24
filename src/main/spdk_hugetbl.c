@@ -30,13 +30,7 @@ int spdk_alloc_hugetbl(struct spdk_dma_memory *ctx) {
     }
 
     // leave one gigabyte for DPDK
-    //size_t gigabytes = (hugetbl_size - gigabyte) / gigabyte;
-    // FIXME right now, we get holes in our allocation when allocating more then 16 GB
-    size_t gigabytes = 15;
-    if (hugetbl_size < (15 * gigabyte)) {
-      fprintf(stderr, "spdk: not enough hugetable memory: required: %ld, got: %ld\n", 15 * gigabyte, hugetbl_size);
-      return -ENOMEM;
-    }
+    size_t gigabytes = (hugetbl_size - gigabyte) / gigabyte;
 
     void** allocations = calloc(gigabytes, sizeof(void*));
     ctx->nr_allocations = gigabytes;
