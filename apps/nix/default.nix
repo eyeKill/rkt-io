@@ -60,7 +60,17 @@ let
     "--output-format=json+"
     "fio-rand-RW.job"
   ];
+  iozone = pkgsMusl.iozone.overrideAttrs (attr: {
+    # disable gnuplot
+    preFixup = "";
+    patches = [ ./iozone-max-buffer-size.patch ];
+  });
 in {
+  iozone = runImage {
+    pkg = iozone;
+    command = [ "bin/iozone" ];
+  };
+
   iperf = runImage {
     pkg = pkgsMusl.iperf;
     command = [ "bin/iperf" "-s" ];
