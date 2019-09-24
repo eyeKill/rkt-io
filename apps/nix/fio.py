@@ -5,10 +5,20 @@ import subprocess
 import tempfile
 import time
 from collections import defaultdict
-from typing import Any, DefaultDict, Dict, List, Union
+from typing import Any, DefaultDict, Dict, List, Optional, Union
 
 import pandas as pd
-from helpers import NOW, ROOT, Chdir, Settings, create_settings, nix_build, run, spawn, flamegraph_env
+from helpers import (
+    NOW,
+    ROOT,
+    Chdir,
+    Settings,
+    create_settings,
+    flamegraph_env,
+    nix_build,
+    run,
+    spawn,
+)
 from storage import Storage, StorageKind
 
 
@@ -108,8 +118,29 @@ def benchmark_fio(
     env = dict(SGXLKL_CWD=directory)
     env.update(flamegraph_env(f"fio-{system}-{NOW}"))
     env.update(extra_env)
+    enable_sgxio = "1" if system == "sgx-io" else "0"
+    env.update(SGXLKL_ENABLE_SGXIO=enable_sgxio)
+    threads = "8" if system == "sgx-io" else "2"
+    env.update(SGXLKL_ETHREADS=threads)
+    env.update(extra_env)
     fio = nix_build(attr)
-    proc = run([fio], extra_env=env)
+    stdout: Optional[int] = subprocess.PIPE
+    if os.environ.get("SGXLKL_ENABLE_GDB", "0") == "1":
+        stdout = None
+
+    proc = run(
+        [
+            fio,
+            "bin/fio",
+            # "--debug=io",
+            "--output-format=json+",
+            "--eta=always",
+            "fio-rand-RW.job"
+            # "fio-seq-RW.job"
+        ],
+        extra_env=env,
+        stdout=stdout,
+    )
     try:
         jsondata = json.loads(proc.stdout)
     except json.decoder.JSONDecodeError:
@@ -129,12 +160,23 @@ def benchmark_fio(
             stats[f"{operation}-runtime"].append(op_stats["runtime"])
 
 
-def benchmark_native(storage: Storage, stats: Dict[str, List], latency_stats: Dict[str, List]) -> None:
+def benchmark_native(
+    storage: Storage, stats: Dict[str, List], latency_stats: Dict[str, List]
+) -> None:
     with storage.setup(StorageKind.NATIVE) as mnt:
         benchmark_fio(storage, "native", "fio-native", mnt, stats, latency_stats)
 
 
-def benchmark_sgx_lkl(storage: Storage, stats: Dict[str, List], latency_stats: Dict[str, List]) -> None:
+def benchmark_scone(
+    storage: Storage, stats: Dict[str, List], latency_stats: Dict[str, List]
+) -> None:
+    with storage.setup(StorageKind.NATIVE) as mnt:
+        benchmark_fio(storage, "scone", "fio-scone", mnt, stats, latency_stats)
+
+
+def benchmark_sgx_lkl(
+    storage: Storage, stats: Dict[str, List], latency_stats: Dict[str, List]
+) -> None:
     storage.setup(StorageKind.LKL)
     benchmark_fio(
         storage,
@@ -147,30 +189,65 @@ def benchmark_sgx_lkl(storage: Storage, stats: Dict[str, List], latency_stats: D
     )
 
 
-def benchmark_sgx_io(storage: Storage, stats: Dict[str, List], latency_stats: Dict[str, List]) -> None:
+def benchmark_sgx_io(
+    storage: Storage, stats: Dict[str, List], latency_stats: Dict[str, List]
+) -> None:
     storage.setup(StorageKind.SPDK)
     benchmark_fio(storage, "sgx-io", "fio", "/mnt/spdk0", stats, latency_stats)
 
 
-def main() -> None:
+def write_stats(path: str, stats: DefaultDict[str, List]) -> None:
+    with open(path, "w") as f:
+        json.dump(stats, f)
+
+
+def read_stats(path: str) -> DefaultDict[str, List]:
     stats: DefaultDict[str, List] = defaultdict(list)
-    latency_stats: DefaultDict[str, List] = defaultdict(list)
+    if not os.path.exists(path):
+        return stats
+    with open(path) as f:
+        raw_stats = json.load(f)
+        for key, value in raw_stats.items():
+            stats[key] = value
+    return stats
+
+
+def main() -> None:
+    stats = read_stats("stats.json")
+    latency_stats = read_stats("latency-stats.json")
 
     settings = create_settings()
 
     storage = Storage(settings)
 
-    benchmark_sgx_lkl(storage, stats, latency_stats)
-    benchmark_sgx_io(storage, stats, latency_stats)
-    benchmark_native(storage, stats, latency_stats)
+    system = set(stats["system"])
+
+    benchmarks = {
+        "sgx-io": benchmark_sgx_io,
+        "native": benchmark_native,
+        "scone": benchmark_scone,
+        "sgx-lkl": benchmark_sgx_lkl,
+    }
+
+    for name, benchmark in benchmarks.items():
+        if name in system:
+            print(f"skip {name} benchmark")
+            continue
+        benchmark(storage, stats, latency_stats)
+        write_stats("stats.json", stats)
+        write_stats("latency-stats.json", latency_stats)
 
     csv = f"fio-throughput-{NOW}.tsv"
     print(csv)
-    pd.DataFrame(stats).to_csv(csv, index=False, sep="\t")
+    throughput_df = pd.DataFrame(stats)
+    throughput_df.to_csv(csv, index=False, sep="\t")
+    throughput_df.to_csv("fio-throughput-latest.tsv", index=False, sep="\t")
 
     csv = f"fio-latency-{NOW}.tsv"
     print(csv)
-    pd.DataFrame(latency_stats).to_csv(csv, index=False, sep="\t")
+    latency_df = pd.DataFrame(latency_stats)
+    latency_df.to_csv(csv, index=False, sep="\t")
+    latency_df.to_csv("fio-latency-latest.tsv", index=False, sep="\t")
 
 
 if __name__ == "__main__":
