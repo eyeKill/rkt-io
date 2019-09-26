@@ -11,11 +11,14 @@
 #include <linux/random.h>
 #include <stdio.h>
 #include <stdlib.h>
+#define _GNU_SOURCE // Needed for strchrnul
 #include <string.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
+#include <syscall.h>
 #include <unistd.h>
 #include <time.h>
+#include <lkl.h>
 #include <lkl_host.h>
 #include <arpa/inet.h>
 
@@ -79,7 +82,7 @@ static void lkl_add_disks(struct enclave_disk_config *disks, size_t num_disks) {
 }
 
 static int lkl_prestart_net(enclave_config_t* encl) {
-    struct lkl_netdev *netdev = sgxlkl_register_netdev_fd(encl->net_fd);
+    struct lkl_netdev *netdev = sgxlkl_register_netdev_fd(encl->net_fd, encl->wait_on_io_host_calls);
     if (netdev == NULL) {
         fprintf(stderr, "Error: unable to register netdev\n");
         exit(2);
@@ -797,25 +800,6 @@ void lkl_poststart_net(enclave_config_t* encl, int net_dev_id) {
             exit(res);
         }
 
-        res = lkl_if_set_ipv6(ifidx, encl->net_ip6.s6_addr, encl->net_mask6);
-        if (res < 0) {
-            fprintf(stderr, "Error: lkl_if_set_ipv6(): %s\n",
-                    lkl_strerror(res));
-            exit(res);
-        }
-
-        if (encl->net_gw6.s6_addr > 0) {
-          res = lkl_if_set_ipv6_gateway(ifidx,
-                                        encl->net_ip6.s6_addr,
-                                        encl->net_mask6,
-                                        encl->net_gw6.s6_addr);
-          if (res < 0) {
-            fprintf(stderr, "Error: lkl_set_ipv6_gateway(): %s\n",
-                    lkl_strerror(res));
-            exit(res);
-          }
-        }
-
         if (sgxlkl_mtu) {
             lkl_if_set_mtu(ifidx, sgxlkl_mtu);
         }
@@ -843,6 +827,42 @@ void lkl_poststart_net(enclave_config_t* encl, int net_dev_id) {
         fprintf(stderr, "Error: lkl_if_up(1=lo): %s\n", lkl_strerror(res));
         exit(res);
     }
+}
+
+static void do_sysctl(enclave_config_t *encl) {
+    if (!encl->sysctl)
+        return;
+
+    char *sysctl_all = strdup(encl->sysctl);
+    char *sysctl = sysctl_all;
+    while (*sysctl) {
+        while (*sysctl == ' ')
+            sysctl++;
+
+        char *path = sysctl;
+        char *val = strchrnul(path, '=');
+        if (!*val) {
+            sgxlkl_warn("Failed to set sysctl config \"%s\", key and value not seperated by '='.\n", path);
+            break;
+        }
+
+        *val = '\0';
+        val++;
+        char *val_end = strchrnul(val, ';');
+        if (*val_end) {
+            *val_end = '\0';
+            val_end++;
+        }
+        sysctl = val_end;
+
+        SGXLKL_VERBOSE("Setting sysctl config: %s=%s\n", path, val);
+        if (lkl_sysctl(path, val)) {
+            sgxlkl_warn("Failed to set sysctl config %s=%s\n", path, val);
+            break;
+        }
+    }
+
+    free(sysctl_all);
 }
 
 static void init_wireguard(enclave_config_t *encl) {
@@ -1020,6 +1040,9 @@ void lkl_start_init(enclave_config_t* encl) {
     putenv(shm_common);
     putenv(shm_enc_to_out_addr);
     putenv(shm_out_to_enc_addr);
+
+    // Sysctl
+    do_sysctl(encl);
 
     // Set interface status/IP/routes
     if (!sgxlkl_use_host_network)
