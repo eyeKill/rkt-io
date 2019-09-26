@@ -63,10 +63,10 @@ def run(image: str, debugger: List[str], cmd: List[str], env: Dict[str, str], tm
 
         proc = subprocess.Popen(debugger + ["sgx-lkl-run", tmp_fsimage] + cmd, env=env)
 
-        def stop_proc(signum, frame) -> None:
-            proc.terminate()
-        signal.signal(signal.SIGINT, stop_proc)
-        proc.wait()
+    def stop_proc(signum, frame) -> None:
+        proc.terminate()
+    signal.signal(signal.SIGINT, stop_proc)
+    proc.wait()
 
  
 def main(args: List[str]) -> None:
