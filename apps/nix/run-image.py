@@ -79,20 +79,20 @@ def main(args: List[str]) -> None:
     with tempfile.TemporaryDirectory(prefix="run-image-") as tmpdirname:
         perf_data = os.path.join(tmpdirname, "perf.data")
         debugger = get_debugger(perf_data)
-        try:
-            with debug_mount_env(image) as env:
+        with debug_mount_env(image) as env:
+            try:
                 run(image, debugger, cmd, env, tmpdirname)
-        finally:
-            if os.environ.get("SGXLKL_ENABLE_FLAMEGRAPH", None) is None:
-                return
+            finally:
+                if os.environ.get("SGXLKL_ENABLE_FLAMEGRAPH", None) is None:
+                    return
 
-            flamegraph = os.environ.get("FLAMEGRAPH_FILENAME", None)
-            if flamegraph is None:
-                flamegraph = os.path.join(tmpdirname, f"flamegraph-{NOW}.svg")
-            generate_flamegraph(perf_data, flamegraph)
-            perf = os.environ.get("PERF_FILENAME", None)
-            if perf is not None:
-                shutil.move(perf_data, perf)
+                flamegraph = os.environ.get("FLAMEGRAPH_FILENAME", None)
+                if flamegraph is None:
+                    flamegraph = os.path.join(tmpdirname, f"flamegraph-{NOW}.svg")
+                generate_flamegraph(perf_data, flamegraph)
+                perf = os.environ.get("PERF_FILENAME", None)
+                if perf is not None:
+                    shutil.move(perf_data, perf)
 
 
 if __name__ == "__main__":
