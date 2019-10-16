@@ -50,7 +50,7 @@ int write_pcap_file(const char* filename, void* pkt, size_t len) {
             .iov_len = sizeof(pcaprec_hdr_t),
         },
         {
-            .iov_base = &pkt,
+            .iov_base = pkt,
             .iov_len = len,
         },
     };
