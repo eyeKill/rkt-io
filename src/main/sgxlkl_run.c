@@ -757,7 +757,7 @@ void register_dpdk(enclave_config_t *encl,
         encl->dpdk_ifaces = (struct enclave_dpdk_config *)malloc(
             sizeof(struct enclave_dpdk_config) * encl->num_dpdk_ifaces);
 
-        encl->dpdk_ifaces[0].net_dev_id = -1;
+        encl->dpdk_ifaces[0].ifindex = -1;
         encl->dpdk_ifaces[0].net_mask4 = mask4;
         encl->dpdk_ifaces[0].net_ip4 = ip4;
         encl->dpdk_ifaces[0].net_ip6 = ip6;

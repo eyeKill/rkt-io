@@ -185,29 +185,17 @@ static void lkl_copy_blkdev_nodes(const char* srcdir, const char* dstdir) {
 static void lkl_prestart_dpdk(enclave_config_t *encl) {
     for (size_t i = 0; i < encl->num_dpdk_ifaces; i++) {
         struct enclave_dpdk_config *dpdk = &encl->dpdk_ifaces[i];
-        struct lkl_netdev *netdev = sgxlkl_register_netdev_dpdk(dpdk);
-        assert(netdev != NULL);
+        int ifindex = sgxlkl_register_dpdk_device(dpdk);
 
-        struct lkl_netdev_args netdev_args = {
-            .mac = dpdk->mac,
-            .offload = BIT(LKL_VIRTIO_NET_F_MRG_RXBUF)
-            //.offload= (// Host and guest can handle TSOv4
-            //           BIT(LKL_VIRTIO_NET_F_GUEST_TSO4) |
-            //           // Host and guest can handle TSOv6
-            //           BIT(LKL_VIRTIO_NET_F_GUEST_TSO6) |
-            //           // Host can merge receive buffers
-            //           BIT(LKL_VIRTIO_NET_F_MRG_RXBUF)),
-        };
         fprintf(stderr, "[SGX-LKL] DPDK: Port %d: %02x:%02x:%02x:%02x:%02x:%02x\n", dpdk->portid,
             dpdk->mac[0], dpdk->mac[1], dpdk->mac[2], dpdk->mac[3], dpdk->mac[4], dpdk->mac[5]);
 
-        int net_dev_id = lkl_netdev_add(netdev, &netdev_args);
-        if (net_dev_id < 0) {
+        if (ifindex < 0) {
             fprintf(stderr, "Error: unable to register netdev, %s\n",
-                    lkl_strerror(net_dev_id));
-            exit(net_dev_id);
+                    lkl_strerror(ifindex));
+            exit(ifindex);
         }
-        dpdk->net_dev_id = net_dev_id;
+        dpdk->ifindex = ifindex;
     }
 }
 
@@ -216,7 +204,7 @@ static void lkl_poststart_dpdk(enclave_config_t* encl) {
     for (size_t i = 0; i < encl->num_dpdk_ifaces; i++) {
         struct enclave_dpdk_config *dpdk = &encl->dpdk_ifaces[i];
         int res = 0;
-        int ifidx = lkl_netdev_get_ifindex(dpdk->net_dev_id);
+        int ifindex = dpdk->ifindex;
 
         char ip[INET6_ADDRSTRLEN];
         inet_ntop(AF_INET, &dpdk->net_ip4.s_addr, ip, INET_ADDRSTRLEN);
@@ -225,23 +213,24 @@ static void lkl_poststart_dpdk(enclave_config_t* encl) {
         SGXLKL_VERBOSE("dpdk iface addr: %s/%d\n", ip, dpdk->net_mask6);
         SGXLKL_VERBOSE("dpdk iface mtu: %u\n", dpdk->mtu);
 
-        res = lkl_if_set_ipv4(ifidx, dpdk->net_ip4.s_addr, dpdk->net_mask4);
+        res = lkl_if_set_ipv4(ifindex, dpdk->net_ip4.s_addr, dpdk->net_mask4);
         if (res < 0) {
           fprintf(stderr, "Error: lkl_if_set_ipv4(): %s\n", lkl_strerror(res));
           exit(res);
         }
 
         if (dpdk->mtu) {
-            lkl_if_set_mtu(ifidx, dpdk->mtu);
+            lkl_if_set_mtu(ifindex, dpdk->mtu);
         }
 
-        res = lkl_if_up(ifidx);
+        res = lkl_if_up(ifindex);
+        fprintf(stderr, "%s() at %s:%d\n", __func__, __FILE__, __LINE__);
         if (res < 0) {
           fprintf(stderr, "Error: lkl_if_up(eth0): %s\n", lkl_strerror(res));
           exit(res);
         }
 
-        res = lkl_if_set_ipv6(ifidx, dpdk->net_ip6.s6_addr, dpdk->net_mask6);
+        res = lkl_if_set_ipv6(ifindex, dpdk->net_ip6.s6_addr, dpdk->net_mask6);
         if (res < 0) {
           fprintf(stderr, "Error: lkl_if_set_ipv6(): %s\n", lkl_strerror(res));
           exit(res);
@@ -771,7 +760,7 @@ void lkl_mount_disks(struct enclave_disk_config* _disks, size_t _num_disks, cons
     }
 
     if (spdk_context) {
-      lkl_start_spdk(spdk_context);
+        lkl_start_spdk(spdk_context);
     }
 
     if (cwd) {

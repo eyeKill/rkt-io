@@ -155,9 +155,9 @@ lkl-config ${LKL}/arch/lkl/defconfig: src/lkl/override/defconfig | ${WIREGUARD} 
 
 # LKL's static library and include/ header directory
 lkl ${LIBLKL} ${LKL_BUILD}/include: ${SPDK_BUILD_SGX}/.build ${HOST_MUSL_CC} ${LKL}/arch/lkl/defconfig
-	+DESTDIR=${LKL_BUILD} ${MAKE} V=1 -C ${LKL}/tools/lkl -j`tools/ncore.sh` \
+	+DESTDIR=${LKL_BUILD} ${MAKE} -C ${LKL}/tools/lkl -j`tools/ncore.sh` \
 		CC=${HOST_MUSL_CC} \
-		SPDK_SGX_CFLAGS="${SPDK_SGX_CFLAGS}" \
+		SPDK_SGX_CFLAGS="${SPDK_SGX_CFLAGS} -I ${MAKE_ROOT}/src/lkl/override/include/" \
 		PREFIX="" \
 		${LKL}/tools/lkl/liblkl.a
 	mkdir -p ${LKL_BUILD}/lib
@@ -173,7 +173,8 @@ lkl ${LIBLKL} ${LKL_BUILD}/include: ${SPDK_BUILD_SGX}/.build ${HOST_MUSL_CC} ${L
 lkl-rebuild: ${HOST_MUSL_CC}
 	+${MAKE} -C ${LKL} ARCH=lkl install INSTALL_PATH=${LKL}/tools/lkl/ -j`tools/ncore.sh` \
 		CC=${HOST_MUSL_CC} \
-		SPDK_SGX_CFLAGS="${SPDK_SGX_CFLAGS}"
+		SPDK_SGX_CFLAGS="${SPDK_SGX_CFLAGS} -I ${MAKE_ROOT}/src/lkl/override/include/"
+ 
 	rm -f ${LIBLKL}
 
 tools: ${TOOLS_OBJ}
@@ -229,7 +230,6 @@ SPDK_NATIVE_LDFLAGS += -luuid
 
 sgx-lkl-musl: ${LIBLKL} ${LKL_SGXMUSL_HEADERS} ${CRYPTSETUP_BUILD}/lib/libcryptsetup.a ${PROTOBUFC_BUILD}/lib/libprotobuf-c.a ${PROTOBUFC_RPC}/protobuf-c-rpc.a sgx-lkl-musl-config sgx-lkl $(ENCLAVE_DEBUG_KEY) ${BUILD_DIR}/init_array.o | ${SGX_LKL_MUSL_BUILD}
 	+${MAKE} -C ${SGX_LKL_MUSL} CFLAGS="$(MUSL_CFLAGS)" \
-    SPDK_SGX_CFLAGS="$(SPDK_SGX_CFLAGS)" \
     SPDK_SGX_LDFLAGS="$(SPDK_SGX_LDFLAGS)"
 	cp $(SGX_LKL_MUSL)/lib/libsgxlkl.so $(BUILD_DIR)/libsgxlkl.so
 # This way the debug info will be automatically picked up when debugging with gdb. TODO: Fix...
