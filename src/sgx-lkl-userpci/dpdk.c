@@ -16,17 +16,120 @@
 #define NUMDESC 512 /* nb_min on vmxnet3 is 512 */
 #define NUMQUEUE 1
 
+static struct rte_eth_conf port_conf = {
+// TODO: more optimizations:
+// if (dev_info.tx_offload_capa & DEV_RX_OFFLOAD_TCP_LRO)
+//    port_conf.txmode.offloads |= DEV_RX_OFFLOAD_TCP_LRO;
+// portconf.rxmode.offloads |= DEV_RX_OFFLOAD_TCP_LRO;
+// portconf.rxmode.offloads &= ~DEV_RX_OFFLOAD_KEEP_CRC;
+// TODO check capabilities before applying this
+// dev_info.default_txconf.offloads |= DEV_TX_OFFLOAD_MULTI_SEGS;
+// dev_info.default_txconf.offloads |= DEV_TX_OFFLOAD_UDP_CKSUM;
+// dev_info.default_txconf.offloads |= DEV_TX_OFFLOAD_TCP_CKSUM;
+
+  .rxmode = {
+    .mq_mode = ETH_MQ_RX_RSS,
+    .max_rx_pkt_len = ETHER_MAX_LEN,
+  },
+  .rx_adv_conf = {
+    .rss_conf = {
+        // taken from i40e_ethdev.h, other hardware might support different offloads
+        .rss_hf = ETH_RSS_NONFRAG_IPV4_TCP \
+          | ETH_RSS_NONFRAG_IPV4_UDP \
+          | ETH_RSS_NONFRAG_IPV4_SCTP \
+          | ETH_RSS_NONFRAG_IPV6_TCP \
+          | ETH_RSS_NONFRAG_IPV6_UDP \
+          | ETH_RSS_NONFRAG_IPV6_SCTP,
+    }
+   },
+};
+
+
+static int sym_hash_enable(int port_id, uint32_t ftype,
+		    enum rte_eth_hash_function function)
+{
+	struct rte_eth_hash_filter_info info;
+	int ret = 0;
+	uint32_t idx = 0;
+	uint32_t offset = 0;
+
+	memset(&info, 0, sizeof(info));
+
+	ret = rte_eth_dev_filter_supported(port_id, RTE_ETH_FILTER_HASH);
+	if (ret < 0) {
+		fprintf(stderr, "dpdk: RTE_ETH_FILTER_HASH not supported on port: %d\n", port_id);
+		return ret;
+	}
+
+	info.info_type = RTE_ETH_HASH_FILTER_GLOBAL_CONFIG;
+	info.info.global_conf.hash_func = function;
+
+	idx = ftype / UINT64_BIT;
+	offset = ftype % UINT64_BIT;
+	info.info.global_conf.valid_bit_mask[idx] |= (1ULL << offset);
+	info.info.global_conf.sym_hash_enable_mask[idx] |= (1ULL << offset);
+
+	ret = rte_eth_dev_filter_ctrl(port_id, RTE_ETH_FILTER_HASH,
+				      RTE_ETH_FILTER_SET, &info);
+	if (ret < 0) {
+		fprintf(stderr, "dpdk: Cannot set global hash configurations on port %u\n", port_id);
+		return ret;
+	}
+
+	return 0;
+}
+
+int sym_hash_set(int port_id, int enable)
+{
+	int ret = 0;
+	struct rte_eth_hash_filter_info info;
+
+	memset(&info, 0, sizeof(info));
+
+	ret = rte_eth_dev_filter_supported(port_id, RTE_ETH_FILTER_HASH);
+	if (ret < 0) {
+		fprintf(stderr, "dpdk: RTE_ETH_FILTER_HASH not supported on port: %d\n", port_id);
+		return ret;
+	}
+
+	info.info_type = RTE_ETH_HASH_FILTER_SYM_HASH_ENA_PER_PORT;
+	info.info.enable = enable;
+	ret = rte_eth_dev_filter_ctrl(port_id, RTE_ETH_FILTER_HASH,
+				      RTE_ETH_FILTER_SET, &info);
+
+	if (ret < 0) {
+		fprintf(stderr, "dpdk: Cannot set symmetric hash enable per port on port %u\n", port_id);
+		return ret;
+	}
+
+	return 0;
+}
+
+int enable_symmetric_rxhash(int port_id) {
+  int r;
+  r |= sym_hash_enable(port_id, RTE_ETH_FLOW_NONFRAG_IPV4_TCP,
+                  RTE_ETH_HASH_FUNCTION_TOEPLITZ);
+  r |= sym_hash_enable(port_id, RTE_ETH_FLOW_NONFRAG_IPV4_UDP,
+                       RTE_ETH_HASH_FUNCTION_TOEPLITZ);
+  r |= sym_hash_enable(port_id, RTE_ETH_FLOW_FRAG_IPV4,
+                  RTE_ETH_HASH_FUNCTION_TOEPLITZ);
+  r |= sym_hash_enable(port_id, RTE_ETH_FLOW_NONFRAG_IPV4_SCTP,
+                  RTE_ETH_HASH_FUNCTION_TOEPLITZ);
+  r |= sym_hash_enable(port_id, RTE_ETH_FLOW_NONFRAG_IPV4_OTHER,
+                  RTE_ETH_HASH_FUNCTION_TOEPLITZ);
+
+  r |= sym_hash_set(port_id, 1);
+  return r;
+}
+
 int setup_iface(int portid, int mtu) {
     int ret = 0;
-    struct rte_eth_conf portconf;
     struct rte_eth_link link;
     struct rte_eth_dev_info dev_info;
     char poolname[RTE_MEMZONE_NAMESIZE];
 
     char ifparams[6];
     int r = snprintf(ifparams, 6, "dpdk%d", portid);
-
-    memset(&portconf, 0, sizeof(portconf));
 
     snprintf(poolname, RTE_MEMZONE_NAMESIZE, "%s%s", "tx-", ifparams);
     struct rte_mempool *txpool = rte_mempool_create(
@@ -49,17 +152,21 @@ int setup_iface(int portid, int mtu) {
     }
 
     rte_eth_dev_info_get(portid, &dev_info);
-    // if (dev_info.tx_offload_capa & DEV_RX_OFFLOAD_TCP_LRO)
-    //    port_conf.txmode.offloads |= DEV_RX_OFFLOAD_TCP_LRO;
 
-    memset(&portconf, 0, sizeof(portconf));
-    // portconf.rxmode.offloads |= DEV_RX_OFFLOAD_TCP_LRO;
-    // portconf.rxmode.offloads &= ~DEV_RX_OFFLOAD_KEEP_CRC;
-    portconf.rxmode.max_rx_pkt_len = ETHER_MAX_LEN;
+    if ((port_conf.rx_adv_conf.rss_conf.rss_hf & dev_info.flow_type_rss_offloads) != port_conf.rx_adv_conf.rss_conf.rss_hf) {
+      fprintf(stderr, "dpdk: not all rss offloads requested supported by this hardware. You might need to adapt %s\n", __FILE__);
+      return -EINVAL;
+    }
 
-    ret = rte_eth_dev_configure(portid, NUMQUEUE, NUMQUEUE, &portconf);
+    ret = rte_eth_dev_configure(portid, NUMQUEUE, NUMQUEUE, &port_conf);
     if (ret < 0) {
         fprintf(stderr, "dpdk: failed to configure port\n");
+        return ret;
+    }
+    // https://haryachyy.wordpress.com/2019/01/18/learning-dpdk-symmetric-rss/
+    ret = enable_symmetric_rxhash(portid);
+    if (ret < 0) {
+      fprintf(stderr, "dpdk: failed to set rxhash\n");
         return ret;
     }
 
@@ -77,11 +184,6 @@ int setup_iface(int portid, int mtu) {
     }
 
     dev_info.default_txconf.offloads = 0;
-
-    // TODO check capabilities before applying this
-    // dev_info.default_txconf.offloads |= DEV_TX_OFFLOAD_MULTI_SEGS;
-    // dev_info.default_txconf.offloads |= DEV_TX_OFFLOAD_UDP_CKSUM;
-    // dev_info.default_txconf.offloads |= DEV_TX_OFFLOAD_TCP_CKSUM;
 
     ret =
         rte_eth_tx_queue_setup(portid, 0, NUMDESC, 0, &dev_info.default_txconf);
