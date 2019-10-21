@@ -63,7 +63,7 @@ typedef struct enclave_dpdk_config {
     struct in6_addr net_ip6;
     int net_mask6;
     size_t portid;
-    int net_dev_id;
+    int ifindex;
     uint16_t mtu;
     uint8_t mac[6];
     struct rte_mempool *txpool, *rxpool;
