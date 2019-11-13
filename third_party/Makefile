@@ -55,7 +55,7 @@ ${PROTOBUFC}:
 	rm "${MAKE_ROOT}/protobuf-c.tar.gz"
 
 ${CRYPTSETUP_BUILD}/lib/libdevmapper.a: ${DEVICEMAPPER} ${HOST_MUSL_CC} ${CRYPTSETUP_BUILD}
-	cd ${DEVICEMAPPER}; [ -f Makefile ] || CC=${HOST_MUSL_CC} CFLAGS="${THIRD_PARTY_CFLAGS} -fPIC -Dptrdiff_t=intptr_t -Wl,--dynamic-linker=${HOST_MUSL_BUILD}/lib/libc.so" ./configure \
+	unset LD_PRELOAD; LD_PRELOAD= bash -c 'echo LD_PRELOAD=$$LD_PRELOAD'; cd ${DEVICEMAPPER}; [ -f Makefile ] || CC=${HOST_MUSL_CC} CFLAGS="${THIRD_PARTY_CFLAGS} -fPIC -Dptrdiff_t=intptr_t -Wl,--dynamic-linker=${HOST_MUSL_BUILD}/lib/libc.so" ./configure \
 		--prefix=${CRYPTSETUP_BUILD}/ --enable-static_link
 	+CC=${HOST_MUSL_CC} ${MAKE} -C ${DEVICEMAPPER} device-mapper
 	+CC=${HOST_MUSL_CC} ${MAKE} -C ${DEVICEMAPPER}/libdm install
@@ -64,8 +64,8 @@ ${UTILLINUX}/configure: ${UTILLINUX}
 	cd ${UTILLINUX}; [[ -f ${UTILLINUX}/configure ]] || ./autogen.sh
 
 ${CRYPTSETUP_BUILD}/lib/libuuid.a: ${UTILLINUX} ${HOST_MUSL_CC} ${CRYPTSETUP_BUILD} ${CRYPTSETUP_BUILD}/libuuid ${UTILLINUX}/configure
-	cd ${CRYPTSETUP_BUILD}/libuuid; [ -f Makefile ] || CC=${HOST_MUSL_CC} CFLAGS="${THIRD_PARTY_CFLAGS} -fPIC -Wl,--dynamic-linker=${HOST_MUSL_BUILD}/lib/libc.so" \
-		${UTILLINUX}/configure \
+	unset LD_PRELOAD; cd ${CRYPTSETUP_BUILD}/libuuid; [ -f Makefile ] || CC=${HOST_MUSL_CC} CFLAGS="${THIRD_PARTY_CFLAGS} -fPIC -Wl,--dynamic-linker=${HOST_MUSL_BUILD}/lib/libc.so" \
+		 ${UTILLINUX}/configure \
 		--prefix=${CRYPTSETUP_BUILD}/ --enable-static \
 		--disable-all-programs --enable-libuuid --enable-uuid \
 		--without-ncurses --without-ncursesw --without-tinfo \
@@ -84,20 +84,20 @@ ${LIBUUID_HOST_BUILD}/lib/libuuid.a: ${UTILLINUX} ${UTILLINUX}/configure ${LIBUU
 	install --target ${LIBUUID_HOST_BUILD}/include/uuid -D ${UTILLINUX}/libuuid/src/uuid.h
 
 ${CRYPTSETUP_BUILD}/lib/libpopt.a: ${POPT} ${HOST_MUSL_CC} ${CRYPTSETUP_BUILD}
-	cd ${POPT}; [ -f Makefile ] || CC=${HOST_MUSL_CC} CFLAGS="$(THIRD_PARTY_CFLAGS) -fPIC -Wl,--dynamic-linker=${HOST_MUSL_BUILD}/lib/libc.so" ./configure \
+	unset LD_PRELOAD; cd ${POPT}; [ -f Makefile ] || CC=${HOST_MUSL_CC} CFLAGS="$(THIRD_PARTY_CFLAGS) -fPIC -Wl,--dynamic-linker=${HOST_MUSL_BUILD}/lib/libc.so" ./configure \
 		--prefix=${CRYPTSETUP_BUILD}/ --enable-static
 	+CC=${HOST_MUSL_CC} ${MAKE} -C ${POPT} all install
 
 ${CRYPTSETUP_BUILD}/lib/libjson-c.a: ${JSONC} ${HOST_MUSL_CC} ${CRYPTSETUP_BUILD}
 	cd ${JSONC}; [ -f configure ] || CC=${HOST_MUSL_CC} CFLAGS="${THIRD_PARTY_CFLAGS} -fPIC" ./autogen.sh && autoreconf -i
-	cd ${JSONC}; [ -f Makefile ] || CC=${HOST_MUSL_CC} CFLAGS="${THIRD_PARTY_CFLAGS} -fPIC -Wl,--dynamic-linker=${HOST_MUSL_BUILD}/lib/libc.so" ./configure \
+	unset LD_PRELOAD; cd ${JSONC}; [ -f Makefile ] || CC=${HOST_MUSL_CC} CFLAGS="${THIRD_PARTY_CFLAGS} -fPIC -Wl,--dynamic-linker=${HOST_MUSL_BUILD}/lib/libc.so" ./configure \
 		--prefix=${CRYPTSETUP_BUILD}/ --enable-static
 	+CC=${HOST_MUSL_CC} CFLAGS=-fPIC ${MAKE} -C ${JSONC} all install
 
 ${CRYPTSETUP_BUILD}/lib/libcryptsetup.a: ${CRYPTSETUP} ${CRYPTSETUP_BUILD}/lib/libpopt.a ${CRYPTSETUP_BUILD}/lib/libdevmapper.a ${CRYPTSETUP_BUILD}/lib/libuuid.a ${CRYPTSETUP_BUILD}/lib/libjson-c.a ${HOST_MUSL_CC} ${CRYPTSETUP_BUILD}
 	rsync -rv cryptsetup-override/ ${CRYPTSETUP}/
 	cd ${CRYPTSETUP}; [ -f configure ] || CC=${HOST_MUSL_CC} CFLAGS="${THIRD_PARTY_CFLAGS} -I${CRYPTSETUP_BUILD}/include -I${LKL_BUILD}/include -fPIC" LDFLAGS="-L${CRYPTSETUP_BUILD}/lib" ./autogen.sh
-	cd ${CRYPTSETUP}; [ -f Makefile ] || CC=${HOST_MUSL_CC} CFLAGS="${THIRD_PARTY_CFLAGS} --static -I${CRYPTSETUP_BUILD}/include -I${LKL_BUILD}/include -fPIC -Wl,--dynamic-linker=${HOST_MUSL_BUILD}/lib/libc.so" LDFLAGS="${LDFLAGS} -L${CRYPTSETUP_BUILD}/lib" ./configure --prefix=${CRYPTSETUP_BUILD}/ --enable-static --with-crypto-backend=kernel
+	unset LD_PRELOAD; cd ${CRYPTSETUP}; [ -f Makefile ] || CC=${HOST_MUSL_CC} CFLAGS="${THIRD_PARTY_CFLAGS} --static -I${CRYPTSETUP_BUILD}/include -I${LKL_BUILD}/include -fPIC -Wl,--dynamic-linker=${HOST_MUSL_BUILD}/lib/libc.so" LDFLAGS="${LDFLAGS} -L${CRYPTSETUP_BUILD}/lib" ./configure --prefix=${CRYPTSETUP_BUILD}/ --enable-static --with-crypto-backend=kernel
 	+CC=${HOST_MUSL_CC} ${MAKE} -C ${CRYPTSETUP} install-libLTLIBRARIES
 	+CC=${HOST_MUSL_CC} ${MAKE} -C ${CRYPTSETUP} install-includeHEADERS
 
