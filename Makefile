@@ -72,8 +72,7 @@ dpdk-config-${1} ${DPDK_CONFIG}: ${CURDIR}/src/dpdk/override/defconfig | ${DPDK}
 # for it when running lkl. In particular this affects rte_errno and makes it thread-unsafe.
 dpdk-${1} ${DPDK_BUILD}/.build: ${DPDK_CONFIG} | ${DPDK_CC} ${DPDK}/.git
 	+make -j`tools/ncore.sh` -C ${DPDK_BUILD} WERROR_FLAGS= CC=${DPDK_CC} RTE_SDK=${DPDK} V=1 \
-		EXTRA_CFLAGS="-Wno-error -lc ${DPDK_EXTRA_CFLAGS} -UDEBUG" \
-		|| test ${DPDK_BEAR_HACK} == "yes"
+		EXTRA_CFLAGS="-Wno-error -lc ${DPDK_EXTRA_CFLAGS} -UDEBUG"
 	touch ${DPDK_BUILD}/.build
 
 spdk-source-${1} ${SPDK_BUILD}/mk: | ${SPDK}/.git
@@ -91,9 +90,6 @@ spdk-${1} ${SPDK_BUILD}/.build: ${DPDK_BUILD}/.build spdk-source-$(1) ${SPDK_CON
 	make -C ${SPDK_BUILD} -j`tools/ncore.sh` CC=${DPDK_CC}
 	touch ${SPDK_BUILD}/.build
 endef
-
-# when compiling with BEAR the build seems to fail at some point also the overall build is still fine
-DPDK_BEAR_HACK ?= no
 
 SPDK_BUILD := ${SPDK_BUILD_NATIVE}
 DPDK_BUILD := ${DPDK_BUILD_NATIVE}
@@ -266,7 +262,7 @@ ${HOST_MUSL}/.git ${LKL}/.git ${SGX_LKL_MUSL}/.git ${DPDK}/.git ${SPDK}/.git:
 
 compdb:
 	${MAKE} clean
-	bear ${MAKE} DPDK_BEAR_HACK=yes
+	bear ${MAKE}
 
 install: $(BUILD_DIR)/libsgxlkl.so $(BUILD_DIR)/sgx-lkl-run
 	mkdir -p ${PREFIX}/bin ${PREFIX}/lib
