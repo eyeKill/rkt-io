@@ -26,9 +26,12 @@ static struct rte_eth_conf port_conf = {
 // dev_info.default_txconf.offloads |= DEV_TX_OFFLOAD_MULTI_SEGS;
 // dev_info.default_txconf.offloads |= DEV_TX_OFFLOAD_UDP_CKSUM;
 // dev_info.default_txconf.offloads |= DEV_TX_OFFLOAD_TCP_CKSUM;
-
   .rxmode = {
     .mq_mode = ETH_MQ_RX_RSS,
+    .offloads = DEV_RX_OFFLOAD_CHECKSUM
+      | DEV_TX_OFFLOAD_TCP_TSO
+      | DEV_TX_OFFLOAD_UDP_TSO
+      | DEV_RX_OFFLOAD_SCATTER,
     .max_rx_pkt_len = ETHER_MAX_LEN,
   },
   .rx_adv_conf = {
@@ -153,9 +156,16 @@ int setup_iface(int portid, int mtu) {
 
     rte_eth_dev_info_get(portid, &dev_info);
 
-    if ((port_conf.rx_adv_conf.rss_conf.rss_hf & dev_info.flow_type_rss_offloads) != port_conf.rx_adv_conf.rss_conf.rss_hf) {
+    if ((port_conf.rx_adv_conf.rss_conf.rss_hf & dev_info.flow_type_rss_offloads) !=
+        port_conf.rx_adv_conf.rss_conf.rss_hf) {
       fprintf(stderr, "dpdk: not all rss offloads requested supported by this hardware. You might need to adapt %s\n", __FILE__);
-      return -EINVAL;
+      return -ENOSYS;
+    }
+
+    if ((port_conf.txmode.offloads & dev_info.tx_offload_capa) !=
+        port_conf.txmode.offloads) {
+      fprintf(stderr, "dpdk: not all tx offloads requested supported by this hardware. You might need to adapt %s\n", __FILE__);
+      return -ENOSYS;
     }
 
     ret = rte_eth_dev_configure(portid, NUMQUEUE, NUMQUEUE, &port_conf);
@@ -176,17 +186,16 @@ int setup_iface(int portid, int mtu) {
         return ret;
     }
 
-    ret = rte_eth_rx_queue_setup(portid, 0, NUMDESC, 0,
-                                 &dev_info.default_rxconf, rxpool);
+    dev_info.default_rxconf.offloads = 0;
+    dev_info.default_txconf.offloads = 0;
+
+    ret = rte_eth_rx_queue_setup(portid, 0, NUMDESC, 0, &dev_info.default_rxconf, rxpool);
     if (ret < 0) {
         fprintf(stderr, "dpdk: failed to setup rx queue\n");
         return ret;
     }
 
-    dev_info.default_txconf.offloads = 0;
-
-    ret =
-        rte_eth_tx_queue_setup(portid, 0, NUMDESC, 0, &dev_info.default_txconf);
+    ret = rte_eth_tx_queue_setup(portid, 0, NUMDESC, 0, &dev_info.default_txconf);
     if (ret < 0) {
         fprintf(stderr, "dpdk: failed to setup tx queue\n");
         return ret;
