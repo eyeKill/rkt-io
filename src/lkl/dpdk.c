@@ -51,14 +51,15 @@ int sgxlkl_register_dpdk_device(struct enclave_dpdk_config *config) {
 }
 
 // List of reset function exported from dpdk
-int i40evf_dev_init(struct rte_eth_dev *dev);
+
+int eth_i40e_dev_init(struct rte_eth_dev *dev, void *init_params);
 struct dev_init_function {
     char *driver_name;
-    int (*dev_init)(struct rte_eth_dev *eth_dev);
+    int (*dev_init)(struct rte_eth_dev *eth_dev, void *init_params);
 };
 
 static struct dev_init_function dev_init_table[1] = {
-    {.driver_name = "net_i40e", .dev_init = i40evf_dev_init},
+    {.driver_name = "net_i40e", .dev_init = eth_i40e_dev_init},
 };
 
 eth_dev_reset_t find_dev_reset_function(struct rte_eth_dev *device) {
