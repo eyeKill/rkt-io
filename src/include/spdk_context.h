@@ -33,5 +33,8 @@ struct spdk_dma_memory  {
 };
 
 int spdk_initialize(struct spdk_context *ctx, bool primary);
+void spdk_context_detach(struct spdk_context *ctx);
+void spdk_context_free(struct spdk_context *ctx);
+
 
 #endif
