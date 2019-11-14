@@ -65,7 +65,6 @@ typedef struct enclave_dpdk_config {
     size_t portid;
     int ifindex;
     uint16_t mtu;
-    uint8_t mac[6];
     struct rte_mempool *txpool, *rxpool;
 } enclave_dpdk_config_t;
 

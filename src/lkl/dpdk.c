@@ -27,8 +27,6 @@ int sgxlkl_register_dpdk_device(struct enclave_dpdk_config *config) {
     dev.rxpool = config->rxpool;
     dev.txpool = config->txpool;
 
-    memcpy(&dev.mac, &config->mac, sizeof(dev.mac));
-
     fd = lkl_sys_open("/dev/dpdk-control", LKL_O_RDONLY, 0);
 
     if (fd < 0) {

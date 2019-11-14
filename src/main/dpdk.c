@@ -37,9 +37,6 @@ int dpdk_initialize_iface(enclave_config_t* encl, const char *ifparams)
         fprintf(stderr, "dpdk: failed to lookup rx pool: %s\n", poolname);
         return -ENOMEM;
     }
-
-    rte_eth_macaddr_get(iface->portid, &iface->mac);
-
     return 0;
 }
 
