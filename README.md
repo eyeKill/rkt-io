@@ -35,7 +35,7 @@ following packages are required to build SGX-LKL:
 Install these with:
 
 ```
-sudo apt-get install make gcc g++ bc python xutils-dev bison flex libgcrypt20-dev libjson-c-dev automake autopoint autoconf pkgconf libtool libcurl4-openssl-dev libprotobuf-dev libprotobuf-c-dev protobuf-compiler protobuf-c-compiler libssl-dev linux-headers-$(uname -r)
+sudo apt-get install make gcc g++ bc python xutils-dev bison flex libgcrypt20-dev libjson-c-dev automake autopoint autoconf pkgconf libtool libcurl4-openssl-dev libprotobuf-dev libprotobuf-c-dev protobuf-compiler protobuf-c-compiler libssl-dev
 ```
 
 Compilation has been tested with versions 5.4 and 7.3 of gcc. Older versions
@@ -579,11 +579,10 @@ information on debugging, tracing and profiling.
 DPDK
 ----
 
-Running `make` will also build the kernel modules for dpdk in `build/dpdk/kmod`.
-To load them run as root:
+Install dpdk uio driver using your distribution package manager
 
 ```
-root> make load-dpdk-driver
+root> modprobe uio
 ```
 
 After that you need to bind an interface to dpdk:

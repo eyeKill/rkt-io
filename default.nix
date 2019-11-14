@@ -103,7 +103,6 @@ let
     };
   };
 
-  kernel = linuxPackages_4_14.kernel;
 in (overrideCC stdenv gcc7_nolibc).mkDerivation {
   name = "env";
 
@@ -142,9 +141,6 @@ in (overrideCC stdenv gcc7_nolibc).mkDerivation {
     protobufc
     protobuf
   ];
-
-  # conditionally used by .envrc
-  NIXOS_KERNELDIR = "${kernel.dev}/lib/modules/${kernel.modDirVersion}/build";
 
   buildInputs = [
     #(cryptsetup.overrideAttrs (old: {

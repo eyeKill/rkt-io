@@ -117,19 +117,6 @@ undefine DPDK_CONFIG
 undefine DPDK_CC
 undefine DPDK_EXTRA_CFLAGS
 
-# Since load-dpdk-driver may require root,
-# we don't want to build the kernel modules here and
-# ask the user to run make instead
-${DPDK_BUILD_NATIVE}/kmod/%.ko:
-	$(error "Kernel module $@ not found, run `make dpdk` first")
-
-load-dpdk-driver: ${DPDK_BUILD_NATIVE}/kmod/igb_uio.ko ${DPDK_BUILD_NATIVE}/kmod/rte_kni.ko
-	modprobe uio || true
-	rmmod rte_kni || true
-	rmmod igb_uio || true
-	insmod ${DPDK_BUILD_NATIVE}/kmod/rte_kni.ko
-	insmod ${DPDK_BUILD_NATIVE}/kmod/igb_uio.ko
-
 ${WIREGUARD}:
 	+${MAKE} -C ${MAKE_ROOT}/third_party $@
 
