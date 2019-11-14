@@ -187,9 +187,6 @@ static void lkl_prestart_dpdk(enclave_config_t *encl) {
         struct enclave_dpdk_config *dpdk = &encl->dpdk_ifaces[i];
         int ifindex = sgxlkl_register_dpdk_device(dpdk);
 
-        fprintf(stderr, "[SGX-LKL] DPDK: Port %d: %02x:%02x:%02x:%02x:%02x:%02x\n", dpdk->portid,
-            dpdk->mac[0], dpdk->mac[1], dpdk->mac[2], dpdk->mac[3], dpdk->mac[4], dpdk->mac[5]);
-
         if (ifindex < 0) {
             fprintf(stderr, "Error: unable to register netdev, %s\n",
                     lkl_strerror(ifindex));
