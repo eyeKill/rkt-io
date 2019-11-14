@@ -29,8 +29,8 @@ int spdk_alloc_hugetbl(struct spdk_dma_memory *ctx) {
         return -ENOMEM;
     }
 
-    // leave one gigabyte for DPDK
-    size_t gigabytes = (hugetbl_size - gigabyte) / gigabyte;
+    // leave two gigabyte for DPDK
+    size_t gigabytes = (hugetbl_size - 2 * gigabyte) / gigabyte;
 
     void** allocations = calloc(gigabytes, sizeof(void*));
     ctx->nr_allocations = gigabytes;
@@ -40,7 +40,7 @@ int spdk_alloc_hugetbl(struct spdk_dma_memory *ctx) {
         // Allocations bigger then 1GB might fail.
         allocations[i] = spdk_dma_malloc(gigabyte, 0x1000, NULL);
         if (!allocations[i]) {
-            fprintf(stderr, "spdk: could not allocate hugetable memory, only got %u GB\n", i - 1);
+            fprintf(stderr, "spdk: could not allocate hugetable memory, only got %lu GB\n", i);
             goto alloc_failed;
         }
     }
@@ -57,4 +57,21 @@ int spdk_alloc_hugetbl(struct spdk_dma_memory *ctx) {
 alloc_failed:
     spdk_free_hugetbl(ctx);
     return -ENOMEM;
+}
+
+int dpdk_allocate_dma_memory(struct enclave_dpdk_dma_memory *mem) {
+  // is 127 MB enough?
+  const size_t size = 1 << 27;
+  void *addr = spdk_dma_malloc(size, 0x1000, NULL);
+  if (!addr) {
+    return -ENOMEM;
+  }
+  mem->memory_start = addr;
+  mem->memory_end = mem->memory_start + size;
+  
+  fprintf(stderr, "%s() at %s:%d: start: %p end: %p (phys: %p)\n", __func__, __FILE__, __LINE__,
+          mem->memory_start,
+          mem->memory_end,
+          spdk_vtophys(addr, NULL));
+  return 0;
 }

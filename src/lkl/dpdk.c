@@ -19,6 +19,9 @@
 
 #include "sgx_hostcalls.h"
 
+unsigned long dpdk_dma_memory_start = 0;
+unsigned long dpdk_dma_memory_end = 0;
+
 int sgxlkl_register_dpdk_device(struct enclave_dpdk_config *config) {
     struct lkl_ifreq ifr;
     int fd, err;
@@ -107,4 +110,9 @@ int sgxlkl_register_dpdk_context(struct dpdk_context *context) {
     }
 
     return 0;
+}
+
+void sgxlkl_register_dpdk_dma_memory(struct enclave_dpdk_dma_memory* ctx) {
+    dpdk_dma_memory_start = ctx->memory_start;
+    dpdk_dma_memory_end = ctx->memory_end;
 }

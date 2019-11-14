@@ -68,6 +68,11 @@ typedef struct enclave_dpdk_config {
     struct rte_mempool *txpool, *rxpool;
 } enclave_dpdk_config_t;
 
+typedef struct enclave_dpdk_dma_memory {
+  unsigned long memory_start;
+  unsigned long memory_end;
+} enclave_dpdk_dma_memory_t;
+
 typedef struct enclave_wg_peer_config {
     char *key;
     char *allowed_ips;
@@ -112,6 +117,7 @@ typedef struct enclave_config {
     int enable_sgxio;
     struct enclave_dpdk_config *dpdk_ifaces;
     struct dpdk_context *dpdk_context;
+    struct enclave_dpdk_dma_memory dpdk_dma_memory;
     struct spdk_context *spdk_context;
     struct spdk_dma_memory *spdk_dma_memory;
     char hostname[32];

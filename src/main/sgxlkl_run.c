@@ -716,11 +716,16 @@ void register_spdk(enclave_config_t *encl,
 }
 
  void register_spdk_hugetbl(enclave_config_t *encl) {
+    int r = dpdk_allocate_dma_memory(&encl->dpdk_dma_memory);
+    if (r < 0) {
+      sgxlkl_fail("failed to initialize dpdk dma memory: s\n", strerror(-r));
+    }
+
      if (spdk_alloc_hugetbl(&spdk_dma_memory) < 0) {
          sgxlkl_fail("spdk: could not setup hugetbls\n");
      };
      encl->spdk_dma_memory = &spdk_dma_memory;
- }
+}
 
 void register_dpdk(enclave_config_t *encl,
                    const char *ip4str, int mask4, const char *gw4str,

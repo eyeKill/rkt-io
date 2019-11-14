@@ -13,5 +13,6 @@
 
 int sgxlkl_register_dpdk_device(struct enclave_dpdk_config *dev);
 int sgxlkl_register_dpdk_context(struct dpdk_context *context);
+void sgxlkl_register_dpdk_dma_memory(struct enclave_dpdk_dma_memory* ctx);
 
 #endif
