@@ -5,7 +5,7 @@
 , extraFiles ? {}
 , extraCommands ? ""
 , debugSymbols ? true
-, diskSize ? "10G"
+, diskSize ? "1G"
 , native ? false
 }:
 
