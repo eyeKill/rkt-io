@@ -15,7 +15,7 @@ NOW = datetime.now().strftime("%Y%m%d-%H%M%S")
 
 def get_debugger(perf_data: str) -> List[str]:
     if os.environ.get("SGXLKL_ENABLE_GDB", None) is not None:
-        return ["sgx-lkl-gdb", "--args"]
+        return ["sgx-lkl-gdb", "-ex", "run",  "--args"]
     elif os.environ.get("SGXLKL_ENABLE_STRACE", None) is not None:
         return ["strace"]
     elif os.environ.get("SGXLKL_ENABLE_FLAMEGRAPH", None) is not None:
