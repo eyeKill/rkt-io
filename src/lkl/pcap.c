@@ -24,10 +24,16 @@ typedef struct __attribute__((packed)) pcaprec_hdr_s {
 } pcaprec_hdr_t;
 
 #ifdef DEBUG
-int write_pcap_file(const char* filename, void* pkt, size_t len) {
+
+int write_pcap_filev(const char *filename, struct iovec *pkts, size_t len) {
+    int snaplen = 0;
     int fd = host_syscall_SYS_open(filename, O_WRONLY | O_CREAT, 0);
     if (fd < 0) {
         return -errno;
+    }
+
+    for (int i = 0; i < len; i++) {
+        snaplen += pkts[i].iov_len;
     }
 
     pcap_hdr_t pcap_hdr = {.magic_number = 0xa1b2c3d4,
@@ -35,30 +41,44 @@ int write_pcap_file(const char* filename, void* pkt, size_t len) {
                            .version_minor = 4,
                            .thiszone = 0,
                            .sigfigs = 0,
-                           .snaplen = len,
+                           .snaplen = snaplen,
                            .network = 1};
 
-    pcaprec_hdr_t pcaprec_hdr = {
-        .ts_sec = 0, .ts_usec = 0, .incl_len = len, .orig_len = len};
-    struct iovec iov[3] = {
-        {
-            .iov_base = &pcap_hdr,
-            .iov_len = sizeof(pcap_hdr_t),
-        },
-        {
-            .iov_base = &pcaprec_hdr,
-            .iov_len = sizeof(pcaprec_hdr_t),
-        },
-        {
-            .iov_base = pkt,
-            .iov_len = len,
-        },
-    };
-
-    if (host_syscall_SYS_writev(fd, iov, 3) < 0) {
+    if (host_syscall_SYS_write(fd, &pcap_hdr, sizeof(pcap_hdr_t)) < 0) {
         host_syscall_SYS_close(fd);
         return -errno;
     };
+
+    for (int i = 0; i < len; i++) {
+        struct iovec *pkt = &pkts[i];
+        pcaprec_hdr_t pcaprec_hdr = {.ts_sec = i,
+                                     .ts_usec = 0,
+                                     .incl_len = pkt->iov_len,
+                                     .orig_len = pkt->iov_len};
+        struct iovec iov[2] = {{
+                                   .iov_base = &pcaprec_hdr,
+                                   .iov_len = sizeof(pcaprec_hdr_t),
+                               },
+                               {
+                                   .iov_base = pkt->iov_base,
+                                   .iov_len = pkt->iov_len,
+                               }};
+        if (host_syscall_SYS_writev(fd, iov, 3) < 0) {
+            host_syscall_SYS_close(fd);
+            return -errno;
+        };
+    }
+
     return host_syscall_SYS_close(fd);
 }
+
+int write_pcap_file(const char *filename, void *pkt, size_t len) {
+    struct iovec pkt_vec = {
+        .iov_base = pkt,
+        .iov_len = len,
+    };
+    return write_pcap_filev(filename, &pkt_vec, 1);
+}
+
+
 #endif
