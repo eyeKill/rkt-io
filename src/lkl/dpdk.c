@@ -92,18 +92,17 @@ int sgxlkl_register_dpdk_context(struct dpdk_context *context) {
     dpdk_init_array();
 
     for (int portid = 0; portid < RTE_MAX_ETHPORTS; portid++) {
-        struct rte_mempool *rxpool, *txpool; /* ring buffer pool */
-
         struct rte_eth_dev *device = &rte_eth_devices[portid];
         if (!device->device) {
             continue;
         }
+
         eth_dev_reset_t reset_func = find_dev_reset_function(device);
         if (!reset_func) {
-            fprintf(stderr,
-                    "[    SGX-LKL   ] Failed to find driver function for %s",
-                    device->device->driver->name);
-            return -ENOENT;
+          fprintf(stderr,
+                  "[    SGX-LKL   ] Failed to find driver function for %s",
+                  device->device->driver->name);
+          return -ENOENT;
         }
         // we need to reset the drivers to fixup function pointers
         reset_func(device);
