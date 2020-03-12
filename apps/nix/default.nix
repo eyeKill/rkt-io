@@ -65,10 +65,28 @@ let
     preFixup = "";
     patches = [ ./iozone-max-buffer-size.patch ];
   });
+  pthread-socket = pkgsMusl.callPackage ./pthread-socket {};
+  network-test = pkgsMusl.callPackage ./network-test {};
+  latency-test = pkgsMusl.callPackage ./latency-test {};
 in {
   iozone = runImage {
     pkg = iozone;
     command = [ "bin/iozone" ];
+  };
+
+  pthread-socket = runImage {
+    pkg = pthread-socket;
+    command = [ "bin/pthread-socket" ];
+  };
+
+  network-test = runImage {
+    pkg = network-test;
+    command = [ "bin/network-test" ];
+  };
+
+  latency-test = runImage {
+    pkg = latency-test;
+    command = [ "bin/latency-test" ];
   };
 
   iperf = runImage {
