@@ -13,29 +13,22 @@
 
 extern char **environ;
 
-int test_socket(const char* path)
-{
-   int sock = socket(AF_UNIX, SOCK_DGRAM, 0);
-   if (sock < 0) {
-       return sock;
-   }
-
-   struct sockaddr_un name;
-   name.sun_family = AF_UNIX;
-   strcpy(name.sun_path, path);
-
-   /* Send message. */
-   if (sendto(sock, "a", sizeof("a"), 0, (struct sockaddr *)&name,
-              sizeof(struct sockaddr_un)) < 0) {
-       close(sock);
-       return 1;
-   }
-   close(sock);
-   sleep(1);
-   return 0;
-}
-
 #define DPDK_MP_SOCKET "/var/run/dpdk/spdk0/mp_socket"
+
+int create_pipe(int fds[2], char parent_fd) {
+    int r = pipe(fds);
+    if (r < 0) {
+        int saved_errno = errno;
+        fprintf(stderr, "[userpci] pipe failed: %s\n", strerror(saved_errno));
+        return -saved_errno;
+    }
+    if (fcntl(fds[parent_fd], F_SETFD, FD_CLOEXEC) == -1) {
+        int saved_errno = errno;
+        fprintf(stderr, "[userpci] failed to mark pipe fd as cloexec: %s", strerror(saved_errno));
+        return -saved_errno;
+    }
+    return 0;
+}
 
 int spawn_lkl_userpci(int *pipe_fd)
 {
@@ -44,17 +37,16 @@ int spawn_lkl_userpci(int *pipe_fd)
     // we simply change our XDG_RUNTIME_DIR.
     assert(pipe_fd);
     *pipe_fd = -1;
-    int pipefds[2];
-    int r = pipe(pipefds);
+    int ready_fds[2], finished_fds[2];
+
+    int r = create_pipe(ready_fds, 0);
     if (r < 0) {
-        int saved_errno = errno;
-        fprintf(stderr, "[userpci] pipe failed: %s\n", strerror(saved_errno));
-        return -saved_errno;
+      return r;
     }
-    if (fcntl(pipefds[1], F_SETFD, FD_CLOEXEC) == -1) {
-        int saved_errno = errno;
-        fprintf(stderr, "[userpci] failed to mark pipe fd as cloexec: %s", strerror(saved_errno));
-        return -saved_errno;
+
+    r = create_pipe(finished_fds, 1);
+    if (r < 0) {
+      return r;
     }
 
     if (putenv("XDG_RUNTIME_DIR=/var/run") != 0) {
@@ -72,14 +64,16 @@ int spawn_lkl_userpci(int *pipe_fd)
     }
 
     char* prog = "sgx-lkl-userpci";
-    char* argv[] = {prog, NULL /* pipefd */, NULL /* uid */, NULL};
-    char pipe_arg[255];
-    snprintf(pipe_arg, sizeof(pipefds), "%d", pipefds[0]);
-    argv[1] = pipe_arg;
+    char* argv[] = {prog, NULL /* ready_fd */, NULL /* finished_fd */, NULL /* uid */, NULL};
+    char ready_fd_arg[255], finished_fd_arg[255], uid_arg[255];
+    snprintf(ready_fd_arg, sizeof(ready_fd_arg), "%d", ready_fds[1]);
+    argv[1] = ready_fd_arg;
 
-    char uid_arg[255];
+    snprintf(finished_fd_arg, sizeof(finished_fd_arg), "%d", finished_fds[0]);
+    argv[2] = finished_fd_arg;
+
     snprintf(uid_arg, sizeof(uid_arg), "%d", getuid());
-    argv[2] = uid_arg;
+    argv[3] = uid_arg;
 
     pid_t pid;
     r = posix_spawnp(&pid, "sgx-lkl-userpci", NULL, NULL, argv, environ);
@@ -87,19 +81,16 @@ int spawn_lkl_userpci(int *pipe_fd)
         fprintf(stderr, "[userpci] failed to spawn dpdk-setuid-helper\n");
         return -r;
     }
+    close(finished_fds[0]);
+    close(ready_fds[1]);
 
-    while (1) {
-        int r = test_socket(DPDK_MP_SOCKET);
-        if (r == 0) {
-            fprintf(stderr, "[userpci] " DPDK_MP_SOCKET " is ready\n");
-            *pipe_fd = pipefds[1];
-            return 0;
-        } else if (r < 0) {
-            fprintf(stderr, "[userpci] failed to test socket " DPDK_MP_SOCKET ": %s\n", strerror(-r));
-            return r;
-        }
+    char ready_msg[3];
+    r = read(ready_fds[0], ready_msg, sizeof(ready_msg));
 
-        int status = 0;
+    if (r != 3 && strcmp(ready_msg, "OK") != 0) {
+      fprintf(stderr, "[userpci] sgx-lkl-userpci failed, returned: %s\n", ready_msg);
+      while (1) {
+        int status;
         pid_t wpid = waitpid(pid, &status, WNOHANG);
         if (wpid == -1) {
             fprintf(stderr, "[userpci] failed to wait for sgx-lkl-userpci\n");
@@ -119,5 +110,7 @@ int spawn_lkl_userpci(int *pipe_fd)
             return -EPIPE;
         }
         usleep(100);
-    }
+      }
+    };
+    return 0;
 };

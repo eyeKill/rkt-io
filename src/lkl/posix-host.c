@@ -370,8 +370,7 @@ static int timer_set_oneshot(void *_timer, unsigned long ns) {
     timer->next_delay_ns = 0;
     pthread_mutex_init(&timer->mtx,NULL);
     pthread_cond_init(&timer->cv,NULL);
-    res = pthread_create(&(timer->thread), NULL, &timer_callback,
-        (void*)timer);
+    res = lthread_create(&(timer->thread), NULL, &timer_callback, (void*)timer);
 
     if (res != 0) {
         fprintf(stderr, "Error: pthread_create(timerfn) returned %d\n", res);

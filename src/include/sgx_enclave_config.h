@@ -65,7 +65,7 @@ typedef struct enclave_dpdk_config {
     size_t portid;
     int ifindex;
     uint16_t mtu;
-    struct rte_mempool *txpool, *rxpool;
+    struct rte_mempool *txpool;
 } enclave_dpdk_config_t;
 
 typedef struct enclave_dpdk_dma_memory {

@@ -4,17 +4,7 @@
 #include <rte_ethdev.h>
 #include <rte_mempool.h>
 #include <rte_net.h>
-
-#define MAX_PKT_BURST 16
-/* XXX: disable cache due to no thread-safe on mempool cache. */
-#define MEMPOOL_CACHE_SZ 0
-/* for TSO pkt */
-#define MAX_PACKET_SZ (65535 - (sizeof(struct rte_mbuf) + RTE_PKTMBUF_HEADROOM))
-#define MBUF_NUM (512 * 2) /* vmxnet3 requires 1024 */
-#define MBUF_SIZ \
-    (MAX_PACKET_SZ + sizeof(struct rte_mbuf) + RTE_PKTMBUF_HEADROOM)
-#define NUMDESC 512 /* nb_min on vmxnet3 is 512 */
-#define NUMQUEUE 1
+#include <dpdk_config.h>
 
 static struct rte_eth_conf port_conf = {
 // TODO: more optimizations:
@@ -129,14 +119,15 @@ int setup_iface(int portid, int mtu) {
     int ret = 0;
     struct rte_eth_link link;
     struct rte_eth_dev_info dev_info;
+    struct rte_mempool *rxpools[DPDK_NUM_RX_QUEUE] = {};
     char poolname[RTE_MEMZONE_NAMESIZE];
 
     char ifparams[6];
     int r = snprintf(ifparams, 6, "dpdk%d", portid);
 
-    snprintf(poolname, RTE_MEMZONE_NAMESIZE, "%s%s", "tx-", ifparams);
+    snprintf(poolname, RTE_MEMZONE_NAMESIZE, "tx-%s", ifparams);
     struct rte_mempool *txpool = rte_mempool_create(
-        poolname, MBUF_NUM, MBUF_SIZ, MEMPOOL_CACHE_SZ,
+        poolname, DPDK_MBUF_NUM, DPDK_MBUF_SIZ, DPDK_MEMPOOL_CACHE_SZ,
         sizeof(struct rte_pktmbuf_pool_private), rte_pktmbuf_pool_init, NULL,
         rte_pktmbuf_init, NULL, 0, 0);
     if (!txpool) {
@@ -144,14 +135,16 @@ int setup_iface(int portid, int mtu) {
         return -ENOMEM;
     }
 
-    snprintf(poolname, RTE_MEMZONE_NAMESIZE, "%s%s", "rx-", ifparams);
-    struct rte_mempool *rxpool = rte_mempool_create(
-        poolname, MBUF_NUM, MBUF_SIZ, 0,
-        sizeof(struct rte_pktmbuf_pool_private), rte_pktmbuf_pool_init, NULL,
-        rte_pktmbuf_init, NULL, 0, 0);
-    if (!rxpool) {
+    for (unsigned i = 0; i < DPDK_NUM_RX_QUEUE; i++) {
+      snprintf(poolname, RTE_MEMZONE_NAMESIZE, "rx-%u-%s", i, ifparams);
+      rxpools[i] = rte_mempool_create(poolname, DPDK_MBUF_NUM, DPDK_MBUF_SIZ, DPDK_MEMPOOL_CACHE_SZ,
+                                      sizeof(struct rte_pktmbuf_pool_private),
+                                      rte_pktmbuf_pool_init, NULL,
+                                      rte_pktmbuf_init, NULL, 0, 0);
+      if (!rxpools[i]) {
         fprintf(stderr, "dpdk: failed to allocate rx pool\n");
         return -ENOMEM;
+      }
     }
 
     rte_eth_dev_info_get(portid, &dev_info);
@@ -168,37 +161,41 @@ int setup_iface(int portid, int mtu) {
       return -ENOSYS;
     }
 
-    ret = rte_eth_dev_configure(portid, NUMQUEUE, NUMQUEUE, &port_conf);
+    ret = rte_eth_dev_configure(portid, DPDK_NUM_RX_QUEUE, DPDK_NUM_TX_QUEUE, &port_conf);
     if (ret < 0) {
-        fprintf(stderr, "dpdk: failed to configure port\n");
-        return ret;
+      fprintf(stderr, "dpdk: failed to configure port: %s\n", rte_strerror(-ret));
+      return ret;
     }
     // https://haryachyy.wordpress.com/2019/01/18/learning-dpdk-symmetric-rss/
     ret = enable_symmetric_rxhash(portid);
     if (ret < 0) {
-      fprintf(stderr, "dpdk: failed to set rxhash\n");
-        return ret;
+      fprintf(stderr, "dpdk: failed to set rxhash: %s\n", rte_strerror(-ret));
+      return ret;
     }
 
     ret = rte_eth_dev_set_mtu(portid, mtu);
     if (ret < 0) {
-        fprintf(stderr, "dpdk: failed to set mtu\n");
-        return ret;
+      fprintf(stderr, "dpdk: failed to set mtu: %s\n", rte_strerror(-ret));
+      return ret;
     }
 
     dev_info.default_rxconf.offloads = 0;
     dev_info.default_txconf.offloads = 0;
 
-    ret = rte_eth_rx_queue_setup(portid, 0, NUMDESC, 0, &dev_info.default_rxconf, rxpool);
-    if (ret < 0) {
-        fprintf(stderr, "dpdk: failed to setup rx queue\n");
+    for (unsigned i = 0; i < DPDK_NUM_RX_QUEUE; i++) {
+      ret = rte_eth_rx_queue_setup(portid, i, DPDK_NUMDESC, 0, &dev_info.default_rxconf, rxpools[i]);
+      if (ret < 0) {
+        fprintf(stderr, "dpdk: failed to setup rx queue %u: %s\n", i, rte_strerror(-ret));
         return ret;
+      }
     }
 
-    ret = rte_eth_tx_queue_setup(portid, 0, NUMDESC, 0, &dev_info.default_txconf);
-    if (ret < 0) {
-        fprintf(stderr, "dpdk: failed to setup tx queue\n");
+    for (unsigned i = 0; i < DPDK_NUM_TX_QUEUE; i++) {
+      ret = rte_eth_tx_queue_setup(portid, i, DPDK_NUMDESC, 0, &dev_info.default_txconf);
+      if (ret < 0) {
+        fprintf(stderr, "dpdk: failed to setup tx queue %u: %s\n", i, rte_strerror(-ret));
         return ret;
+      }
     }
 
     ret = rte_eth_dev_start(portid);

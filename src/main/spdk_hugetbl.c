@@ -68,10 +68,5 @@ int dpdk_allocate_dma_memory(struct enclave_dpdk_dma_memory *mem) {
   }
   mem->memory_start = addr;
   mem->memory_end = mem->memory_start + size;
-  
-  fprintf(stderr, "%s() at %s:%d: start: %p end: %p (phys: %p)\n", __func__, __FILE__, __LINE__,
-          mem->memory_start,
-          mem->memory_end,
-          spdk_vtophys(addr, NULL));
   return 0;
 }

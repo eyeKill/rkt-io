@@ -62,6 +62,8 @@ struct enclave_disk_config *disks;
 static struct spdk_context *spdk_context = NULL;
 static size_t num_spdk_devs = 0;
 static struct spdk_dev *spdk_devs;
+static size_t num_dpdk_ifaces = 0;
+static struct enclave_dpdk_config *dpdk_ifaces;
 
 static void lkl_add_disks(struct enclave_disk_config *disks, size_t num_disks) {
     for (size_t i = 0; i < num_disks; ++i) {
@@ -183,8 +185,11 @@ static void lkl_copy_blkdev_nodes(const char* srcdir, const char* dstdir) {
 }
 
 static void lkl_prestart_dpdk(enclave_config_t *encl) {
-    for (size_t i = 0; i < encl->num_dpdk_ifaces; i++) {
-        struct enclave_dpdk_config *dpdk = &encl->dpdk_ifaces[i];
+    num_dpdk_ifaces = encl->num_dpdk_ifaces;
+    dpdk_ifaces = encl->dpdk_ifaces;
+
+    for (size_t i = 0; i < num_dpdk_ifaces; i++) {
+        struct enclave_dpdk_config *dpdk = &dpdk_ifaces[i];
         int ifindex = sgxlkl_register_dpdk_device(dpdk);
 
         if (ifindex < 0) {
@@ -198,8 +203,8 @@ static void lkl_prestart_dpdk(enclave_config_t *encl) {
 
 static void lkl_poststart_dpdk(enclave_config_t* encl) {
 
-    for (size_t i = 0; i < encl->num_dpdk_ifaces; i++) {
-        struct enclave_dpdk_config *dpdk = &encl->dpdk_ifaces[i];
+    for (size_t i = 0; i < num_dpdk_ifaces; i++) {
+        struct enclave_dpdk_config *dpdk = &dpdk_ifaces[i];
         int res = 0;
         int ifindex = dpdk->ifindex;
 
@@ -221,7 +226,6 @@ static void lkl_poststart_dpdk(enclave_config_t* encl) {
         }
 
         res = lkl_if_up(ifindex);
-        fprintf(stderr, "%s() at %s:%d\n", __func__, __FILE__, __LINE__);
         if (res < 0) {
           fprintf(stderr, "Error: lkl_if_up(eth0): %s\n", lkl_strerror(res));
           exit(res);
@@ -232,6 +236,12 @@ static void lkl_poststart_dpdk(enclave_config_t* encl) {
           fprintf(stderr, "Error: lkl_if_set_ipv6(): %s\n", lkl_strerror(res));
           exit(res);
         }
+    }
+}
+
+static void lkl_stop_dpdk(void) {
+    for (size_t i = 0; i < num_dpdk_ifaces; i++) {
+        struct enclave_dpdk_config *dpdk = &dpdk_ifaces[i];
     }
 }
 
@@ -530,12 +540,6 @@ static void spdk_mountpoint(int dev_id, char* dev) {
 }
 
 static void lkl_start_spdk(struct spdk_context *ctx) {
-    int rc = sgxlkl_spdk_initialize();
-    if (rc < 0) {
-        fprintf(stderr, "Error: unable to initialize spdk, %s\n",
-                strerror(-rc));
-        exit(rc);
-    }
 
     for (struct spdk_ns_entry *ns_entry = ctx->namespaces; ns_entry; ns_entry = ns_entry->next) {
         num_spdk_devs++;
@@ -550,13 +554,13 @@ static void lkl_start_spdk(struct spdk_context *ctx) {
     for (struct spdk_ns_entry *ns_entry = ctx->namespaces; ns_entry; ns_entry = ns_entry->next) {
         struct spdk_dev *dev = &spdk_devs[idx];
         memcpy(&dev->ns_entry, ns_entry, sizeof(struct spdk_ns_entry));
-        rc = sgxlkl_register_spdk_device(dev);
+        int rc = sgxlkl_register_spdk_device(dev);
         if (rc < 0) {
             fprintf(stderr, "Error: unable to register spdk devices\n");
             exit(1);
         }
         char dev_path[DEV_PATH_LEN], mnt[DEV_PATH_LEN];
-        int rc = snprintf(dev_path, DEV_PATH_LEN, "/dev/spdk%d",spdk_devs[idx].dev_id);
+        rc = snprintf(dev_path, DEV_PATH_LEN, "/dev/spdk%d",spdk_devs[idx].dev_id);
         spdk_mountpoint(spdk_devs[idx].dev_id, mnt);
         SGXLKL_VERBOSE("spdk: mount(%s, %s)\n", dev_path, mnt);
         rc = lkl_mount_blockdev(dev_path, mnt, "ext4", 0, NULL);
@@ -1034,6 +1038,12 @@ void lkl_start_init(enclave_config_t* encl) {
     if (!sgxlkl_use_host_network)
         lkl_poststart_net(encl, net_dev_id);
 
+    int rc = sgxlkl_spdk_initialize();
+    if (rc < 0) {
+        fprintf(stderr, "Error: unable to initialize spdk, %s\n",
+                strerror(-rc));
+        exit(rc);
+    }
     // Set interface status/IP/routes
     if (!sgxlkl_use_host_network) {
         lkl_prestart_dpdk(encl);
@@ -1081,6 +1091,7 @@ void lkl_exit() {
     lkl_set_working_dir("/");
 
     lkl_stop_spdk();
+    lkl_stop_dpdk();
 
     // Unmount disks
     long res;

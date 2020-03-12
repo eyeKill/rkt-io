@@ -25,17 +25,11 @@ int dpdk_initialize_iface(enclave_config_t* encl, const char *ifparams)
     struct enclave_dpdk_config *iface = &encl->dpdk_ifaces[encl->num_dpdk_ifaces - 1];
     iface->portid = encl->num_dpdk_ifaces - 1;
 
-    snprintf(poolname, RTE_MEMZONE_NAMESIZE, "%s%s", "tx-", ifparams);
+    snprintf(poolname, RTE_MEMZONE_NAMESIZE, "tx-%s", ifparams);
     iface->txpool = rte_mempool_lookup(poolname);
     if (!iface->txpool) {
         fprintf(stderr, "dpdk: failed to lookup tx pool: %s\n", poolname);
         return -ENOENT;
-    }
-    snprintf(poolname, RTE_MEMZONE_NAMESIZE, "%s%s", "rx-", ifparams);
-    iface->rxpool = rte_mempool_lookup(poolname);
-    if (!iface->rxpool) {
-        fprintf(stderr, "dpdk: failed to lookup rx pool: %s\n", poolname);
-        return -ENOMEM;
     }
     return 0;
 }

@@ -13,11 +13,12 @@
 
 int main(int argc, char **argv) {
     if (argc < 3) {
-        fprintf(stderr, "USAGE: %s pipe-fd uid\n", argv[0]);
+        fprintf(stderr, "USAGE: %s ready-fd finished-fd uid\n", argv[0]);
         return 1;
     }
-    int pipe_fd = atoi(argv[1]);
-    int uid = atoi(argv[2]);
+    int ready_fd = atoi(argv[1]);
+    int finished_fd = atoi(argv[2]);
+    int uid = atoi(argv[3]);
     int exitcode = 0;
     char *mtustr = getenv("SGXLKL_DPDK_MTU");
     int mtu = 1500;
@@ -69,16 +70,30 @@ int main(int argc, char **argv) {
         goto error;
     }
 
+    const static char* ready_msg = "OK";
+    r = write(ready_fd, ready_msg, strlen(ready_msg) + 1);
+    if (r < 0) {
+      fprintf(stderr, "%s: failed to write to ready pipe: %s\n", argv[0], strerror(r));
+      goto error;
+    }
+    close(ready_fd);
+
     // child will eventually close this
     char byte;
-    read(pipe_fd, &byte, 1);
+    r = read(finished_fd, &byte, 1);
+    if (r >= 0) {
+      fprintf(stderr, "%s: Got unexpected data result on finished pipe: %d\n", argv[0], r);
+      goto error;
+    }
     goto cleanup;
 
 error:
+    close(ready_fd);
     exitcode = 1;
 cleanup:
     spdk_context_detach(&ctx);
     spdk_context_free(&ctx);
+    close(finished_fd);
     fprintf(stderr, "%s: stop setuid-helper\n", argv[0]);
     return exitcode;
 }

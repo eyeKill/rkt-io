@@ -27,7 +27,6 @@ int sgxlkl_register_dpdk_device(struct enclave_dpdk_config *config) {
     int fd, err;
     struct dpdk_dev dev = {};
     dev.portid = config->portid;
-    dev.rxpool = config->rxpool;
     dev.txpool = config->txpool;
 
     fd = lkl_sys_open("/dev/dpdk-control", LKL_O_RDONLY, 0);
@@ -38,15 +37,13 @@ int sgxlkl_register_dpdk_device(struct enclave_dpdk_config *config) {
         return fd;
     }
 
-
     err = lkl_sys_ioctl(fd, DPDK_CTL_ADD, (long)&dev);
-
-    lkl_sys_close(fd);
 
     if (err < 0) {
         fprintf(stderr, "dpdk: ioctl DPDK_CTL_ADD failed: %s\n",
                 lkl_strerror(-fd));
     }
+    lkl_sys_close(fd);
 
     return err;
 }
