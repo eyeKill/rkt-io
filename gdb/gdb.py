@@ -6,6 +6,8 @@ import re
 import subprocess
 import tempfile
 import textwrap as tw
+from typing import Optional
+from collections import defaultdict
 
 def add_symbol_file(filename, baseaddr):
     sections = []
@@ -115,6 +117,28 @@ class LoadLibraryFromFileBreakpoint(gdb.Breakpoint):
         return False
 
 
+def get_lthread_backtrace(lt_addr: str,
+                          btdepth: str,
+                          capture: bool = False
+) -> Optional[str]:
+    old_fp = gdb.execute('p/x $rbp', to_string=True).split('=')[1].strip()
+    old_sp = gdb.execute('p/x $rsp', to_string=True).split('=')[1].strip()
+    old_ip = gdb.execute('p/x $rip', to_string=True).split('=')[1].strip()
+
+    gdb.execute('set $rbp = ((struct lthread *)%s)->ctx.ebp' % lt_addr)
+    gdb.execute('set $rsp = ((struct lthread *)%s)->ctx.esp' % lt_addr)
+    gdb.execute('set $rip = ((struct lthread *)%s)->ctx.eip' % lt_addr)
+
+    output = gdb.execute('bt %s' % btdepth, to_string=capture)
+
+    # Restore registers
+    gdb.execute('set $rbp = %s' % old_fp)
+    gdb.execute('set $rsp = %s' % old_sp)
+    gdb.execute('set $rip = %s' % old_ip)
+
+    return output
+
+
 class LthreadBacktrace(gdb.Command):
     """
         Print backtrace for an lthread
@@ -136,20 +160,7 @@ class LthreadBacktrace(gdb.Command):
         else:
             btdepth = ""
 
-        old_fp = gdb.execute('p/x $rbp', to_string=True).split('=')[1].strip()
-        old_sp = gdb.execute('p/x $rsp', to_string=True).split('=')[1].strip()
-        old_ip = gdb.execute('p/x $rip', to_string=True).split('=')[1].strip()
-
-        gdb.execute('set $rbp = ((struct lthread *)%s)->ctx.ebp'%lt_addr)
-        gdb.execute('set $rsp = ((struct lthread *)%s)->ctx.esp'%lt_addr)
-        gdb.execute('set $rip = ((struct lthread *)%s)->ctx.eip'%lt_addr)
-
-        gdb.execute('bt %s'%btdepth)
-
-        # Restore registers
-        gdb.execute('set $rbp = %s'%old_fp)
-        gdb.execute('set $rsp = %s'%old_sp)
-        gdb.execute('set $rip = %s'%old_ip)
+        get_lthread_backtrace(lt_addr, btdepth)
 
         return False
 
@@ -231,6 +242,48 @@ class LogAllLts(gdb.Command):
             ltq = gdb.execute('p/x ((struct lthread_queue*)%s)->next'%ltq, to_string=True).split('=')[1].strip()
             no = no + 1
 
+        return False
+
+class LogAllLtsCsv(gdb.Command):
+    """
+        Do a backtrace of all active lthreads.
+        Param: Depth of backtrace (optional)
+    """
+    def __init__(self) -> None:
+        super(LogAllLtsCsv, self).__init__("bt-lts-csv", gdb.COMMAND_USER)
+
+    def invoke(self, arg, from_tty) -> bool:
+        import csv
+
+        argv = gdb.string_to_argv(arg)
+        if argv and len(argv) > 0:
+            btdepth = argv[0]
+        else:
+            btdepth = ""
+
+        ltq = gdb.execute('p/x __active_lthreads', to_string=True).split('=')[1].strip()
+
+        no = 1
+        rows = []
+        while(int(ltq, 16) != 0):
+            lt = gdb.execute('p/x ((struct lthread_queue*)%s)->lt'%ltq, to_string=True).split('=')[1].strip()
+            tid = gdb.execute('p/d ((struct lthread_queue*)%s)->lt->tid'%ltq, to_string=True).split('=')[1].strip()
+            name = gdb.execute('p/s ((struct lthread_queue*)%s)->lt->funcname'%ltq, to_string=True).split('=')[1].strip().split(',')[0]
+            cpu = gdb.execute('p/d ((struct lthread_queue*)%s)->lt->cpu'%ltq, to_string=True).split('=')[1].strip()
+            bt = get_lthread_backtrace(lt, btdepth, capture=True)
+            rows.append([lt, tid, name, cpu, bt])
+
+            ltq = gdb.execute('p/x ((struct lthread_queue*)%s)->next'%ltq, to_string=True).split('=')[1].strip()
+            no = no + 1
+
+        dest = "/tmp/backtrace.csv"
+        print(f"write to {dest}")
+        with open(dest, "w") as f:
+            writer = csv.writer(f)
+            fields = ["thread", "tid", "name", "cpu", "bt"]
+            writer.writerow(fields)
+            for val in rows:
+                writer.writerow(val)
         return False
 
 
@@ -437,7 +490,6 @@ class BtLkl(gdb.Command):
                  gdb.write("[%3d] %s\n" %(i, line))
         gdb.flush()
 
-
 class Hexyl(gdb.Command):
     """
        Run hexyl on provided symbol/address. Takes the number of bytes to print as an optional parameter
@@ -476,6 +528,7 @@ if __name__ == '__main__':
     LthreadBacktrace()
     LthreadStats()
     LogAllLts()
+    LogAllLtsCsv()
     LogFxWaiters()
     LogSchedQueueTids()
     LogSyscallBacktraces()
