@@ -200,7 +200,14 @@ static void mutex_free(struct lkl_mutex *_mutex) {
 
 static lkl_thread_t thread_create(void (*fn)(void *), void *arg) {
     pthread_t thread;
-    if (WARN_PTHREAD(pthread_create(&thread, NULL, (void* (*)(void *))fn, arg)))
+    pthread_attr_t attr;
+    pthread_attr_init(&attr);
+
+    // default stack for linux kernel threads is 8k
+    const size_t stack_size = 8 * 1024;
+    pthread_attr_setstacksize(&attr, stack_size);
+
+    if (WARN_PTHREAD(pthread_create(&thread, &attr, (void* (*)(void *))fn, arg)))
         return 0;
     else
         return (lkl_thread_t) thread;
