@@ -72,7 +72,7 @@ dpdk-config-${1} ${DPDK_CONFIG}: ${CURDIR}/src/dpdk/override/defconfig | ${DPDK}
 # for it when running lkl. In particular this affects rte_errno and makes it thread-unsafe.
 dpdk-${1} ${DPDK_BUILD}/.build: ${DPDK_CONFIG} | ${DPDK_CC} ${DPDK}/.git
 	+make -j`tools/ncore.sh` -C ${DPDK_BUILD} WERROR_FLAGS= CC=${DPDK_CC} RTE_SDK=${DPDK} V=1 \
-		EXTRA_CFLAGS="-Wno-error -lc ${DPDK_EXTRA_CFLAGS} -UDEBUG"
+		EXTRA_CFLAGS="-Wno-error -lc ${DPDK_EXTRA_CFLAGS} -mavx2 -UDEBUG"
 	touch ${DPDK_BUILD}/.build
 
 spdk-source-${1} ${SPDK_BUILD}/mk: | ${SPDK}/.git
@@ -83,7 +83,7 @@ spdk-config-${1} ${SPDK_CONFIG}: ${CURDIR}/src/spdk/override/config.mk | ${SPDK_
 	echo 'CONFIG_DPDK_DIR=$(DPDK_BUILD)' >> ${SPDK_CONFIG}
 
 spdk-cflags-${1} ${SPDK_BUILD}/mk/cc.flags.mk: ${LIBUUID_HOST_BUILD}/lib/libuuid.a | ${DPDK_CC} ${SPDK_BUILD}/mk
-	echo CFLAGS="-I${DPDK_BUILD}/include -I${LIBUUID_HOST_BUILD}/include -msse4.2" > ${SPDK_BUILD}/mk/cc.flags.mk
+	echo CFLAGS="-I${DPDK_BUILD}/include -I${LIBUUID_HOST_BUILD}/include -mavx2" > ${SPDK_BUILD}/mk/cc.flags.mk
 	echo LDFLAGS="-L${DPDK_BUILD}/lib" >> ${SPDK_BUILD}/mk/cc.flags.mk
 
 spdk-${1} ${SPDK_BUILD}/.build: ${DPDK_BUILD}/.build spdk-source-$(1) ${SPDK_CONFIG} ${SPDK_BUILD}/mk/cc.flags.mk | ${DPDK_CC}
