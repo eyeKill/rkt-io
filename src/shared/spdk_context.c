@@ -61,8 +61,11 @@ void spdk_context_free(struct spdk_context *ctx) {
     }
 
     pthread_t thread_id = ctx->ctrlr_thread_id;
-    if (thread_id && pthread_cancel(thread_id) == 0) {
-        pthread_join(thread_id, NULL);
+    if (thread_id) {
+        if (pthread_cancel(thread_id) == 0) {
+          pthread_join(thread_id, NULL);
+        }
+        ctx->ctrlr_thread_id = 0;
     }
 }
 
@@ -75,6 +78,12 @@ static void spdk_context_cleanup(struct spdk_context *ctx) {
 static bool probe_cb(void *ctx, const struct spdk_nvme_transport_id *trid,
                      struct spdk_nvme_ctrlr_opts *opts) {
     fprintf(stderr, "spdk: Attaching to %s\n", trid->traddr);
+
+    /* Set io_queue_size to UINT16_MAX, NVMe driver
+     * will then reduce this to MQES to maximize
+     * the io_queue_size as much as possible.
+     */
+    opts->io_queue_size = UINT16_MAX;
 
     return true;
 }
@@ -107,6 +116,9 @@ static int register_ns(struct spdk_context *ctx, struct spdk_nvme_ctrlr *ctrlr,
     entry->ns = ns;
     entry->next = ctx->namespaces;
     ctx->namespaces = entry;
+
+    struct spdk_nvme_io_qpair_opts opts;
+    spdk_nvme_ctrlr_get_default_io_qpair_opts(ctrlr, &opts, sizeof(opts));
 
     fprintf(stderr, "spdk:  Namespace ID: %d size: %juGB\n",
             spdk_nvme_ns_get_id(ns), spdk_nvme_ns_get_size(ns) / 1000000000);
