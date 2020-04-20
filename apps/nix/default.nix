@@ -55,6 +55,8 @@ let
     configureFlags = [ "--disable-shm" ];
   });
 
+  python-scripts = pkgsMusl.callPackage ./python-scripts {};
+
   fioCommand = [
     "bin/fio"
     "--output-format=json+"
