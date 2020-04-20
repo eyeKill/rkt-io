@@ -115,6 +115,7 @@ in (overrideCC stdenv gcc7_nolibc).mkDerivation {
       })];
     }))
     dockerctl
+    cryptsetup
     tapctl
     docker
     jdk
@@ -128,6 +129,8 @@ in (overrideCC stdenv gcc7_nolibc).mkDerivation {
     bc
     gettext
     openssl
+    python3.pkgs.pandas
+    python3.pkgs.ipdb
     (python3.withPackages(ps: [
       ps.pandas
       ps.seaborn
