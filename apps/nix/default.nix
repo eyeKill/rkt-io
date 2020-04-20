@@ -66,6 +66,7 @@ let
     # disable gnuplot
     preFixup = "";
     patches = [ ./iozone-max-buffer-size.patch ];
+    NIX_CFLAGS_COMPILE = [ "-USHARED_MEM" "-DNO_FORK" ];
   });
   pthread-socket = pkgsMusl.callPackage ./pthread-socket {};
   network-test = pkgsMusl.callPackage ./network-test {};
@@ -99,7 +100,14 @@ in {
 
   iperf = runImage {
     pkg = pkgsMusl.iperf;
+  iperf2 = runImage {
+    pkg = iperf2;
     command = [ "bin/iperf" "-s" ];
+  };
+
+  iperf2-client = runImage {
+    pkg = iperf2;
+    command = [ "bin/iperf" "-c" "10.0.2.2" ];
   };
 
   iperf-native = runImage {
@@ -110,7 +118,21 @@ in {
 
   curl-remote = pkgsMusl.curl;
 
-  iperf-remote = pkgsMusl.iperf;
+  parallel-iperf = stdenv.mkDerivation {
+    name = "parallel-iperf";
+    src = ./parallel-iperf.py;
+    dontUnpack = true;
+    buildInputs = [ python3 ];
+    nativeBuildInputs = [ makeWrapper python3.pkgs.wrapPython ];
+    makeWrapperArgs = [
+      "--prefix" "PATH" ":" "${lib.makeBinPath [ pkgsMusl.iperf] }"
+    ];
+    installPhase = ''
+      install -D -m755 $src $out/bin/parallel-iperf
+      ln -s ${pkgsMusl.iperf}/bin/iperf $out/bin/iperf
+      patchPythonScript $out/bin/parallel-iperf
+    '';
+  };
 
   iperf-client = runImage {
     pkg = pkgsMusl.iperf;
@@ -124,7 +146,7 @@ in {
 
   ping = runImage {
     pkg = busybox;
-    command = [ "bin/ping" "10.0.2.1" ];
+    command = [ "bin/ping" "10.0.42.1" ];
   };
 
   ls = runImage {
@@ -222,7 +244,7 @@ in {
 
   perl = runImage {
     pkg = pkgsMusl.perl;
-    command = [ "bin/perl" "--help"];
+    command = [ "bin/perl" "-e" "print 'foo\n';" ];
   };
 
   mariadb-native = runImage {
@@ -253,7 +275,19 @@ in {
   };
 
   sysbench = pkgs.sysbench;
-  netcat = pkgs.netcat;
+
+  netcat = runImage {
+    pkg = pkgsMusl.busybox;
+    command = [ "bin/nc" "10.0.42.2" ];
+  };
+
+  python-scripts = runImage {
+    pkg = pkgsMusl.python3Minimal;
+    extraFiles = {
+      "/introspect-blocks.py" = builtins.readFile ./python-scripts/introspect-blocks.py;
+    };
+    command = [ "bin/python3" "introspect-blocks.py" ];
+  };
 
   iotest-image = buildImage {
     pkg = pkgs.callPackage ./dummy.nix {};
