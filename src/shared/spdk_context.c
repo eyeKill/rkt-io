@@ -183,7 +183,7 @@ static int register_qpairs(struct spdk_context *ctx) {
             return -ENOMEM;
         }
         ns_entry->qpairs_num = cores;
-        for (int i = 0; i < cores; i++) {
+        for (unsigned i = 0; i < cores; i++) {
             ns_entry->qpairs[i] =
                 spdk_nvme_ctrlr_alloc_io_qpair(ns_entry->ctrlr, NULL, 0);
             if (!ns_entry->qpairs[i]) {
@@ -268,6 +268,7 @@ int spdk_initialize(struct spdk_context *ctx, bool primary_proc) {
     if (!primary_proc) {
         r = pthread_create(&ctx->ctrlr_thread_id, NULL, &poll_ctrlrs, ctx);
         if (r != 0) {
+            spdk_context_cleanup(ctx);
             fprintf(stderr,
                     "spdk: Unable to spawn a thread to poll admin queues: %s\n",
                     strerror(-r));
@@ -275,6 +276,7 @@ int spdk_initialize(struct spdk_context *ctx, bool primary_proc) {
         }
         r = register_qpairs(ctx);
         if (r < 0) {
+            spdk_context_cleanup(ctx);
             return r;
         }
     }

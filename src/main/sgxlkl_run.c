@@ -715,13 +715,13 @@ void register_spdk(enclave_config_t *encl,
     encl->spdk_context = ctx;
 }
 
- void register_spdk_hugetbl(enclave_config_t *encl) {
+ void register_dma_memory(enclave_config_t *encl) {
     int r = dpdk_allocate_dma_memory(&encl->dpdk_dma_memory);
     if (r < 0) {
       sgxlkl_fail("failed to initialize dpdk dma memory: s\n", strerror(-r));
     }
 
-     if (spdk_alloc_hugetbl(&spdk_dma_memory) < 0) {
+     if (spdk_alloc_dma_memory(&spdk_dma_memory) < 0) {
          sgxlkl_fail("spdk: could not setup hugetbls\n");
      };
      encl->spdk_dma_memory = &spdk_dma_memory;
@@ -1430,7 +1430,7 @@ static void sgxlkl_cleanup(void) {
         close(userpci_pipe);
     }
 
-    spdk_free_hugetbl(&spdk_dma_memory);
+    spdk_free_dma_memory(&spdk_dma_memory);
 }
 
 /* Determines path of libsgxlkl.so (lkl + musl) */
@@ -1698,7 +1698,7 @@ int main(int argc, char *argv[], char *envp[]) {
                     sgxlkl_config_str(SGXLKL_DPDK_GW6),
                     (int) sgxlkl_config_uint64(SGXLKL_DPDK_MTU));
 
-      register_spdk_hugetbl(&encl);
+      register_dma_memory(&encl);
     }
 
     register_net(&encl, sgxlkl_config_str(SGXLKL_TAP),

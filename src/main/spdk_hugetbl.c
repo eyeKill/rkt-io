@@ -4,16 +4,21 @@
 
 #include <spdk/env.h>
 
-void spdk_free_hugetbl(struct spdk_dma_memory *ctx) {
+void spdk_free_dma_memory(struct spdk_dma_memory *ctx) {
+    if (ctx->data_pool) {
+        spdk_mempool_free(ctx->data_pool);
+        ctx->data_pool = NULL;
+        ctx->data_pool_size = 0;
+    }
     for (size_t i = 0; i < ctx->nr_allocations; i++) {
-      if (ctx->allocations[i]) {
-        spdk_dma_free(ctx->allocations[i]);
-      }
+        if (ctx->allocations[i]) {
+            spdk_dma_free(ctx->allocations[i]);
+        }
     }
     free(ctx->allocations);
 }
 
-int spdk_alloc_hugetbl(struct spdk_dma_memory *ctx) {
+int spdk_alloc_dma_memory(struct spdk_dma_memory *ctx) {
     size_t hugetbl_size = 0;
     const size_t gigabyte = 1024 * 1024 * 1024;
     int r = parse_hugetbl_size(&hugetbl_size);
@@ -27,6 +32,17 @@ int spdk_alloc_hugetbl(struct spdk_dma_memory *ctx) {
         fprintf(stderr, "spdk: Less then two gigabyte hugetbl memory found!"
               " Allocate more by writing to /sys/devices/system/node/node0/hugepages/hugepages-2048kB/nr_hugepages\n");
         return -ENOMEM;
+    }
+
+    ctx->data_pool_size = SPDK_QUEUE_DEPTH;
+    ctx->data_pool = spdk_mempool_create("spdk-pool",
+                                         ctx->data_pool_size,
+                                         SPDK_DATA_POOL_MAX_SIZE,
+                                         0,
+                                         SPDK_ENV_SOCKET_ID_ANY);
+    if (!ctx->data_pool) {
+        fprintf(stderr, "spdk: could not allocate data pool\n");
+        goto alloc_failed;
     }
 
     // leave two gigabyte for DPDK
@@ -55,7 +71,7 @@ int spdk_alloc_hugetbl(struct spdk_dma_memory *ctx) {
     return 0;
 
 alloc_failed:
-    spdk_free_hugetbl(ctx);
+    spdk_free_dma_memory(ctx);
     return -ENOMEM;
 }
 

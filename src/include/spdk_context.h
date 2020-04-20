@@ -30,6 +30,8 @@ struct spdk_context {
 struct spdk_dma_memory  {
   size_t nr_allocations;
   void **allocations;
+  struct spdk_mempool *data_pool;
+  size_t data_pool_size;
 };
 
 int spdk_initialize(struct spdk_context *ctx, bool primary);

@@ -20,6 +20,8 @@
 
 unsigned long spdk_dma_memory_begin = 0;
 unsigned long spdk_dma_memory_end = 0;
+struct spdk_mempool *spdk_dma_mempool = NULL;
+size_t spdk_dma_mempool_size = 0;
 
 int spdk_env_dpdk_post_init(void);
 
@@ -112,4 +114,6 @@ void sgxlkl_register_spdk_dma_memory(struct spdk_dma_memory* ctx) {
 
     spdk_dma_memory_begin = lowest_address;
     spdk_dma_memory_end = highest_address;
+    spdk_dma_mempool = ctx->data_pool;
+    spdk_dma_mempool_size = ctx->data_pool_size;
 }
