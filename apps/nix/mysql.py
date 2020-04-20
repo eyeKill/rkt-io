@@ -138,7 +138,7 @@ def benchmark_sgx_lkl(storage: Storage, stats: Dict[str, List]) -> None:
 def benchmark_sgx_io(storage: Storage, stats: Dict[str, List]):
     Network(NetworkKind.DPDK, storage.settings).setup()
     storage.setup(StorageKind.SPDK)
-    extra_env = dict(SGXLKL_DPDK_MTU="9000")
+    extra_env = dict(SGXLKL_DPDK_MTU="1500")
     benchmark_mysql(storage, "mariadb", "sgx-io", "/mnt/vdb", stats, extra_env=extra_env)
 
 
