@@ -1,4 +1,4 @@
-{ stdenv, fetchpatch, fetchurl, cmake, bison, ncurses, openssl_1_0_2
+{ stdenv, fetchpatch, fetchurl, cmake, bison, ncurses
 , readline, zlib, perl }:
 
 # Note: zlib is not required; MySQL can use an internal zlib.
@@ -20,7 +20,7 @@ stdenv.mkDerivation rec {
       sha256 = "09sya27z3ir3xy5mrv3x68hm274594y381n0i6r5s627x71jyszf";
     });
 
-  buildInputs = [ ncurses openssl_1_0_2 readline zlib ];
+  buildInputs = [ ncurses readline zlib ];
   nativeBuildInputs = [ cmake bison ];
 
   enableParallelBuilding = true;
