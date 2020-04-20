@@ -142,10 +142,22 @@ void ocall_cpuid(unsigned int* request) {
     Arena *a = NULL;
     getsyscallslot(&a);
     size_t len = sizeof(*request) * 4;
-    void* req = arena_alloc(a, len) ;
-    if (req != NULL) memcpy(req, request, len);
+    unsigned int* req = (unsigned int*)arena_alloc(a, len) ;
+    if (!req) {
+      req[0] = request[0];
+      req[1] = request[1];
+      req[2] = request[2];
+      req[3] = request[3];
+    }
+    //if (req != NULL) memcpy(req, request, len);
     leave_enclave(SGXLKL_EXIT_CPUID, (uint64_t) req);
-    if (req != NULL) memcpy(request, req, len);
+    if (!req) {
+      request[0] = req[0];
+      request[1] = req[1];
+      request[2] = req[2];
+      request[3] = req[3];
+    }
+    //if (req != NULL) memcpy(request, req, len);
     arena_free(a);
 }
 
