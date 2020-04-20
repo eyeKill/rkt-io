@@ -70,6 +70,7 @@ let
   pthread-socket = pkgsMusl.callPackage ./pthread-socket {};
   network-test = pkgsMusl.callPackage ./network-test {};
   latency-test = pkgsMusl.callPackage ./latency-test {};
+  write-test = pkgsMusl.callPackage ./write-test {};
 in {
   iozone = runImage {
     pkg = iozone;
@@ -89,6 +90,11 @@ in {
   latency-test = runImage {
     pkg = latency-test;
     command = [ "bin/latency-test" ];
+  };
+
+  write-test = runImage {
+    pkg = write-test;
+    command = [ "bin/write-test" ];
   };
 
   iperf = runImage {
