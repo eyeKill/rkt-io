@@ -115,11 +115,10 @@ int enable_symmetric_rxhash(int port_id) {
   return r;
 }
 
-int setup_iface(int portid, int mtu) {
+int setup_iface(int portid, size_t mtu, size_t rx_queues) {
     int ret = 0;
     struct rte_eth_link link;
     struct rte_eth_dev_info dev_info;
-    struct rte_mempool *rxpools[DPDK_NUM_RX_QUEUE] = {};
     char poolname[RTE_MEMZONE_NAMESIZE];
 
     char ifparams[6];
@@ -133,18 +132,6 @@ int setup_iface(int portid, int mtu) {
     if (!txpool) {
         fprintf(stderr, "dpdk: failed to allocate tx pool\n");
         return -ENOMEM;
-    }
-
-    for (unsigned i = 0; i < DPDK_NUM_RX_QUEUE; i++) {
-      snprintf(poolname, RTE_MEMZONE_NAMESIZE, "rx-%u-%s", i, ifparams);
-      rxpools[i] = rte_mempool_create(poolname, DPDK_MBUF_NUM, DPDK_MBUF_SIZ, DPDK_MEMPOOL_CACHE_SZ,
-                                      sizeof(struct rte_pktmbuf_pool_private),
-                                      rte_pktmbuf_pool_init, NULL,
-                                      rte_pktmbuf_init, NULL, 0, 0);
-      if (!rxpools[i]) {
-        fprintf(stderr, "dpdk: failed to allocate rx pool\n");
-        return -ENOMEM;
-      }
     }
 
     rte_eth_dev_info_get(portid, &dev_info);
@@ -161,7 +148,7 @@ int setup_iface(int portid, int mtu) {
       return -ENOSYS;
     }
 
-    ret = rte_eth_dev_configure(portid, DPDK_NUM_RX_QUEUE, DPDK_NUM_TX_QUEUE, &port_conf);
+    ret = rte_eth_dev_configure(portid, rx_queues, DPDK_NUM_TX_QUEUE, &port_conf);
     if (ret < 0) {
       fprintf(stderr, "dpdk: failed to configure port: %s\n", rte_strerror(-ret));
       return ret;
@@ -182,8 +169,20 @@ int setup_iface(int portid, int mtu) {
     dev_info.default_rxconf.offloads = 0;
     dev_info.default_txconf.offloads = 0;
 
-    for (unsigned i = 0; i < DPDK_NUM_RX_QUEUE; i++) {
-      ret = rte_eth_rx_queue_setup(portid, i, DPDK_NUMDESC, 0, &dev_info.default_rxconf, rxpools[i]);
+    for (unsigned i = 0; i < rx_queues; i++) {
+      snprintf(poolname, RTE_MEMZONE_NAMESIZE, "rx-%u-%s", i, ifparams);
+      struct rte_mempool *rxpool = rte_mempool_create(poolname,
+                                                       DPDK_MBUF_NUM,
+                                                       DPDK_MBUF_SIZ,
+                                                       DPDK_MEMPOOL_CACHE_SZ,
+                                                       sizeof(struct rte_pktmbuf_pool_private),
+                                                       rte_pktmbuf_pool_init, NULL,
+                                                       rte_pktmbuf_init, NULL, 0, 0);
+      if (!rxpool) {
+        fprintf(stderr, "dpdk: failed to allocate rx pool %s\n", poolname);
+        return -ENOMEM;
+      }
+      ret = rte_eth_rx_queue_setup(portid, i, DPDK_NUMDESC, 0, &dev_info.default_rxconf, rxpool);
       if (ret < 0) {
         fprintf(stderr, "dpdk: failed to setup rx queue %u: %s\n", i, rte_strerror(-ret));
         return ret;

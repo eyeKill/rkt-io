@@ -21,10 +21,15 @@ int main(int argc, char **argv) {
     int uid = atoi(argv[3]);
     int exitcode = 0;
     char *mtustr = getenv("SGXLKL_DPDK_MTU");
+    char *queues_str = getenv("SGXLKL_DPDK_RX_QUEUES");
     int mtu = 1500;
+    size_t rx_queues = 1;
 
     if (mtustr) {
         mtu = atoi(mtustr);
+    }
+    if (queues_str) {
+        rx_queues = atoi(queues_str);
     }
 
     // create files with world-writeable permissions (i.e. in /dev/hugepages)
@@ -40,7 +45,7 @@ int main(int argc, char **argv) {
 
     size_t port_num = rte_eth_dev_count_avail();
     for (int portid = 0; portid < port_num; portid++) {
-        int r = setup_iface(portid, mtu);
+        int r = setup_iface(portid, mtu, rx_queues);
         if (r < 0) {
             goto error;
         }

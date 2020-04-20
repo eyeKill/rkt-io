@@ -5,7 +5,6 @@
 /* assuming MTU == 1500 */
 #define DPDK_MBUF_NUM (512 * 4) /* vmxnet3 requires 1024 */
 #define DPDK_NUMDESC 512 /* nb_min on vmxnet3 is 512 */
-#define DPDK_NUM_RX_QUEUE 4
 // we only can support one queue at the moment
 #define DPDK_NUM_TX_QUEUE 1
 
