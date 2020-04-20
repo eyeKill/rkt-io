@@ -136,7 +136,7 @@ def create_settings() -> Settings:
         print("REMOTE_SSH_HOST not set", file=sys.stderr)
         sys.exit(1)
 
-    remote_dpdk_ip = os.environ.get("REMOTE_DPDK_IP4", "10.0.2.2")
+    remote_dpdk_ip = os.environ.get("REMOTE_DPDK_IP4", "10.0.42.2")
     if not remote_dpdk_ip:
         print("REMOTE_DPDK_IP not set", file=sys.stderr)
         sys.exit(1)
@@ -160,7 +160,7 @@ def create_settings() -> Settings:
         remote_ssh_host=remote_ssh_host,
         remote_dpdk_ip=remote_dpdk_ip,
         remote_dpdk_ip6=remote_dpdk_ip6,
-        local_dpdk_ip=os.environ.get("SGXLKL_DPKD_IP4", "10.0.2.1"),
+        local_dpdk_ip=os.environ.get("SGXLKL_DPKD_IP4", "10.0.42.1"),
         local_dpdk_ip6=os.environ.get("SGXLKL_DPKD_IP6", "fdbf:9188:5fbd:a895::1"),
         dpdk_netmask=int(os.environ.get("DEFAULT_DPDK_IPV4_MASK", "24")),
         dpdk_netmask6=int(os.environ.get("DEFAULT_DPDK_IPV6_MASK", "64")),
@@ -170,6 +170,6 @@ def create_settings() -> Settings:
         native_nic_ifname=os.environ.get("NATIVE_NETWORK_IFNAME", "eth2"),
         dpdk_nic_driver=os.environ.get("DPDK_NETWORK_DRIVER", "igb_uio"),
         tap_ifname=os.environ.get("SGXLKL_TAP", "sgxlkl_tap0"),
-        tap_bridge_cidr=os.environ.get("SGXLKL_BRIDGE_CIDR", "10.0.2.3/24"),
+        tap_bridge_cidr=os.environ.get("SGXLKL_BRIDGE_CIDR", "10.0.42.3/24"),
         tap_bridge_cidr6=os.environ.get("SGXLKL_BRIDGE_CIDR6", "fdbf:9188:5fbd:a895::3/64"),
     )
