@@ -84,7 +84,7 @@ ifeq ($(DEBUG),true)
 	THIRD_PARTY_CFLAGS += -g3 -ggdb3 -O0
 else ifeq ($(DEBUG),opt)
 	SGXLKL_CFLAGS += -g3 -ggdb3 -O3
-	MUSL_CFLAGS += -g3 -ggdb3 -O3 -DDEBUGMOUNT
+	MUSL_CFLAGS += -g3 -ggdb3 -O3 -DDEBUG -DDEBUGMOUNT
 	THIRD_PARTY_CFLAGS += -g3 -ggdb3 -O3
 else
 	SGXLKL_CFLAGS += -O3
