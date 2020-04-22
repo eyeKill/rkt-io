@@ -45,6 +45,10 @@ build-sim: .sim
 build-sim-profiling: .sim-profiling
 	$(call build-target,.sim-profiling,sim DEBUG=opt)
 
+ifeq ($(X86MODULES),true)
+  X86MODULES_DEP=${X86_MODULES}
+endif
+
 MAKE_ROOT=$(dir $(realpath $(firstword $(MAKEFILE_LIST))))
 
 # Vanilla Musl compiler
@@ -54,7 +58,11 @@ host-musl ${HOST_MUSL_CC}: | ${HOST_MUSL}/.git ${HOST_MUSL_BUILD}
 		--prefix=${HOST_MUSL_BUILD}
 	+${MAKE} -j`tools/ncore.sh` -C ${HOST_MUSL} CFLAGS="$(MUSL_CFLAGS)" install
 	ln -fs ${LINUX_HEADERS_INC}/linux/ ${HOST_MUSL_BUILD}/include/linux
+ifeq ($(DISTRO),CentOS)
+	ln -fs ${LINUX_HEADERS_INC}/asm/ ${HOST_MUSL_BUILD}/include/asm
+else
 	ln -fs ${LINUX_HEADERS_INC}/x86_64-linux-gnu/asm/ ${HOST_MUSL_BUILD}/include/asm
+endif
 	ln -fs ${LINUX_HEADERS_INC}/asm-generic/ ${HOST_MUSL_BUILD}/include/asm-generic
 	install third_party/sys-queue.h ${HOST_MUSL_BUILD}/include/sys/queue.h
 	# Fix musl-gcc for gcc version that have been built with --enable-default-pie
@@ -123,12 +131,21 @@ ${WIREGUARD}:
 ${CRYPTSETUP_BUILD}/lib/libcryptsetup.a ${CRYPTSETUP_BUILD}/lib/libpopt.a ${CRYPTSETUP_BUILD}/lib/libdevmapper.a ${CRYPTSETUP_BUILD}/lib/libjson-c.a ${MBEDTLS}/mbedtls.a ${PROTOBUFC_BUILD}/lib/libprotobuf-c.a ${PROTOBUFC_RPC}/protobuf-c-rpc.a: ${LKL_BUILD}/include
 	+${MAKE} -C ${MAKE_ROOT}/third_party $@
 
+${X86_MODULES}: ${LKL}/.git ${TOOLS}/build_linux_4.17_x86_crypto_modules.sh
+	${TOOLS}/build_linux_4.17_x86_crypto_modules.sh ${LKL} ${X86_MODULE_DIR}
+
 ${CRYPTSETUP_BUILD}/lib/libuuid.a ${LIBUUID_HOST_BUILD}/lib/libuuid.a: ${HOST_MUSL_CC}
 	+${MAKE} -C ${MAKE_ROOT}/third_party $@
 
-lkl-config ${LKL}/arch/lkl/defconfig: src/lkl/override/defconfig | ${WIREGUARD} ${LKL}/.git ${LKL_BUILD}
+lkl-config ${LKL}/arch/lkl/defconfig: src/lkl/override/defconfig | ${LKL}/.git ${X86MODULES_DEP} ${WIREGUARD} ${LKL_BUILD}
+	cd ${LKL}; git remote show origin | grep -E "github.com/Mic92/linux|github.com:Mic92/linux" || (echo -n "\nERROR: The location of the lkl submodule repository has changed and needs to be updated. Run the following to switch to the correct submodule repository (github.com/lsds/lkl):\n  git submodule sync\n  git submodule update\n\n"; exit 1)
 	# Add Wireguard
-	cd ${LKL} && (if ! bash ${WIREGUARD}/contrib/kernel-tree/create-patch.sh | patch -p1 --dry-run --reverse --force >/dev/null 2>&1; then bash ${WIREGUARD}/contrib/kernel-tree/create-patch.sh | patch --forward -p1; fi) && cd -
+	cd ${LKL}; (if ! bash ${WIREGUARD}/contrib/kernel-tree/create-patch.sh | patch -p1 --dry-run --reverse --force >/dev/null 2>&1; then bash ${WIREGUARD}/contrib/kernel-tree/create-patch.sh | patch --forward -p1; fi); cd -
+	# Patch Wireguard includes for x86 hardware acceleration
+	find ${LKL}/net/wireguard -type f -exec sed -i 's/CONFIG_X86_64/CONFIG_LKL/g' {} \;
+	find ${LKL}/net/wireguard -type f -exec sed -i 's/asm\/fpu\/api\.h/asm\/x86\/fpu\/api\.h/g' {} \;
+	find ${LKL}/net/wireguard -type f -exec sed -i 's/asm\/cpufeature\.h/asm\/x86\/cpufeature\.h/g' {} \;
+	find ${LKL}/net/wireguard -type f -exec sed -i 's/asm\/intel-family\.h/asm\/x86\/intel-family\.h/g' {} \;
 	# Override lkl's defconfig with our own
 	cp -Rv src/lkl/override/defconfig ${LKL}/arch/lkl/defconfig
 	cp -Rv src/lkl/override/include/uapi/asm-generic/stat.h ${LKL}/include/uapi/asm-generic/stat.h

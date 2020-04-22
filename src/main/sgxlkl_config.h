@@ -75,6 +75,7 @@
 #define SGXLKL_WG_PORT                  71
 #define SGXLKL_WG_KEY                   72
 #define SGXLKL_WG_PEERS                 73
+#define SGXLKL_X86_ACC                  74
 
 
 #define DEFAULT_SGXLKL_GW4 "10.0.1.254"
