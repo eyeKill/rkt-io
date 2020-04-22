@@ -22,6 +22,7 @@ tests/60-iozone/iozone
 *.hashoffset
 .gdb_history
 /.ccls-cache
+/.clangd
 gdb/ptrace/*.o
 gdb/ptrace/*.so
 gdb/sgx-lkl-gdb
