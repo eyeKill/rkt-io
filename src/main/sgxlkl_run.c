@@ -697,7 +697,8 @@ static void register_net(enclave_config_t* encl, const char* tapstr, const char*
 
 void register_spdk(enclave_config_t *encl,
                    struct spdk_context *ctx,
-                   int *userpci_pipe)
+                   int *userpci_pipe,
+                   const char* spdk_hd_key)
 {
     assert(ctx);
 
@@ -709,6 +710,8 @@ void register_spdk(enclave_config_t *encl,
     // use stderr for logging
     rte_openlog_stream(stderr);
     r = spdk_initialize(ctx, false);
+    ctx->key = spdk_hd_key;
+    ctx->key_len = spdk_hd_key ? strlen(spdk_hd_key) : 0;
     if (r < 0) {
         sgxlkl_fail("spdk: failed to initialize eal: %s\n", strerror(-r));
     }
@@ -1687,7 +1690,8 @@ int main(int argc, char *argv[], char *envp[]) {
     register_hds(&encl, root_hd);
 
     if (encl.enable_sgxio) {
-      register_spdk(&encl, &spdk_context, &userpci_pipe);
+      register_spdk(&encl, &spdk_context, &userpci_pipe,
+                    sgxlkl_config_str(SGXLKL_SPDK_HD_KEY));
 
       register_dpdk(&encl,
                     sgxlkl_config_str(SGXLKL_DPDK_IP4),

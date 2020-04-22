@@ -375,6 +375,7 @@ fail:
 
 struct lkl_crypt_device {
     char *disk_path;
+    char *crypt_name;
     int readonly;
     struct enclave_disk_config *disk_config;
 };
@@ -405,7 +406,7 @@ static void* lkl_activate_crypto_disk_thread(struct lkl_crypt_device* lkl_cd) {
     }
     memcpy(lkl_cd->disk_config->key, key_outside, lkl_cd->disk_config->key_len);
 
-    err = crypt_activate_by_passphrase(cd, "cryptroot", CRYPT_ANY_SLOT, lkl_cd->disk_config->key, lkl_cd->disk_config->key_len, lkl_cd->readonly ? CRYPT_ACTIVATE_READONLY : 0);
+    err = crypt_activate_by_passphrase(cd, lkl_cd->crypt_name, CRYPT_ANY_SLOT, lkl_cd->disk_config->key, lkl_cd->disk_config->key_len, lkl_cd->readonly ? CRYPT_ACTIVATE_READONLY : 0);
     if (err == -1) {
         fprintf(stderr, "Error: Unable to activate encrypted disk. Please ensure you have provided the correct passphrase/keyfile!\n");
         exit(err);
@@ -520,7 +521,7 @@ static void lkl_run_in_kernel_stack(void *(*start_routine) (void *), void* arg) 
     }
 }
 
-#define DEV_PATH_LEN 12
+#define DEV_PATH_LEN 20
 
 static int device_path(int dev_id, char* dev) {
     // We assign dev paths from /dev/vda to /dev/vdz, assuming we won't need
@@ -551,6 +552,7 @@ static void lkl_start_spdk(struct spdk_context *ctx) {
     }
 
     size_t idx = 0;
+
     for (struct spdk_ns_entry *ns_entry = ctx->namespaces; ns_entry; ns_entry = ns_entry->next) {
         struct spdk_dev *dev = &spdk_devs[idx];
         memcpy(&dev->ns_entry, ns_entry, sizeof(struct spdk_ns_entry));
@@ -559,9 +561,30 @@ static void lkl_start_spdk(struct spdk_context *ctx) {
             fprintf(stderr, "Error: unable to register spdk devices\n");
             exit(1);
         }
-        char dev_path[DEV_PATH_LEN], mnt[DEV_PATH_LEN];
-        rc = snprintf(dev_path, DEV_PATH_LEN, "/dev/spdk%d",spdk_devs[idx].dev_id);
+        char dev_raw_path[DEV_PATH_LEN], cryptname[DEV_PATH_LEN - 5], dev_enc_path[DEV_PATH_LEN], mnt[DEV_PATH_LEN];
+        char *dev_path = dev_raw_path;
+
+        snprintf(dev_raw_path, sizeof(dev_raw_path), "/dev/spdk%d", spdk_devs[idx].dev_id);
+
+        if (ctx->key) {
+          struct lkl_crypt_device lkl_cd;
+          struct enclave_disk_config disk_config;
+          disk_config.key = ctx->key;
+          disk_config.key_len = ctx->key_len;
+
+          snprintf(cryptname, sizeof(cryptname), "spdk%d", spdk_devs[idx].dev_id);
+          lkl_cd.crypt_name = cryptname;
+          lkl_cd.disk_path = dev_raw_path;
+          lkl_cd.readonly = 0;
+          lkl_cd.disk_config = &disk_config;
+          lkl_run_in_kernel_stack((void * (*)(void *)) &lkl_activate_crypto_disk_thread, (void *) &lkl_cd);
+
+          snprintf(dev_enc_path, sizeof(dev_enc_path), "/dev/mapper/spdk%d", spdk_devs[idx].dev_id);
+          dev_path = dev_enc_path;
+        }
+
         spdk_mountpoint(spdk_devs[idx].dev_id, mnt);
+
         SGXLKL_VERBOSE("spdk: mount(%s, %s)\n", dev_path, mnt);
         rc = lkl_mount_blockdev(dev_path, mnt, "ext4", 0, NULL);
         if (rc < 0) {
@@ -633,6 +656,7 @@ static void lkl_mount_root_disk(struct enclave_disk_config *disk) {
     }
 
     struct lkl_crypt_device lkl_cd;
+    lkl_cd.crypt_name = "cryptroot";
     lkl_cd.disk_path = dev_str;
     lkl_cd.readonly = disk->ro;
     lkl_cd.disk_config = disk;

@@ -6,7 +6,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Iterator, List
+from typing import Dict, Iterator, List, Optional
 
 ROOT = Path(__file__).parent.resolve()
 NOW = datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -83,6 +83,7 @@ class Settings:
     dpdk_netmask6: int
     nvme_pci_id: str
     nic_pci_id: str
+    spdk_hd_key: Optional[str]
     native_nic_driver: str
     native_nic_ifname: str
     dpdk_nic_driver: str
@@ -169,6 +170,7 @@ def create_settings() -> Settings:
         native_nic_driver=os.environ.get("NATIVE_NETWORK_DRIVER", "i40e"),
         native_nic_ifname=os.environ.get("NATIVE_NETWORK_IFNAME", "eth2"),
         dpdk_nic_driver=os.environ.get("DPDK_NETWORK_DRIVER", "igb_uio"),
+        spdk_hd_key=os.environ.get("SPDK_HD_KEY", None),
         tap_ifname=os.environ.get("SGXLKL_TAP", "sgxlkl_tap0"),
         tap_bridge_cidr=os.environ.get("SGXLKL_BRIDGE_CIDR", "10.0.42.3/24"),
         tap_bridge_cidr6=os.environ.get("SGXLKL_BRIDGE_CIDR6", "fdbf:9188:5fbd:a895::3/64"),
