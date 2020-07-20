@@ -235,11 +235,11 @@ static void lkl_poststart_dpdk(enclave_config_t* encl) {
           exit(res);
         }
 
-        res = lkl_if_set_ipv6(ifindex, dpdk->net_ip6.s6_addr, dpdk->net_mask6);
-        if (res < 0) {
-          fprintf(stderr, "Error: lkl_if_set_ipv6(): %s\n", lkl_strerror(res));
-          exit(res);
-        }
+        //res = lkl_if_set_ipv6(ifindex, dpdk->net_ip6.s6_addr, dpdk->net_mask6);
+        //if (res < 0) {
+        //  fprintf(stderr, "Error: lkl_if_set_ipv6(): %s\n", lkl_strerror(res));
+        //  exit(res);
+        //}
     }
 }
 
@@ -1158,6 +1158,7 @@ void lkl_start_init(enclave_config_t* encl) {
 
     // Set hostname (provided through SGXLKL_HOSTNAME)
     sethostname(encl->hostname, strlen(encl->hostname));
+
 }
 
 /* Requires starttime to be higher or equal to endtime */
