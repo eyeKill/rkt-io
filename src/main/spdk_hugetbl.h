@@ -5,7 +5,7 @@
 #include <sgx_enclave_config.h>
 
 // TODO seem to be the maximum size
-#define SPDK_DATA_POOL_MAX_SIZE 1048576
+#define SPDK_DATA_POOL_MAX_SIZE (1048576 * 2)
 
 // define TODO get the queue depth from
 // spdk_nvme_ctrlr_get_default_io_qpair_opts
