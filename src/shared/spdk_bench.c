@@ -50,6 +50,36 @@ static void spdk_read(struct task *t) {
     g_lba += t->lba_count;
 };
 
+static void spdk_write(struct task *t);
+
+static void write_completion_cb(void *ctx, const struct spdk_nvme_cpl *cpl) {
+    spdk_write((struct task *)ctx);
+}
+
+static void spdk_write(struct task *t) {
+    struct spdk_ns_entry *ns_entry = t->ns_entry;
+
+    if (g_lba > g_max_lba) {
+        g_queue_depth--;
+        return;
+    }
+
+    int rc = spdk_nvme_ns_cmd_write(ns_entry->ns,
+                                   ns_entry->qpairs[0],
+                                   t->buf,
+                                   g_lba,
+                                   t->lba_count,
+                                   write_completion_cb,
+                                   t,
+                                   0);
+
+    if (rc != 0) {
+        fprintf(stderr, "spdk_read() failed: %d\n", rc);
+        exit(1);
+    }
+    g_lba += t->lba_count;
+}
+
 void run_spdk_bench(struct spdk_ns_entry *ns_entry) {
     struct task tasks[MAX_QUEUE_DEPTH];
     int sector_size = spdk_nvme_ns_get_extended_sector_size(ns_entry->ns);
@@ -70,11 +100,11 @@ void run_spdk_bench(struct spdk_ns_entry *ns_entry) {
         assert(t->buf);
     }
 
-
     struct timespec tstart = { 0, 0 }, tend = { 0, 0 };
     clock_gettime(CLOCK_MONOTONIC, &tstart);
     for (int i = 0; i < MAX_QUEUE_DEPTH; i++) {
-        spdk_read(&tasks[i]);
+        /* spdk_read(&tasks[i]); */
+        spdk_write(&tasks[i]);
     }
 
     while (g_lba < g_max_lba || g_queue_depth != 0) {
