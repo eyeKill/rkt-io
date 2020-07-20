@@ -74,6 +74,8 @@ THIRD_PARTY_CFLAGS ?=
 
 DEBUG ?= false
 
+X86MODULES ?= true
+
 X86_MODULE_DIR ?= ${SRC_DIR}/lkl/x86mods
 
 X86_MODULES ?= \
