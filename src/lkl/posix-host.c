@@ -38,6 +38,9 @@
 
 static void *sgxlkl_executable_alloc(size_t length) {
     void* res = mmap(0, length, PROT_READ|PROT_WRITE|PROT_EXEC, MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
+    if (res == MAP_FAILED) {
+      return NULL;
+    }
     return res;
 }
 
