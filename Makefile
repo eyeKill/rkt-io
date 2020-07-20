@@ -105,7 +105,7 @@ DPDK_CONFIG = ${DPDK_BUILD}/.config
 SPDK_CONFIG = ${SPDK_BUILD}/mk/config.mk
 DPDK_CC := ${CC}
 # Since we are only using the native DPDK for initializing, we can always compile it unoptimized
-DPDK_EXTRA_CFLAGS := -g
+DPDK_EXTRA_CFLAGS := -g -fPIC
 # pseudo target for default CC so we use add a dependency on our musl compiler in dpdk_build
 $(CC):
 	:
@@ -236,7 +236,7 @@ sgx-lkl-musl: ${LIBLKL} ${LKL_SGXMUSL_HEADERS} ${CRYPTSETUP_BUILD}/lib/libcrypts
 	@if [ "$(HW_MODE)" = "yes" ]; then objcopy --only-keep-debug $(BUILD_DIR)/libsgxlkl.so $(BUILD_DIR)/sgx-lkl-run.debug; fi
 
 sgx-lkl-sign: $(BUILD_DIR)/libsgxlkl.so $(ENCLAVE_DEBUG_KEY)
-	@if [ "$(HW_MODE)" = "yes" ]; then $(BUILD_DIR)/sgx-lkl-sign -t $(NUM_TCS) -k $(ENCLAVE_DEBUG_KEY) -f $(BUILD_DIR)/libsgxlkl.so; fi
+	if [ "$(HW_MODE)" = "yes" ]; then $(BUILD_DIR)/sgx-lkl-sign -t $(NUM_TCS) -k $(ENCLAVE_DEBUG_KEY) -f $(BUILD_DIR)/libsgxlkl.so; fi
 
 # compile sgx-lkl sources
 
