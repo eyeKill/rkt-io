@@ -6,8 +6,9 @@ import re
 import subprocess
 import tempfile
 import textwrap as tw
-from typing import Optional
+from typing import Optional, List
 from collections import defaultdict
+from dataclasses import dataclass
 
 def add_symbol_file(filename, baseaddr):
     sections = []
@@ -283,11 +284,33 @@ class LogAllLtsCsv(gdb.Command):
         print(f"write to {dest}")
         with open(dest, "w") as f:
             writer = csv.writer(f)
-            fields = ["thread", "tid", "name", "cpu", "bt"]
+            fields = ["thread", "tid", "name", "cpu", "backtrace"]
             writer.writerow(fields)
             for val in rows:
                 writer.writerow(val)
         return False
+
+
+@dataclass
+class FxWaiter:
+    key: str
+    lt: str
+    deadline: str
+    backtrace: str
+
+
+def get_fx_waiters(btdepth: str) -> List[FxWaiter]:
+    waiters = []
+    fxq = gdb.execute('p/x futex_queues->slh_first', to_string=True).split('=')[1].strip()
+    while(int(fxq, 16) != 0):
+        ft_lt = gdb.execute('p/x ((struct futex_q*)%s)->futex_lt'%fxq, to_string=True).split('=')[1].strip()
+        ft_key = gdb.execute('p ((struct futex_q*)%s)->futex_key'%fxq, to_string=True).split('=')[1].strip()
+        ft_deadline = gdb.execute('p ((struct futex_q*)%s)->futex_deadline'%fxq, to_string=True).split('=')[1].strip()
+        ft_bt = gdb.execute('lthread-bt %s %s'%(ft_lt, btdepth), to_string=True)
+        waiter = FxWaiter(key=ft_key, lt=ft_lt, deadline=ft_deadline, backtrace=ft_bt)
+        waiters.append(waiter)
+        fxq = gdb.execute('p/x ((struct futex_q*)%s)->entries.sle_next'%fxq, to_string=True).split('=')[1].strip()
+    return waiters
 
 
 class LogFxWaiters(gdb.Command):
@@ -304,22 +327,43 @@ class LogFxWaiters(gdb.Command):
             btdepth = argv[0]
         else:
             btdepth = ""
-
-        fxq = gdb.execute('p/x futex_queues->slh_first', to_string=True).split('=')[1].strip()
-
-        while(int(fxq, 16) != 0):
-            ft_lt = gdb.execute('p/x ((struct futex_q*)%s)->futex_lt'%fxq, to_string=True).split('=')[1].strip()
-            ft_key = gdb.execute('p ((struct futex_q*)%s)->futex_key'%fxq, to_string=True).split('=')[1].strip()
-            ft_deadline = gdb.execute('p ((struct futex_q*)%s)->futex_deadline'%fxq, to_string=True).split('=')[1].strip()
-            gdb.write('FX entry: key: %s, lt: %s, deadline: %s\n'%(ft_key, ft_lt, ft_deadline))
-            gdb.execute('lthread-bt %s %s'%(ft_lt, btdepth))
-            gdb.write('\n')
-            gdb.flush()
-
-            fxq = gdb.execute('p/x ((struct futex_q*)%s)->entries.sle_next'%fxq, to_string=True).split('=')[1].strip()
+        waiters = get_fx_waiters(btdepth)
+        for w in waiters:
+            gdb.write('FX entry: key: %s, lt: %s, deadline: %s\n'%(w.key, w.lt, w.deadline))
+            gdb.write(w.backtrace)
+            gdb.write("\n")
+        gdb.flush()
 
         return False
 
+class LogFxWaitersCSV(gdb.Command):
+    """
+        Do a backtrace of all lthreads waiting on a futex
+        Param: Depth of backtrace (optional)
+    """
+    def __init__(self):
+        super(LogFxWaitersCSV, self).__init__("bt-fxq-csv", gdb.COMMAND_USER)
+
+    def invoke(self, arg, from_tty):
+        import csv
+        argv = gdb.string_to_argv(arg)
+        if argv and len(argv) > 0:
+            btdepth = argv[0]
+        else:
+            btdepth = ""
+
+        waiters = get_fx_waiters(btdepth)
+        print(len(waiters))
+        dest = "/tmp/waiters.csv"
+        print(f"write to {dest}")
+        with open(dest, "w") as f:
+            writer = csv.writer(f)
+            fields = ["key", "lt", "deadline", "backtrace"]
+            writer.writerow(fields)
+            for val in waiters:
+                writer.writerow((val.key, val.lt, val.deadline, val.backtrace))
+
+        return False
 
 class LogSchedQueueTids(gdb.Command):
     """
@@ -533,6 +577,7 @@ if __name__ == '__main__':
     LogAllLts()
     LogAllLtsCsv()
     LogFxWaiters()
+    LogFxWaitersCSV()
     LogSchedQueueTids()
     LogSyscallBacktraces()
     LogSyscallTids()
