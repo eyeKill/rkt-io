@@ -44,6 +44,8 @@ def get_link_order(linker_script: str, linker_flags: List[str]):
     with tempfile.TemporaryDirectory() as tempdir:
         cmd = [
             "gcc",
+            "-pie",
+            "-fPIE",
             "-g",
             "-Wl,-T",
             linker_script,
