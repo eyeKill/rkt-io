@@ -76,20 +76,20 @@ let
     esac
   '';
 
-  gcc7_nolibc = wrapCCWith {
-    cc = gcc7.cc;
+  gcc_nolibc = wrapCCWith {
+    cc = gcc9.cc;
     bintools = wrapBintoolsWith {
       bintools = binutils-unwrapped;
       libc = null;
     };
     extraBuildCommands = ''
-      sed -i '2i if ! [[ $@ == *'musl-gcc.specs'* ]]; then exec ${gcc7}/bin/gcc -L${glibc}/lib -L${glibc.static}/lib "$@"; fi' \
+      sed -i '2i if ! [[ $@ == *'musl-gcc.specs'* ]]; then exec ${gcc9}/bin/gcc -L${glibc}/lib -L${glibc.static}/lib "$@"; fi' \
         $out/bin/gcc
 
-      sed -i '2i if ! [[ $@ == *'musl-gcc.specs'* ]]; then exec ${gcc7}/bin/g++ -L${glibc}/lib -L${glibc.static}/lib "$@"; fi' \
+      sed -i '2i if ! [[ $@ == *'musl-gcc.specs'* ]]; then exec ${gcc9}/bin/g++ -L${glibc}/lib -L${glibc.static}/lib "$@"; fi' \
         $out/bin/g++
 
-      sed -i '2i if ! [[ $@ == *'musl-gcc.spec'* ]]; then exec ${gcc7}/bin/cpp "$@"; fi' \
+      sed -i '2i if ! [[ $@ == *'musl-gcc.spec'* ]]; then exec ${gcc9}/bin/cpp "$@"; fi' \
         $out/bin/cpp
     '';
   };
@@ -103,8 +103,10 @@ let
     };
   };
 
-in (overrideCC stdenv gcc7_nolibc).mkDerivation {
+in (overrideCC stdenv gcc_nolibc).mkDerivation {
   name = "env";
+
+  hardeningDisable = [ "all" ];
 
   nativeBuildInputs = [
     git
@@ -135,6 +137,7 @@ in (overrideCC stdenv gcc7_nolibc).mkDerivation {
       ps.pandas
       ps.seaborn
       (remote_pdb ps)
+      ps.capstone
     ]))
     which
     wget
@@ -160,15 +163,15 @@ in (overrideCC stdenv gcc7_nolibc).mkDerivation {
     #}))
     protobuf
     libgcrypt
-    libgcc
     json_c
     curl
     linuxHeaders
   ];
 
   SGXLKL_TAP = "sgxlkl_tap0";
-  SGXLKL_IP4 = "10.218.101.1";
-  #SGXLKL_GW4 = "10.218.101.254";
+  SGXLKL_IP4 = "10.0.42.1";
+  SGXLKL_GW4 = "10.0.42.254";
+  
   SGXLKL_DPDK_MAC = "62:48:ed:5e:f7:d8";
   FSTEST_MNT = "/mnt/vdb";
   SGXLKL_TAP_OFFLOAD="1";
