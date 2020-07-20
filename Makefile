@@ -137,7 +137,7 @@ ${X86_MODULES}: ${LKL}/.git ${TOOLS}/build_linux_4.17_x86_crypto_modules.sh
 ${CRYPTSETUP_BUILD}/lib/libuuid.a ${LIBUUID_HOST_BUILD}/lib/libuuid.a: ${HOST_MUSL_CC}
 	+${MAKE} -C ${MAKE_ROOT}/third_party $@
 
-lkl-config ${LKL}/arch/lkl/defconfig: src/lkl/override/defconfig | ${LKL}/.git ${X86MODULES_DEP} ${WIREGUARD} ${LKL_BUILD}
+lkl-config ${LKL_BUILD}/.applied-patches: src/lkl/override/defconfig | ${LKL}/.git ${X86MODULES_DEP} ${WIREGUARD} ${LKL_BUILD}
 	cd ${LKL}; git remote show origin | grep -E "github.com/Mic92/linux|github.com:Mic92/linux" || (echo -n "\nERROR: The location of the lkl submodule repository has changed and needs to be updated. Run the following to switch to the correct submodule repository (github.com/lsds/lkl):\n  git submodule sync\n  git submodule update\n\n"; exit 1)
 	# Add Wireguard
 	cd ${LKL}; (if ! bash ${WIREGUARD}/contrib/kernel-tree/create-patch.sh | patch -p1 --dry-run --reverse --force >/dev/null 2>&1; then bash ${WIREGUARD}/contrib/kernel-tree/create-patch.sh | patch --forward -p1; fi); cd -
@@ -152,9 +152,10 @@ lkl-config ${LKL}/arch/lkl/defconfig: src/lkl/override/defconfig | ${LKL}/.git $
 	grep "include \"sys/stat.h" lkl/tools/lkl/include/lkl.h > /dev/null || sed  -i '/define _LKL_H/a \\n#include "sys/stat.h"\n#include "time.h"' lkl/tools/lkl/include/lkl.h
 	# Set bootmem size (default in LKL is 64MB)
 	sed -i 's/static unsigned long mem_size = .*;/static unsigned long mem_size = ${BOOT_MEM} \* 1024 \* 1024;/g' lkl/arch/lkl/kernel/setup.c
+	touch ${LKL_BUILD}/.applied-patches
 
 # LKL's static library and include/ header directory
-lkl ${LIBLKL} ${LKL_BUILD}/include: ${SPDK_BUILD_SGX}/.build ${HOST_MUSL_CC} ${LKL}/arch/lkl/defconfig
+lkl ${LIBLKL} ${LKL_BUILD}/include: ${SPDK_BUILD_SGX}/.build ${HOST_MUSL_CC} ${LKL_BUILD}/.applied-patches
 	+DESTDIR=${LKL_BUILD} ${MAKE} -C ${LKL}/tools/lkl -j`tools/ncore.sh` \
 		CC=${HOST_MUSL_CC} \
 		SPDK_SGX_CFLAGS="${SPDK_SGX_CFLAGS} -I ${MAKE_ROOT}/src/lkl/override/include/" \
