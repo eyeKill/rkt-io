@@ -10,6 +10,7 @@ MODULES="\
 arch/x86/crypto/aesni-intel.ko \
 arch/x86/crypto/aes-x86_64.ko \
 arch/x86/crypto/aesni-intel.ko \
+crypto/xtsproxy.ko \
 arch/x86/crypto/chacha20-x86_64.ko \
 arch/x86/crypto/poly1305-x86_64.ko \
 arch/x86/crypto/salsa20-x86_64.ko \
@@ -70,7 +71,7 @@ index d44df9b..cf26966 100644
         unsigned int num_ei_funcs;
  #endif
 +
-+       uint64_t pad_lkl[1];
++       uint8_t pad_lkl[9];
 +
 +       /* Startup function. */
 +       int (*init)(void);
@@ -130,5 +131,6 @@ make clean && make $MODULES |& tee "${ROOT_DIR}/make_x86kmod.log"
 echo "Copying kernel modules from ${linux}/arch/x86/crypto..."
 mkdir -p  ${output}
 cp -v ${linux}/arch/x86/crypto/*.ko ${output}
+cp -v ${linux}/crypto/*.ko ${output}
 
 rm "${ROOT_DIR}/make_x86kmod.log"
