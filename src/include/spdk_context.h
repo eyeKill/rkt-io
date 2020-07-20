@@ -23,6 +23,8 @@ struct spdk_ns_entry {
 struct spdk_context {
     struct spdk_ctrlr_entry *controllers;
     struct spdk_ns_entry *namespaces;
+    char* key;
+    size_t key_len;
     int attach_error;
     pthread_t ctrlr_thread_id;
 };

@@ -977,6 +977,8 @@ extern char _binary_lkl_x86mods_aes_x86_64_ko_start[];
 extern char _binary_lkl_x86mods_aes_x86_64_ko_end[];
 extern char _binary_lkl_x86mods_aesni_intel_ko_start[];
 extern char _binary_lkl_x86mods_aesni_intel_ko_end[];
+extern char _binary_lkl_x86mods_xtsproxy_ko_start[];
+extern char _binary_lkl_x86mods_xtsproxy_ko_end[];
 extern char _binary_lkl_x86mods_chacha20_x86_64_ko_start[];
 extern char _binary_lkl_x86mods_chacha20_x86_64_ko_end[];
 extern char _binary_lkl_x86mods_poly1305_x86_64_ko_start[];
@@ -1006,17 +1008,19 @@ void load_x86_kernel_modules(void) {
     } kmods[] = {
       {"aes-x86_64.ko",           _binary_lkl_x86mods_aes_x86_64_ko_start,          (size_t) (_binary_lkl_x86mods_aes_x86_64_ko_end - _binary_lkl_x86mods_aes_x86_64_ko_start)},
       {"aesni-intel.ko",          _binary_lkl_x86mods_aesni_intel_ko_start,         (size_t) (_binary_lkl_x86mods_aesni_intel_ko_end - _binary_lkl_x86mods_aesni_intel_ko_start)},
-      {"chacha20-x86_64.ko",      _binary_lkl_x86mods_chacha20_x86_64_ko_start,     (size_t) (_binary_lkl_x86mods_chacha20_x86_64_ko_end - _binary_lkl_x86mods_chacha20_x86_64_ko_start)},
-      {"poly1305-x86_64.ko",      _binary_lkl_x86mods_poly1305_x86_64_ko_start,     (size_t) (_binary_lkl_x86mods_poly1305_x86_64_ko_end - _binary_lkl_x86mods_poly1305_x86_64_ko_start)},
-      {"salsa20-x86_64.ko",       _binary_lkl_x86mods_salsa20_x86_64_ko_start,      (size_t) (_binary_lkl_x86mods_salsa20_x86_64_ko_end - _binary_lkl_x86mods_salsa20_x86_64_ko_start)},
-      {"serpent-avx-x86_64.ko",   _binary_lkl_x86mods_serpent_avx_x86_64_ko_start,  (size_t) (_binary_lkl_x86mods_serpent_avx_x86_64_ko_end - _binary_lkl_x86mods_serpent_avx_x86_64_ko_start)},
-      {"serpent-avx2.ko",         _binary_lkl_x86mods_serpent_avx2_ko_start,        (size_t) (_binary_lkl_x86mods_serpent_avx2_ko_end - _binary_lkl_x86mods_serpent_avx2_ko_start)},
-      {"sha1-ssse3.ko",           _binary_lkl_x86mods_sha1_ssse3_ko_start,          (size_t) (_binary_lkl_x86mods_sha1_ssse3_ko_end - _binary_lkl_x86mods_sha1_ssse3_ko_start)},
+      {"xtsproxy.ko",             _binary_lkl_x86mods_xtsproxy_ko_start,         (size_t) (_binary_lkl_x86mods_xtsproxy_ko_end - _binary_lkl_x86mods_xtsproxy_ko_start)},
+      //{"chacha20-x86_64.ko",      _binary_lkl_x86mods_chacha20_x86_64_ko_start,     (size_t) (_binary_lkl_x86mods_chacha20_x86_64_ko_end - _binary_lkl_x86mods_chacha20_x86_64_ko_start)},
+      //{"poly1305-x86_64.ko",      _binary_lkl_x86mods_poly1305_x86_64_ko_start,     (size_t) (_binary_lkl_x86mods_poly1305_x86_64_ko_end - _binary_lkl_x86mods_poly1305_x86_64_ko_start)},
+      //{"salsa20-x86_64.ko",       _binary_lkl_x86mods_salsa20_x86_64_ko_start,      (size_t) (_binary_lkl_x86mods_salsa20_x86_64_ko_end - _binary_lkl_x86mods_salsa20_x86_64_ko_start)},
+
+      //{"serpent-avx-x86_64.ko",   _binary_lkl_x86mods_serpent_avx_x86_64_ko_start,  (size_t) (_binary_lkl_x86mods_serpent_avx_x86_64_ko_end - _binary_lkl_x86mods_serpent_avx_x86_64_ko_start)},
+      //{"serpent-avx2.ko",         _binary_lkl_x86mods_serpent_avx2_ko_start,        (size_t) (_binary_lkl_x86mods_serpent_avx2_ko_end - _binary_lkl_x86mods_serpent_avx2_ko_start)},
+      //{"sha1-ssse3.ko",           _binary_lkl_x86mods_sha1_ssse3_ko_start,          (size_t) (_binary_lkl_x86mods_sha1_ssse3_ko_end - _binary_lkl_x86mods_sha1_ssse3_ko_start)},
       {"sha256-ssse3.ko",         _binary_lkl_x86mods_sha256_ssse3_ko_start,        (size_t) (_binary_lkl_x86mods_sha256_ssse3_ko_end - _binary_lkl_x86mods_sha256_ssse3_ko_start)},
-      {"sha512-ssse3.ko",         _binary_lkl_x86mods_sha512_ssse3_ko_start,        (size_t) (_binary_lkl_x86mods_sha512_ssse3_ko_end - _binary_lkl_x86mods_sha512_ssse3_ko_start)},
-      {"twofish-x86_64.ko",       _binary_lkl_x86mods_twofish_x86_64_ko_start,      (size_t) (_binary_lkl_x86mods_twofish_x86_64_ko_end - _binary_lkl_x86mods_twofish_x86_64_ko_start)},
-      {"twofish-x86_64-3way.ko",  _binary_lkl_x86mods_twofish_x86_64_3way_ko_start, (size_t) (_binary_lkl_x86mods_twofish_x86_64_3way_ko_end - _binary_lkl_x86mods_twofish_x86_64_3way_ko_start)},
-      {"twofish-avx-x86_64.ko",   _binary_lkl_x86mods_twofish_avx_x86_64_ko_start,  (size_t) (_binary_lkl_x86mods_twofish_avx_x86_64_ko_end - _binary_lkl_x86mods_twofish_avx_x86_64_ko_start)},
+      //{"sha512-ssse3.ko",         _binary_lkl_x86mods_sha512_ssse3_ko_start,        (size_t) (_binary_lkl_x86mods_sha512_ssse3_ko_end - _binary_lkl_x86mods_sha512_ssse3_ko_start)},
+      //{"twofish-x86_64.ko",       _binary_lkl_x86mods_twofish_x86_64_ko_start,      (size_t) (_binary_lkl_x86mods_twofish_x86_64_ko_end - _binary_lkl_x86mods_twofish_x86_64_ko_start)},
+      //{"twofish-x86_64-3way.ko",  _binary_lkl_x86mods_twofish_x86_64_3way_ko_start, (size_t) (_binary_lkl_x86mods_twofish_x86_64_3way_ko_end - _binary_lkl_x86mods_twofish_x86_64_3way_ko_start)},
+      //{"twofish-avx-x86_64.ko",   _binary_lkl_x86mods_twofish_avx_x86_64_ko_start,  (size_t) (_binary_lkl_x86mods_twofish_avx_x86_64_ko_end - _binary_lkl_x86mods_twofish_avx_x86_64_ko_start)},
     };
 
     for (int i = 0; i < sizeof(kmods)/sizeof(kmods[0]); i++) {
