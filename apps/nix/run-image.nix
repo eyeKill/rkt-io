@@ -3,6 +3,8 @@
 { pkg
 , command
 , extraFiles ? {}
+, interpreter ? null
+, sgx-lkl-run ? "sgx-lkl-run"
 , extraCommands ? ""
 , debugSymbols ? true
 , diskSize ? "1G"
@@ -33,5 +35,5 @@ in writeScript "run-lkl" ''
     fi
   '' else ""}
 
-  exec ${python3.interpreter} ${./run-image.py} ${if native then "NONE" else image} ${image.pkg}/$cmd "$@"
+  exec ${python3.interpreter} ${./run-image.py} ${sgx-lkl-run} ${if native then "NONE" else image} ${toString interpreter} ${image.pkg}/$cmd "$@"
 ''

@@ -1,7 +1,7 @@
 { stdenv }:
 
 stdenv.mkDerivation {
-  name = "write-test";
+  name = "simpleio";
   src = ./.;
   installFlags = [ "PREFIX=$(out)" ];
 }

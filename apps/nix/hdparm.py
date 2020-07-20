@@ -8,8 +8,19 @@ import time
 from collections import defaultdict
 from typing import Any, DefaultDict, Dict, List, Union
 
-from helpers import NOW, ROOT, Chdir, Settings, create_settings, nix_build, run, spawn, flamegraph_env
+from helpers import (
+    NOW,
+    ROOT,
+    Chdir,
+    Settings,
+    create_settings,
+    nix_build,
+    run,
+    spawn,
+    flamegraph_env,
+)
 from storage import Storage, StorageKind
+
 
 def benchmark_hdparm(
     storage: Storage,
@@ -59,8 +70,8 @@ def main() -> None:
     storage = Storage(settings)
 
     benchmark_sgx_io(storage, stats)
-    #benchmark_sgx_lkl(storage, stats)
-    #benchmark_native(storage, stats)
+    # benchmark_sgx_lkl(storage, stats)
+    # benchmark_native(storage, stats)
 
 
 if __name__ == "__main__":

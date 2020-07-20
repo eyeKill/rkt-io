@@ -11,7 +11,10 @@ def main() -> None:
     kinds = dict(native=NetworkKind.NATIVE, dpdk=NetworkKind.DPDK, tap=NetworkKind.TAP)
     kind = kinds.get(sys.argv[1], None)
     if kind is None:
-        print(f"Unsupported option '{sys.argv[1]}', valid options are native, dpdk or tap", file=sys.stderr)
+        print(
+            f"Unsupported option '{sys.argv[1]}', valid options are native, dpdk or tap",
+            file=sys.stderr,
+        )
         sys.exit(1)
     settings = create_settings()
     Network(kind, settings).setup()

@@ -18,6 +18,8 @@ from helpers import (
     nix_build,
     run,
     spawn,
+    read_stats,
+    write_stats
 )
 from storage import Storage, StorageKind
 
@@ -144,7 +146,8 @@ def benchmark_fio(
     try:
         jsondata = json.loads(proc.stdout)
     except json.decoder.JSONDecodeError:
-        print(proc.stdout.decode("utf-8"))
+        breakpoint()
+        print(proc.stdout)
         raise
     parse_json_plus(jsondata, system, latency_stats)
 
@@ -196,22 +199,6 @@ def benchmark_sgx_io(
     benchmark_fio(storage, "sgx-io", "fio", "/mnt/spdk0", stats, latency_stats)
 
 
-def write_stats(path: str, stats: DefaultDict[str, List]) -> None:
-    with open(path, "w") as f:
-        json.dump(stats, f)
-
-
-def read_stats(path: str) -> DefaultDict[str, List]:
-    stats: DefaultDict[str, List] = defaultdict(list)
-    if not os.path.exists(path):
-        return stats
-    with open(path) as f:
-        raw_stats = json.load(f)
-        for key, value in raw_stats.items():
-            stats[key] = value
-    return stats
-
-
 def main() -> None:
     stats = read_stats("stats.json")
     latency_stats = read_stats("latency-stats.json")
@@ -223,8 +210,8 @@ def main() -> None:
     system = set(stats["system"])
 
     benchmarks = {
-        "sgx-io": benchmark_sgx_io,
         "native": benchmark_native,
+        "sgx-io": benchmark_sgx_io,
         "scone": benchmark_scone,
         "sgx-lkl": benchmark_sgx_lkl,
     }

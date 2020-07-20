@@ -1,0 +1,126 @@
+From 47cf215e90a6809952b4a618be08852a5c3d4433 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=B6rg=20Thalheim?= <joerg@thalheim.io>
+Date: Wed, 24 Jun 2020 11:23:38 +0000
+Subject: [PATCH] iperf: add multi-threading server
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Signed-off-by: Jörg Thalheim <joerg@thalheim.io>
+---
+ src/main.c | 85 +++++++++++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 84 insertions(+), 1 deletion(-)
+
+diff --git a/src/main.c b/src/main.c
+index fe10a2f..ff8b45e 100644
+--- a/src/main.c
++++ b/src/main.c
+@@ -26,6 +26,7 @@
+  */
+ #include "iperf_config.h"
+ 
++#include <pthread.h>
+ #include <stdio.h>
+ #include <stdlib.h>
+ #include <string.h>
+@@ -54,7 +55,7 @@ static int run(struct iperf_test *test);
+ 
+ /**************************************************************************/
+ int
+-main(int argc, char **argv)
++old_main(int argc, char **argv)
+ {
+     struct iperf_test *test;
+ 
+@@ -112,6 +113,88 @@ main(int argc, char **argv)
+     return 0;
+ }
+ 
++void *pthread_run(void *test) {
++  run((struct iperf_test *)test);
++  return NULL;
++}
++
++int main(int argc, char** argv) {
++    struct iperf_test **tests;
++    pthread_t *thread_ids;
++    if (argc < 2) {
++        fprintf(stderr, "USAGE: iperf server_num");
++        exit(1);
++    }
++    int server_num = atoi(argv[1]);
++    printf("Launch %d servers\n", server_num);
++    tests = calloc(sizeof(*tests), server_num);
++    thread_ids = calloc(sizeof(*thread_ids), server_num);
++
++    // XXX: Setting the process affinity requires root on most systems.
++    //      Is this a feature we really need?
++#ifdef TEST_PROC_AFFINITY
++    /* didnt seem to work.... */
++    /*
++     * increasing the priority of the process to minimise packet generation
++     * delay
++     */
++    int rc = setpriority(PRIO_PROCESS, 0, -15);
++
++    if (rc < 0) {
++        perror("setpriority:");
++        fprintf(stderr, "setting priority to valid level\n");
++        rc = setpriority(PRIO_PROCESS, 0, 0);
++    }
++    
++    /* setting the affinity of the process  */
++    cpu_set_t cpu_set;
++    int affinity = -1;
++    int ncores = 1;
++
++    sched_getaffinity(0, sizeof(cpu_set_t), &cpu_set);
++    if (errno)
++        perror("couldn't get affinity:");
++
++    if ((ncores = sysconf(_SC_NPROCESSORS_CONF)) <= 0)
++        err("sysconf: couldn't get _SC_NPROCESSORS_CONF");
++
++    CPU_ZERO(&cpu_set);
++    CPU_SET(affinity, &cpu_set);
++    if (sched_setaffinity(0, sizeof(cpu_set_t), &cpu_set) != 0)
++        err("couldn't change CPU affinity");
++#endif
++
++    for (int i = 0; i < server_num; i++) {
++        tests[i] = iperf_new_test();
++        if (!tests[i])
++          iperf_errexit(NULL, "create new test error - %s",
++                        iperf_strerror(i_errno));
++        iperf_defaults(tests[i]); /* sets defaults */
++
++        optind = 0;
++        int instance_argc = 5;
++        char port[6];
++        sprintf(port, "%d", 5201 + i);
++        char *instance_argv[] = { "iperf", "-s", "-p", port, NULL};
++        if (iperf_parse_arguments(tests[i], instance_argc, instance_argv) < 0) {
++          iperf_err(tests[i], "parameter error - %s", iperf_strerror(i_errno));
++          fprintf(stderr, "\n");
++          usage_long(stdout);
++          exit(1);
++        }
++
++        if (pthread_create(&thread_ids[i], NULL, pthread_run, tests[i]) != 0) {
++          perror("pthread_create:\n");
++          exit(1);
++        }
++
++    }
++    for (int i = 0; i < server_num; i++) {
++        pthread_join(thread_ids[i], NULL);
++        iperf_free_test(tests[i]);
++    }
++}
++
+ 
+ static jmp_buf sigend_jmp_buf;
+ 
+-- 
+2.26.2
+

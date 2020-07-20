@@ -1,4 +1,8 @@
-with import <nixpkgs> {};
+with import (builtins.fetchTarball {
+  url = "https://github.com/NixOS/nixpkgs/archive/5e6825612c9114c12eb9a99c0b42a5aba6289908.tar.gz";
+  sha256 = "1mxs4z9jgcvi7gliqxc77k16fv22ry42rqgss5mnqyls4p2zk3c7";
+}) {};
+
 let
   buildImage = callPackage ./build-image.nix {};
   runImage = callPackage ./run-image.nix { inherit buildImage; };
@@ -46,6 +50,7 @@ let
   });
   mysqlDatadir = "/var/lib/mysql";
   fio = pkgsMusl.fio.overrideAttrs (old: {
+    src = ./fio-src;
     patches = (old.patches or []) ++ [
       ./fio-pool-size.patch
     ];
@@ -55,7 +60,33 @@ let
     configureFlags = [ "--disable-shm" ];
   });
 
+  fio-graphene = pkgs.fio.overrideAttrs (old: {
+    src = ./fio-src;
+    patches = (old.patches or []) ++ [
+      ./fio-pool-size.patch
+    ];
+    buildInputs = [];
+    postConfigure = ''
+      sed -i '/#define CONFIG_TLS_THREAD/d' config-host.h
+    '';
+    configureFlags = [ "--disable-shm" ];
+  });
+
+  #fio-scone = pkgsMusl.fio;
+  fio-scone = fio.override {
+    stdenv = sconeStdenv;
+  };
+  #iperf3-scone = pkgs.callPackage ./iperf {
+  #  stdenv = sconeStdenv;
+  #  enableStatic = true;
+  #};
+
   python-scripts = pkgsMusl.callPackage ./python-scripts {};
+
+  iperf2 = pkgsMusl.iperf2.overrideAttrs (old: {
+    src = ./iperf-2.0.13;
+    configureFlags = (old.configureFlags or []) ++ [ "--enable-ipv6" "--disable-threads" ];
+  });
 
   fioCommand = [
     "bin/fio"
@@ -68,11 +99,31 @@ let
     patches = [ ./iozone-max-buffer-size.patch ];
     NIX_CFLAGS_COMPILE = [ "-USHARED_MEM" "-DNO_FORK" ];
   });
+
+  iperf3 = pkgsMusl.callPackage ./iperf {};
+  iperf3-scone = pkgs.callPackage ./iperf {
+    stdenv = sconeStdenv;
+    enableStatic = true;
+  };
+  iperf3-graphene = pkgs.callPackage ./iperf {};
+  hello-graphene = pkgs.callPackage ./hello {};
+
+  inherit (pkgs.callPackages ./scone {})
+    scone-cc sconeStdenv sconeEnv;
+  inherit (pkgs.callPackages ./graphene {}) runGraphene;
+  sgx-lkl = pkgs.callPackage ./sgx-lkl {};
+
   pthread-socket = pkgsMusl.callPackage ./pthread-socket {};
   network-test = pkgsMusl.callPackage ./network-test {};
   latency-test = pkgsMusl.callPackage ./latency-test {};
-  write-test = pkgsMusl.callPackage ./write-test {};
+
+  simpleio-musl = pkgsMusl.callPackage ./simpleio {};
+  simpleio-scone = simpleio-musl.override {
+    stdenv = sconeStdenv;
+  };
 in {
+  musl = pkgs.musl;
+
   iozone = runImage {
     pkg = iozone;
     command = [ "bin/iozone" ];
@@ -93,13 +144,40 @@ in {
     command = [ "bin/latency-test" ];
   };
 
-  write-test = runImage {
-    pkg = write-test;
-    command = [ "bin/write-test" ];
+  simpleio-sgx-io = runImage {
+    pkg = simpleio-musl;
+    command = [ "bin/simpleio" ];
+  };
+
+  simpleio-sgx-lkl = runImage {
+    pkg = simpleio-musl;
+    sgx-lkl-run = toString ../../../sgx-lkl-org/build/sgx-lkl-run;
+    command = [ "bin/simpleio" ];
+  };
+
+  simpleio-scone = runImage {
+    pkg = simpleio-scone;
+    native = true;
+    command = [ "bin/simpleio" ];
+  };
+
+  simpleio-native = runImage {
+    pkg = simpleio-musl;
+    native = true;
+    command = [ "bin/simpleio" ];
   };
 
   iperf = runImage {
-    pkg = pkgsMusl.iperf;
+    pkg = iperf3;
+    command = [ "bin/iperf" "4" ];
+  };
+
+  iperf3-sgx-lkl = runImage {
+    pkg = iperf3;
+    sgx-lkl-run = toString ../../../sgx-lkl-org/build/sgx-lkl-run;
+    command = [ "bin/iperf" "1" ];
+  };
+
   iperf2 = runImage {
     pkg = iperf2;
     command = [ "bin/iperf" "-s" ];
@@ -114,6 +192,26 @@ in {
     pkg = pkgsMusl.iperf;
     native = true;
     command = [ "bin/iperf" "-s" ];
+  };
+
+  inherit iperf3-scone sconeStdenv sconeEnv;
+
+  iperf3-graphene = runGraphene {
+    pkg = iperf3-graphene;
+    command = ["bin/iperf3"];
+    # our iperf binds each core to a different port
+    ports = lib.range 5201 5299;
+  };
+
+  fio-graphene = runGraphene {
+    pkg = fio-graphene;
+    command = ["bin/fio"];
+  };
+
+
+  hello-graphene = runGraphene {
+    pkg = hello-graphene;
+    command = ["bin/hello"];
   };
 
   curl-remote = pkgsMusl.curl;
@@ -149,6 +247,11 @@ in {
     command = [ "bin/ping" "10.0.42.1" ];
   };
 
+  dd = runImage {
+    pkg = busybox;
+    command = [ "bin/dd" "if=/dev/spdk0" "of=/dev/null" ];
+  };
+
   ls = runImage {
     pkg = busybox;
     command = [ "bin/ls" "/dev/" ];
@@ -171,14 +274,7 @@ in {
   };
 
   fio-scone = runImage {
-    pkg = lib.makeOverridable ({ stdenv }: stdenv.mkDerivation {
-      name = "fio-scone";
-      src = null;
-      unpackPhase = ":";
-      installPhase = ''
-        install -D ${./fio-scone-bin} $out/bin/fio
-      '';
-    }) { inherit stdenv; };
+    pkg = fio-scone;
     native = true;
     command = fioCommand;
   };
@@ -186,6 +282,13 @@ in {
   fio = runImage {
     pkg = fio;
     command = fioCommand;
+  };
+
+  fio-sgx-lkl = runImage {
+    pkg = fio;
+    #sgx-lkl-run = "${sgx-lkl}/bin/sgx-lkl-run";
+    sgx-lkl-run = toString ../../../sgx-lkl-org/build/sgx-lkl-run;
+    command = [ "bin/fio" ];
   };
 
   ioping = runImage {

@@ -33,7 +33,7 @@ class Network:
             except subprocess.CalledProcessError:  # interface may not exists
                 pass
 
-        run(["sudo", str(devbind), "-b", driver, self.settings.nic_pci_id])
+        run(["sudo", "python3", str(devbind), "-b", driver, self.settings.nic_pci_id])
 
         if self.kind == NetworkKind.NATIVE:
             ip(["link", "set", self.settings.native_nic_ifname, "up"])
@@ -62,13 +62,13 @@ class Network:
                 getpass.getuser(),
             ]
         )
-        ip(["link", "set", "dev", self.settings.tap_ifname, "mtu", "9000"])
+        ip(["link", "set", "dev", self.settings.tap_ifname, "mtu", "1500"])
         ip(["link", "set", "dev", self.settings.tap_ifname, "up"])
 
         subprocess.run(["sudo", "ip", "link", "del", "iperf-br"])
 
         if self.kind == NetworkKind.TAP:
-            ip(["link", "add", "name", "iperf-br", "mtu", "9000", "type", "bridge"])
+            ip(["link", "add", "name", "iperf-br", "mtu", "1500", "type", "bridge"])
             ip(["link", "set", "dev", "iperf-br", "up"])
             ip(["link", "set", self.settings.native_nic_ifname, "master", "iperf-br"])
             ip(["link", "set", self.settings.tap_ifname, "master", "iperf-br"])
@@ -88,5 +88,7 @@ class Network:
                 ip(["addr", "add", cidr, "dev", self.settings.native_nic_ifname])
 
         if self.kind != NetworkKind.DPDK:
-            ip(["link", "set", "dev", self.settings.native_nic_ifname, "mtu", "9000"])
+            ip(["link", "set", "dev", self.settings.native_nic_ifname, "mtu", "1500"])
             ip(["link", "set", self.settings.native_nic_ifname, "up"])
+
+        print("########################################")

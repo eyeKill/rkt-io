@@ -2,26 +2,50 @@ import os
 import signal
 import subprocess
 import sys
+import json
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Iterator, List, Optional
+from typing import Dict, Iterator, List, Optional, Text, DefaultDict
+from collections import defaultdict
 
 ROOT = Path(__file__).parent.resolve()
 NOW = datetime.now().strftime("%Y%m%d-%H%M%S")
 
 
 def run(
-    cmd: List[str], extra_env: Dict[str, str] = {}, stdout=subprocess.PIPE
-) -> subprocess.CompletedProcess:
+    cmd: List[str],
+    extra_env: Dict[str, str] = {},
+    stdout=subprocess.PIPE,
+    input: Optional[str] = None,
+    check: bool = True
+) -> "subprocess.CompletedProcess[Text]":
     env = os.environ.copy()
     env.update(extra_env)
     env_string = []
     for k, v in extra_env.items():
         env_string.append(f"{k}={v}")
     print(f"$ {' '.join(env_string)} {' '.join(cmd)}")
-    return subprocess.run(cmd, cwd=ROOT, stdout=stdout, check=True, env=env)
+    return subprocess.run(
+        cmd, cwd=ROOT, stdout=stdout, check=check, env=env, text=True, input=input
+    )
+
+
+def read_stats(path: str) -> DefaultDict[str, List]:
+    stats: DefaultDict[str, List] = defaultdict(list)
+    if not os.path.exists(path):
+        return stats
+    with open(path) as f:
+        raw_stats = json.load(f)
+        for key, value in raw_stats.items():
+            stats[key] = value
+    return stats
+
+
+def write_stats(path: str, stats: DefaultDict[str, List]) -> None:
+    with open(path, "w") as f:
+        json.dump(stats, f)
 
 
 class Chdir(object):
@@ -114,7 +138,14 @@ class Settings:
 
 
 def nix_build(attr: str) -> str:
-    return run(["nix-build", "-A", attr, "--out-link", attr]).stdout.decode("utf-8").strip()
+    return run(["nix-build", "-A", attr, "--out-link", attr]).stdout.strip()
+
+
+def scone_env() -> Dict[str, str]:
+    return dict(
+        SCONE_SSPINS=str(10000),
+        SCONE_CONFIG=str(ROOT.joinpath("scone/sgx-musl.conf")),
+    )
 
 
 def flamegraph_env(name: str) -> Dict[str, str]:
@@ -170,8 +201,10 @@ def create_settings() -> Settings:
         native_nic_driver=os.environ.get("NATIVE_NETWORK_DRIVER", "i40e"),
         native_nic_ifname=os.environ.get("NATIVE_NETWORK_IFNAME", "eth2"),
         dpdk_nic_driver=os.environ.get("DPDK_NETWORK_DRIVER", "igb_uio"),
-        spdk_hd_key=os.environ.get("SPDK_HD_KEY", None),
+        spdk_hd_key=os.environ.get("SGXLKL_SPDK_HD_KEY", None),
         tap_ifname=os.environ.get("SGXLKL_TAP", "sgxlkl_tap0"),
         tap_bridge_cidr=os.environ.get("SGXLKL_BRIDGE_CIDR", "10.0.42.3/24"),
-        tap_bridge_cidr6=os.environ.get("SGXLKL_BRIDGE_CIDR6", "fdbf:9188:5fbd:a895::3/64"),
+        tap_bridge_cidr6=os.environ.get(
+            "SGXLKL_BRIDGE_CIDR6", "fdbf:9188:5fbd:a895::3/64"
+        ),
     )

@@ -7,7 +7,7 @@ from enum import Enum
 from typing import Any, Optional
 from pathlib import Path
 
-from helpers import ROOT, Settings, nix_build
+from helpers import ROOT, Settings, nix_build, run
 
 
 class StorageKind(Enum):
@@ -28,23 +28,17 @@ def get_total_memory() -> int:
 
 
 def cryptsetup_luks_open(dev: str, cryptsetup_name: str, key: str) -> None:
-    subprocess.run(
-        ["sudo", "cryptsetup", "open", dev, cryptsetup_name],
-        check=True,
-        input=key,
-        text=True,
-    )
+    run(["sudo", "cryptsetup", "open", dev, cryptsetup_name], input=key)
 
 
 def cryptsetup_luks_close(cryptsetup_name: str) -> None:
-    subprocess.run(
-        ["sudo", "cryptsetup", "close", cryptsetup_name],
-        check=True,
-    )
+    run(["sudo", "cryptsetup", "close", cryptsetup_name])
 
 
 class Mount:
-    def __init__(self, kind: StorageKind, raw_dev: str, dev: str, hd_key: Optional[str]) -> None:
+    def __init__(
+        self, kind: StorageKind, raw_dev: str, dev: str, hd_key: Optional[str]
+    ) -> None:
         self.kind = kind
         self.raw_dev = dev
         self.dev = dev
@@ -58,13 +52,19 @@ class Mount:
         if self.hd_key:
             cryptsetup_luks_open(self.raw_dev, self.cryptsetup_name, self.hd_key)
 
-        subprocess.run(["sudo", "mount", self.dev, self.mountpoint.name])
-        subprocess.run(["sudo", "chown", "-R", getpass.getuser(), self.mountpoint.name])
+        run(["sudo", "mount", self.dev, self.mountpoint.name])
+        run(["sudo", "chown", "-R", getpass.getuser(), self.mountpoint.name])
 
         return self.mountpoint.name
 
     def __exit__(self, type: Any, value: Any, traceback: Any) -> None:
-        subprocess.run(["sudo", "umount", self.mountpoint.name])
+        for i in range(3):
+            try:
+                run(["sudo", "umount", self.mountpoint.name])
+            except subprocess.CalledProcessError:
+                print(f"unmount {self.mountpoint.name} failed; retry in 1s")
+                time.sleep(1)
+            break
         if self.raw_dev != self.dev:
             cryptsetup_luks_close(self.cryptsetup_name)
 
@@ -88,8 +88,12 @@ class Storage:
         self.image = nix_build("iotest-image")
 
     def setup(self, kind: StorageKind) -> Mount:
-        subprocess.run(
-            ["sudo", ROOT.joinpath("..", "..", "spdk", "scripts", "setup.sh"), "reset"]
+        run(
+            [
+                "sudo",
+                str(ROOT.joinpath("..", "..", "spdk", "scripts", "setup.sh")),
+                "reset",
+            ]
         )
         time.sleep(2)  # wait for device to appear
 
@@ -102,9 +106,9 @@ class Storage:
             time.sleep(1)
 
         # TRIM for optimal performance
-        subprocess.run(["sudo", "blkdiscard", raw_dev], check=True)
+        run(["sudo", "blkdiscard", raw_dev])
         if self.settings.spdk_hd_key:
-            subprocess.run(
+            run(
                 [
                     "sudo",
                     "cryptsetup",
@@ -115,63 +119,66 @@ class Storage:
                     raw_dev,
                     "--batch-mode",
                     "--cipher",
-                    "aes-xts-plain64",
+                    "capi:xts(aes)-plain64",
+                    #"aes-xts-plain64",
                     "--key-size",
                     "256",
                     "--hash",
                     "sha256",
                     # default is argon2i, which requires 1GB of RAM
                     "--pbkdf",
-                    "pbkdf2"
+                    "pbkdf2",
                 ],
-                check=True,
                 input=self.settings.spdk_hd_key,
-                text=True,
             )
-            subprocess.run(
+            run(
                 ["sudo", "cryptsetup", "open", raw_dev, spdk_device],
-                check=True,
                 input=self.settings.spdk_hd_key,
-                text=True,
             )
             dev = f"/dev/mapper/{spdk_device}"
         else:
             dev = raw_dev
-        subprocess.run(["sudo", "dd", f"if={self.image}", f"of={dev}"])
-        subprocess.run(["sudo", "resize2fs", dev])
+        run(
+            [
+                "sudo",
+                "dd",
+                f"if={self.image}",
+                f"of={dev}",
+                "bs=128M",
+                "conv=fdatasync",
+                "oflag=direct",
+                "status=progress",
+            ]
+        )
+        run(["sudo", "resize2fs", dev])
 
         if self.settings.spdk_hd_key:
-            subprocess.run(
-                ["sudo", "cryptsetup", "close", spdk_device],
-                check=True,
-                text=True,
-            )
+            run(["sudo", "cryptsetup", "close", spdk_device])
 
         if kind == StorageKind.SPDK:
-            subprocess.run(
+            run(
                 [
                     "sudo",
-                    ROOT.joinpath("..", "..", "spdk", "scripts", "setup.sh"),
+                    str(ROOT.joinpath("..", "..", "spdk", "scripts", "setup.sh")),
                     "config",
                 ]
             )
         elif kind == StorageKind.LKL:
-            subprocess.run(["sudo", "chown", getpass.getuser(), dev])
+            run(["sudo", "chown", getpass.getuser(), dev])
 
         num_hugepages = get_hugepages_num(kind)
         # spdk setup.sh seems to reset number of pages
-        subprocess.run(
+        run(
             [
                 "sudo",
                 "sh",
                 "-c",
                 "echo $0 > /sys/devices/system/node/node0/hugepages/hugepages-2048kB/nr_hugepages",
                 str(num_hugepages),
-            ],
-            check=True,
+            ]
         )
         # delete existing hugepages to actually free up the memory
-        subprocess.run(
+        run(
             [
                 "sudo",
                 "find",
@@ -181,8 +188,7 @@ class Storage:
                 "-type",
                 "f",
                 "-delete",
-            ],
-            check=True,
+            ]
         )
 
         return Mount(kind, raw_dev, dev, self.settings.spdk_hd_key)

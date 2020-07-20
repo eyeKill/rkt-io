@@ -19,9 +19,9 @@ def rescale_barplot_width(ax, factor=0.6):
     for bar in ax.patches:
         x = bar.get_x()
         new_width = bar.get_width() * factor
-        center = x + bar.get_width() / 2.
+        center = x + bar.get_width() / 2.0
         bar.set_width(new_width)
-        bar.set_x(center - new_width / 2.)
+        bar.set_x(center - new_width / 2.0)
 
 
 def alternate_bar_color(graph):

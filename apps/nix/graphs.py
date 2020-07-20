@@ -59,6 +59,7 @@ def fio_iops_graph(df: pd.DataFrame) -> Any:
 
     return g
 
+
 def fio_read_graph(df: pd.DataFrame) -> Any:
     g = catplot(
         data=apply_aliases(df),
@@ -71,6 +72,7 @@ def fio_read_graph(df: pd.DataFrame) -> Any:
     )
 
     return g
+
 
 def fio_write_graph(df: pd.DataFrame) -> Any:
     g = catplot(

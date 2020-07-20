@@ -25,8 +25,8 @@ def test_nginx(settings: Settings) -> None:
 
 
 def test_fstest() -> None:
-   fstest = ROOT.joinpath("..", "fstest")
-   subprocess.run(["make", "-C", fstest, "check"])
+    fstest = ROOT.joinpath("..", "fstest")
+    subprocess.run(["make", "-C", fstest, "check"])
 
 
 def main() -> None:

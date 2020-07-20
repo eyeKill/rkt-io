@@ -20,7 +20,7 @@ from helpers import (
     nix_build,
     run,
     spawn,
-    flamegraph_env
+    flamegraph_env,
 )
 from network import Network, NetworkKind
 from storage import Storage, StorageKind
@@ -127,8 +127,7 @@ def benchmark_sgx_lkl(storage: Storage, stats: Dict[str, List]) -> None:
     Network(NetworkKind.TAP, storage.settings).setup()
     storage.setup(StorageKind.LKL)
     extra_env = dict(
-        SGXLKL_IP6=storage.settings.local_dpdk_ip6,
-        SGXLKL_HDS="/dev/nvme0n1:/mnt/nvme"
+        SGXLKL_IP6=storage.settings.local_dpdk_ip6, SGXLKL_HDS="/dev/nvme0n1:/mnt/nvme"
     )
     benchmark_mysql(
         storage, "mariadb", "sgx-lkl", "/mnt/nvme", stats, extra_env=extra_env
@@ -139,7 +138,9 @@ def benchmark_sgx_io(storage: Storage, stats: Dict[str, List]):
     Network(NetworkKind.DPDK, storage.settings).setup()
     storage.setup(StorageKind.SPDK)
     extra_env = dict(SGXLKL_DPDK_MTU="1500")
-    benchmark_mysql(storage, "mariadb", "sgx-io", "/mnt/vdb", stats, extra_env=extra_env)
+    benchmark_mysql(
+        storage, "mariadb", "sgx-io", "/mnt/vdb", stats, extra_env=extra_env
+    )
 
 
 def main() -> None:
