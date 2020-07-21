@@ -151,7 +151,8 @@ in {
 
   simpleio-sgx-lkl = runImage {
     pkg = simpleio-musl;
-    sgx-lkl-run = toString ../../../sgx-lkl-org/build/sgx-lkl-run;
+    #sgx-lkl-run = toString ../../../sgx-lkl-org/build/sgx-lkl-run;
+    sgx-lkl-run = "${sgx-lkl}/bin/sgx-lkl-run";
     command = [ "bin/simpleio" ];
   };
 
@@ -174,7 +175,9 @@ in {
 
   iperf3-sgx-lkl = runImage {
     pkg = iperf3;
-    sgx-lkl-run = toString ../../../sgx-lkl-org/build/sgx-lkl-run;
+    # debugging
+    #sgx-lkl-run = toString ../../../sgx-lkl-org/build/sgx-lkl-run;
+    sgx-lkl-run = "${sgx-lkl}/bin/sgx-lkl-run";
     command = [ "bin/iperf" "1" ];
   };
 
@@ -267,6 +270,17 @@ in {
     command = [ "bin/arping" "-I" "eth0" "10.0.2.2" ];
   };
 
+  fio-sgx-io = runImage {
+    pkg = fio;
+    command = fioCommand;
+  };
+
+  fio-sgx-lkl = runImage {
+    pkg = fio;
+    sgx-lkl-run = "${sgx-lkl}/bin/sgx-lkl-run";
+    command = [ "bin/fio" ];
+  };
+
   fio-native = runImage {
     pkg = fio;
     native = true;
@@ -277,18 +291,6 @@ in {
     pkg = fio-scone;
     native = true;
     command = fioCommand;
-  };
-
-  fio = runImage {
-    pkg = fio;
-    command = fioCommand;
-  };
-
-  fio-sgx-lkl = runImage {
-    pkg = fio;
-    #sgx-lkl-run = "${sgx-lkl}/bin/sgx-lkl-run";
-    sgx-lkl-run = toString ../../../sgx-lkl-org/build/sgx-lkl-run;
-    command = [ "bin/fio" ];
   };
 
   ioping = runImage {
