@@ -7,7 +7,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Iterator, List, Optional, Text, DefaultDict
+from typing import Dict, Iterator, List, Optional, Text, DefaultDict, Any
 from collections import defaultdict
 
 ROOT = Path(__file__).parent.resolve()
@@ -17,7 +17,7 @@ NOW = datetime.now().strftime("%Y%m%d-%H%M%S")
 def run(
     cmd: List[str],
     extra_env: Dict[str, str] = {},
-    stdout=subprocess.PIPE,
+    stdout: int = subprocess.PIPE,
     input: Optional[str] = None,
     check: bool = True
 ) -> "subprocess.CompletedProcess[Text]":
@@ -49,22 +49,21 @@ def write_stats(path: str, stats: DefaultDict[str, List]) -> None:
 
 
 class Chdir(object):
-    def __init__(self, path):
+    def __init__(self, path: str) -> None:
         self.old_dir = os.getcwd()
         self.new_dir = path
 
-    def __enter__(self):
+    def __enter__(self) -> None:
         os.chdir(self.new_dir)
 
-    def __exit__(self, *args):
+    def __exit__(self, *args: Any) -> None:
         os.chdir(self.old_dir)
 
 
 @contextmanager
-def spawn(*args: str, **kwargs) -> Iterator:
+def spawn(*args: str, extra_env: Dict[str, str] = {}) -> Iterator:
     env = os.environ.copy()
 
-    extra_env = kwargs.pop("extra_env", {})
     env.update(extra_env)
     env_string = []
     for k, v in extra_env.items():
