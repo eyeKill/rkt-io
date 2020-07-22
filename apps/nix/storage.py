@@ -1,11 +1,11 @@
 import getpass
 import os
-import subprocess
 import tempfile
 import time
 from enum import Enum
 from typing import Any, Optional
 from pathlib import Path
+import subprocess
 
 from helpers import ROOT, Settings, nix_build, run
 
@@ -65,6 +65,7 @@ class Mount:
                 print(f"unmount {self.mountpoint.name} failed; retry in 1s")
                 time.sleep(1)
             break
+
         if self.raw_dev != self.dev:
             cryptsetup_luks_close(self.cryptsetup_name)
 
@@ -120,7 +121,7 @@ class Storage:
                     "--batch-mode",
                     "--cipher",
                     "capi:xts(aes)-plain64",
-                    #"aes-xts-plain64",
+                    # "aes-xts-plain64",
                     "--key-size",
                     "256",
                     "--hash",
