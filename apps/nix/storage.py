@@ -70,17 +70,37 @@ class Mount:
             cryptsetup_luks_close(self.cryptsetup_name)
 
 
-def get_hugepages_num(kind: StorageKind) -> int:
+def set_hugepages(num: int) -> None:
+    run(
+        [
+            "sudo",
+            "sh",
+            "-c",
+            "echo $0 > /sys/devices/system/node/node0/hugepages/hugepages-2048kB/nr_hugepages",
+            str(num),
+        ]
+    )
+
+
+def setup_hugepages(kind: StorageKind) -> None:
+    num = 0
+    # remount to free up space
+    run(["sudo", "umount", "/dev/hugepages"])
+    run(["sudo", "mount", "-t", "hugetlbfs", "hugetlbfs", "/dev/hugepages"])
+    set_hugepages(0)
+
     if kind != StorageKind.SPDK:
-        return 0
+        return
+
     total_memory = get_total_memory()
     # leave 5 GB for the system
     gigabyte = 1024 * 1024 * 1024
-    spdk_memory = total_memory - 5 * gigabyte
+    spdk_memory = total_memory - 15 * gigabyte
     if spdk_memory < gigabyte:
-        raise Exception("Get more memory dude!")
+        raise RuntimeError("Get more memory dude!")
+    num = int(spdk_memory / 2048 / 1024)
 
-    return int(spdk_memory / 2048 / 1024)
+    set_hugepages(num)
 
 
 class Storage:
@@ -167,29 +187,6 @@ class Storage:
         elif kind == StorageKind.LKL:
             run(["sudo", "chown", getpass.getuser(), dev])
 
-        num_hugepages = get_hugepages_num(kind)
-        # spdk setup.sh seems to reset number of pages
-        run(
-            [
-                "sudo",
-                "sh",
-                "-c",
-                "echo $0 > /sys/devices/system/node/node0/hugepages/hugepages-2048kB/nr_hugepages",
-                str(num_hugepages),
-            ]
-        )
-        # delete existing hugepages to actually free up the memory
-        run(
-            [
-                "sudo",
-                "find",
-                "/dev/hugepages",
-                "-name",
-                "spdk*map_*",
-                "-type",
-                "f",
-                "-delete",
-            ]
-        )
+        setup_hugepages(kind)
 
         return Mount(kind, raw_dev, dev, self.settings.spdk_hd_key)
