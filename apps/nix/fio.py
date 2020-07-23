@@ -1,6 +1,7 @@
 import json
 import os
 import subprocess
+import signal
 from typing import Dict, List, Optional
 
 import pandas as pd
@@ -46,18 +47,19 @@ def benchmark_fio(
     in_json = False
     print(f"[Benchmark]: {system}")
     try:
-        assert proc.stdout is not None
-        for line in proc.stdout:
-            print(line, end="")
-            if line == "{\n":
-                in_json = True
-            if in_json:
-                data += line
-            if line == "}\n":
-                break
+        if proc.stdout is None:
+            proc.wait()
+        else:
+            for line in proc.stdout:
+                print(line, end="")
+                if line == "{\n":
+                    in_json = True
+                if in_json:
+                    data += line
+                if line == "}\n":
+                    break
     finally:
-        proc.kill()
-        proc.wait()
+        proc.send_signal(signal.SIGINT)
     if data == "":
         raise RuntimeError(f"Did not get a result when running benchmark for {system}")
     jsondata = json.loads(data)

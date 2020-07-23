@@ -1,8 +1,8 @@
 import os
 import json
 import sys
-from typing import DefaultDict, Dict, List, Optional
-from collections import defaultdict
+import signal
+from typing import Dict, List, Optional
 import subprocess
 import pandas as pd
 
@@ -11,8 +11,6 @@ from helpers import (
     create_settings,
     flamegraph_env,
     nix_build,
-    run,
-    spawn,
     read_stats,
     write_stats,
     scone_env,
@@ -71,7 +69,7 @@ def benchmark_simpleio(
             elif in_results:
                 report += line
     finally:
-        proc.kill()
+        proc.send_signal(signal.SIGINT)
     jsondata = json.loads(report)
     stats["system"].append(system)
     stats["bytes"].append(jsondata["bytes"])
