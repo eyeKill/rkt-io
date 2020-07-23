@@ -51,32 +51,8 @@ int main(int argc, char **argv) {
         }
     }
 
-    char cmd_tmpl[] = "spdk-fix-permissions.sh %d";
-    size_t needed = snprintf(NULL, 0, cmd_tmpl, uid) + 1;
-    char *cmd = malloc(needed);
-    if (!cmd) {
-        fprintf(stderr, "%s: out of memory", argv[0]);
-        goto error;
-    }
-    snprintf(cmd, needed, cmd_tmpl, uid);
-
-#warning \
-    "Rewrite this in C for production code!. Call bash scripts from setuid is insecure for a reason"
-    int r = setuid(0);
-    if (r != 0) {
-        fprintf(stderr, "%s: failed to setuid: %d\n", argv[0], r);
-        goto error;
-    }
-    r = system(cmd);
-    free(cmd);
-
-    if (r != 0) {
-        fprintf(stderr, "%s: failed to chown dpdk files: %d\n", argv[0], r);
-        goto error;
-    }
-
     const static char* ready_msg = "OK";
-    r = write(ready_fd, ready_msg, strlen(ready_msg) + 1);
+    int r = write(ready_fd, ready_msg, strlen(ready_msg) + 1);
     if (r < 0) {
       fprintf(stderr, "%s: failed to write to ready pipe: %s\n", argv[0], strerror(r));
       goto error;

@@ -1,6 +1,0 @@
-#!/bin/sh
-
-#set -eux
-chown $1 $(awk '/hugetlbfs/ {print $2}' /proc/mounts)/spdk0map*
-chown $1 /var/run/dpdk/spdk0/{,config,fbarray_*,hugepage_info} /var/run/dpdk
-chown $1 /var/run/dpdk/spdk0/mp_socket
