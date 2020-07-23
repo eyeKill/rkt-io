@@ -1,3 +1,4 @@
+#include "linux/limits.h"
 #include <errno.h>
 #include <assert.h>
 #include <fcntl.h>
@@ -32,9 +33,20 @@ int create_pipe(int fds[2], char parent_fd) {
 
 int spawn_lkl_userpci(int *pipe_fd)
 {
-    // DPDK uses XDG_RUNTIME_DIR for unprivileged processes.
-    // Since we want to use the same socket for both root and us,
-    // we simply change our XDG_RUNTIME_DIR.
+
+    const char *xdg_runtime_dir = getenv("XDG_RUNTIME_DIR");
+    const char *fallback = "/tmp";
+    const char *directory = NULL;
+    char path_buf[PATH_MAX];
+
+    /* try XDG path first, fall back to /tmp */
+    if (xdg_runtime_dir != NULL) {
+        directory = xdg_runtime_dir;
+    } else {
+        directory = fallback;
+    }
+    sprintf(path_buf, "%s/%s", directory, "spdk0/mp_socket");
+
     assert(pipe_fd);
     *pipe_fd = -1;
     int ready_fds[2], finished_fds[2];
@@ -49,17 +61,11 @@ int spawn_lkl_userpci(int *pipe_fd)
       return r;
     }
 
-    if (putenv("XDG_RUNTIME_DIR=/var/run") != 0) {
-        int saved_errno = errno;
-        fprintf(stderr, "[userpci] putenv failed: %s\n", strerror(saved_errno));
-        return -saved_errno;
-    }
-
     // the idea is to unlink mp_socket and wait for dpdk-setuid-helper to re-bind it.
-    r = unlink(DPDK_MP_SOCKET);
+    r = unlink(path_buf);
     if (r != 0 && errno != ENOENT) {
         int saved_errno = errno;
-        fprintf(stderr, "[userpci] Failed to remove " DPDK_MP_SOCKET ": %s! Please remove it manually\n", strerror(saved_errno));
+        fprintf(stderr, "[userpci] Failed to remove %s: %s! Please remove it manually\n", path_buf, strerror(saved_errno));
         return -saved_errno;
     }
 
