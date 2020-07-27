@@ -1,5 +1,6 @@
 # To use, add source /path/to/gdb.py to your $HOME/.gdbinit file.
 
+import gdb
 import atexit
 import os
 import re
@@ -570,6 +571,112 @@ Print absolute path of the current file.
     def invoke(self, argument, from_tty):
         gdb.write(gdb.selected_frame().find_sal().symtab.fullname() + os.linesep)
 
+class CachedType:
+    def __init__(self, name):
+        self._type = None
+        self._name = name
+
+    def _new_objfile_handler(self, event):
+        self._type = None
+        gdb.events.new_objfile.disconnect(self._new_objfile_handler)
+
+    def get_type(self):
+        if self._type is None:
+            self._type = gdb.lookup_type(self._name)
+            if self._type is None:
+                raise gdb.GdbError(
+                    "cannot resolve type '{0}'".format(self._name))
+            if hasattr(gdb, 'events') and hasattr(gdb.events, 'new_objfile'):
+                gdb.events.new_objfile.connect(self._new_objfile_handler)
+        return self._type
+
+
+task_type = CachedType("struct task_struct")
+thread_info_type = CachedType("struct thread_info")
+long_type = CachedType("long")
+
+
+
+def get_long_type():
+    global long_type
+    return long_type.get_type()
+
+
+def offset_of(typeobj, field):
+    element = gdb.Value(0).cast(typeobj)
+    return int(str(element[field].address).split()[0], 16)
+
+
+def container_of(ptr, typeobj, member):
+    return (ptr.cast(get_long_type()) -
+            offset_of(typeobj, member)).cast(typeobj)
+
+
+def task_lists():
+    task_ptr_type = task_type.get_type().pointer()
+    init_task = gdb.parse_and_eval("init_task").address
+    t = g = init_task
+
+    while True:
+        while True:
+            yield t
+
+            t = container_of(t['thread_group']['next'],
+                             task_ptr_type, "thread_group")
+            if t == g:
+                break
+
+        t = g = container_of(g['tasks']['next'],
+                             task_ptr_type, "tasks")
+        if t == init_task:
+            return
+
+
+def get_task_by_pid(pid):
+    for task in task_lists():
+        if int(task['pid']) == pid:
+            return task
+    return None
+
+
+class LxTaskByPidFunc(gdb.Function):
+    """Find Linux task by PID and return the task_struct variable.
+
+$lx_task_by_pid(PID): Given PID, iterate over all tasks of the target and
+return that task_struct variable which PID matches."""
+
+    def __init__(self):
+        super(LxTaskByPidFunc, self).__init__("lx_task_by_pid")
+
+    def invoke(self, pid):
+        task = get_task_by_pid(pid)
+        if task:
+            return task.dereference()
+        else:
+            raise gdb.GdbError("No task of PID " + str(pid))
+
+
+
+class LxPs(gdb.Command):
+    """Dump Linux tasks."""
+
+    def __init__(self):
+        super(LxPs, self).__init__("lx-ps", gdb.COMMAND_DATA)
+
+    def invoke(self, arg, from_tty):
+        for task in task_lists():
+            # adapted from:
+            #define task_thread_info(task)	((struct thread_info *)(task)->stack)
+            thread_info = task["stack"].cast(thread_info_type.get_type().pointer())
+            # f"{int(t['tid'])}"
+            gdb.write("{address} {pid} {tid:02x} {comm}\n".format(
+                address=task,
+                pid=task["pid"],
+                tid=int(thread_info["tid"]),
+                comm=task["comm"].string()))
+
+
+       
 if __name__ == '__main__':
     StarterExecBreakpoint()
     LthreadBacktrace()
@@ -584,3 +691,5 @@ if __name__ == '__main__':
     BtLkl()
     Hexyl()
     Curpath()
+    LxTaskByPidFunc()
+    LxPs()
