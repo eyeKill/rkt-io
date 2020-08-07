@@ -121,6 +121,24 @@ let
   simpleio-scone = simpleio-musl.override {
     stdenv = sconeStdenv;
   };
+  nginx = (pkgsMusl.nginx.override {
+    gd = null;
+    geoip = null;
+    libxslt = null;
+    withStream = false;
+  }).overrideAttrs (old: {
+    configureFlags = [
+      "--with-file-aio" "--with-threads"
+      "--http-log-path=/var/log/nginx/access.log"
+      "--error-log-path=/var/log/nginx/error.log"
+      "--pid-path=/var/log/nginx/nginx.pid"
+      "--http-client-body-temp-path=/var/cache/nginx/"
+      "--http-proxy-temp-path=/var/cache/nginx/proxy"
+      "--http-fastcgi-temp-path=/var/cache/nginx/fastcgi"
+      "--http-uwsgi-temp-path=/var/cache/nginx/uwsgi"
+      "--http-scgi-temp-path=/var/cache/nginx/scgi"
+    ];
+  });
 in {
   musl = pkgs.musl;
 
@@ -397,6 +415,29 @@ in {
   iotest-image = buildImage {
     pkg = pkgs.callPackage ./dummy.nix {};
     extraFiles = {
+      "/var/www/file-3mb".path = runCommand "file-3mb" {} ''
+        yes "a" | head -c ${toString (3 * 1024 * 1024)} > $out || true
+      '';
+      "etc/nginx.conf" = ''
+        master_process off;
+        daemon off;
+        error_log stderr;
+        events {}
+        http {
+          access_log off;
+          aio threads;
+          server {
+            listen 9000;
+            default_type text/plain;
+            location / {
+              return 200 "$remote_addr\n";
+            }
+            location /test {
+              alias /var/www;
+            }
+          }
+        }
+      '';
       "fio-rand-RW.job" = ''
         [global]
         name=fio-rand-RW
@@ -490,16 +531,37 @@ in {
     '';
   };
 
-  nginx = runImage {
+  nginx-native = runImage {
+    pkg = nginx;
+    command = [ "bin/nginx" "-c" "/tmp/mnt/etc/nginx.conf" ];
+    extraFiles."/var/www/file-3mb".path = runCommand "file-3mb" {} ''
+      yes "a" | head -c ${toString (3 * 1024 * 1024)} > $out || true
+    '';
+    native = true;
+  };  
+
+  nginx-scone = runImage {
     pkg = (pkgsMusl.nginx.override {
       gd = null;
       geoip = null;
       libxslt = null;
       withStream = false;
+      stdenv = sconeStdenv;
     }).overrideAttrs (old: {
       configureFlags = [
         "--with-file-aio" "--with-threads"
+        "--http-log-path=/var/log/nginx/access.log"
+        "--error-log-path=/var/log/nginx/error.log"
+        "--pid-path=/var/log/nginx/nginx.pid"
+        "--http-client-body-temp-path=/var/cache/nginx/client_body"
+        "--http-proxy-temp-path=/var/cache/nginx/proxy"
+        "--http-fastcgi-temp-path=/var/cache/nginx/fastcgi"
+        "--http-uwsgi-temp-path=/var/cache/nginx/uwsgi"
+        "--http-scgi-temp-path=/var/cache/nginx/scgi"
+        "--with-pcre=/home/harshanavkis/pcre-8.00/"
+        "--with-zlib=/home/harshanavkis/zlib-1.2.11/"
       ];
+      buildInputs = [ pcre zlib ];
     });
     command = [ "bin/nginx" "-c" "/etc/nginx.conf" ];
     extraFiles."/var/www/file-3mb".path = runCommand "file-3mb" {} ''
@@ -511,9 +573,10 @@ in {
       error_log stderr;
       events {}
       http {
+        access_log off;
         aio threads;
         server {
-          listen 80;
+          listen 9000;
           default_type text/plain;
           location / {
             return 200 "$remote_addr\n";
@@ -523,6 +586,38 @@ in {
           }
         }
       }
-    '';
+      '';
+    native = true;
+  };  
+
+  nginx = runImage {
+    pkg = nginx;
+    command = [ "bin/nginx" "-c" "/etc/nginx.conf" ];
+    # sgx-io: /mnt/spdk0 /mnt/spdk1
+    # scone/native/sgx-lkl: /mnt/nvme
+    extraFiles."/var/cache/nginx/.keep" = "";
+    extraFiles."/var/log/nginx/.keep" = "";
+    extraFiles."etc/nginx.conf" = ''
+       master_process off;
+       daemon off;
+       error_log stderr;
+       events {}
+       http {
+         access_log off;
+         aio threads;
+         server {
+           listen 9000;
+           default_type text/plain;
+           location / {
+             return 200 "$remote_addr\n";
+           }
+           location /test {
+             alias /var/www;
+           }
+         }
+       }
+      '';
   };
+
+  wrk-bench = pkgsMusl.wrk;
 }
