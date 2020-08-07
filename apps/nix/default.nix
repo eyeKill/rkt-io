@@ -558,10 +558,21 @@ in {
         "--http-fastcgi-temp-path=/var/cache/nginx/fastcgi"
         "--http-uwsgi-temp-path=/var/cache/nginx/uwsgi"
         "--http-scgi-temp-path=/var/cache/nginx/scgi"
-        "--with-pcre=/home/harshanavkis/pcre-8.00/"
-        "--with-zlib=/home/harshanavkis/zlib-1.2.11/"
       ];
-      buildInputs = [ pcre zlib ];
+      buildInputs = [
+        ((pkgsStatic.pcre.override {
+          stdenv = sconeStdenv;
+        }).overrideAttrs (old: {
+          configureFlags = old.configureFlags ++ [
+            "--disable-shared"
+          ];
+          # disable-shared breaks the tests
+          doCheck = false;
+        }))
+        (pkgsStatic.zlib.override {
+          stdenv = sconeStdenv;
+        })
+      ];
     });
     command = [ "bin/nginx" "-c" "/etc/nginx.conf" ];
     extraFiles."/var/www/file-3mb".path = runCommand "file-3mb" {} ''
