@@ -123,7 +123,7 @@ int main(int argc, char** argv) {
     written_since_print += written;
   }
   fprintf(stderr, "fsync()\n");
-  //fsync(fd);
+  fsync(fd);
   if (direct_io) {
     munmap(buf, BUF_SIZE);
   } else {
