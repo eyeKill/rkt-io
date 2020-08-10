@@ -26,6 +26,7 @@ size_t spdk_dma_mempool_size = 0;
 int spdk_env_dpdk_post_init(void);
 
 int sgxlkl_spdk_initialize() {
+    void *spdk_nvme_driver;
     // this function is called internally by SPDK to register pci drivers and
     // initialize address translation. Since we are not running the full
     // initialisation in SPDK, we need to calls this function manually
@@ -63,6 +64,7 @@ int sgxlkl_register_spdk_device(struct spdk_dev *dev) {
 
     err = lkl_sys_ioctl(fd, SPDK_CTL_ADD, (long)&dev->ns_entry);
 
+
     if (err < 0) {
         lkl_sys_close(fd);
         fprintf(stderr, "spdk: ioctl SPDK_CTL_ADD failed: %s\n",
@@ -83,19 +85,31 @@ void sgxlkl_unregister_spdk_device(struct spdk_dev *dev) {
     struct spdk_nvme_qpair *qpair;
 
     close(dev->ns_entry.ctl_fd);
-
-    for (int i = 0; i < dev->ns_entry.qpairs_num; i++) {
-        qpair = dev->ns_entry.qpairs[i];
-        if (qpair) {
-            ready = false;
-            spdk_nvme_ns_cmd_flush(dev->ns_entry.ns, qpair,
-                                   final_flush_complete, &ready);
-            while (!ready) {
-                spdk_nvme_qpair_process_completions(qpair, 0);
-            }
-        }
-    }
 }
+
+int sgxlkl_stop_spdk(void) {
+    struct lkl_ifreq ifr;
+    int fd, err;
+
+    fd = lkl_sys_open("/dev/spdk-control", LKL_O_RDONLY, 0);
+
+    if (fd < 0) {
+        fprintf(stderr, "spdk: cannot open /dev/spdk-control: %s\n",
+                lkl_strerror(-fd));
+        return fd;
+    }
+
+    err = lkl_sys_ioctl(fd, SPDK_CTL_SHUTDOWN, 0);
+    lkl_sys_close(fd);
+
+    if (err < 0) {
+        fprintf(stderr, "spdk: ioctl SPDK_CTL_SHUTDOWN failed: %s\n",
+                lkl_strerror(-fd));
+    }
+
+    return err;
+}
+
 
 void sgxlkl_register_spdk_dma_memory(struct spdk_dma_memory* ctx) {
     void* lowest_address = (void*) -1;

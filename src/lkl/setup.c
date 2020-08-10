@@ -544,6 +544,7 @@ static int device_path(int dev_id, char* dev) {
 static void spdk_mountpoint(int dev_id, char* dev) {
     snprintf(dev, DEV_PATH_LEN, "/mnt/spdk%d", dev_id);
 }
+extern void *g_spdk_nvme_driver;
 
 static void lkl_start_spdk(struct spdk_context *ctx) {
 
@@ -555,6 +556,7 @@ static void lkl_start_spdk(struct spdk_context *ctx) {
         fprintf(stderr, "Error: unable to allocate memory spdk devices\n");
         exit(1);
     }
+    g_spdk_nvme_driver = ctx->spdk_nvme_driver;
 
     size_t idx = 0;
 
@@ -611,6 +613,7 @@ static void lkl_stop_spdk() {
         sgxlkl_unregister_spdk_device(&spdk_devs[i]);
     }
     free(spdk_devs);
+    sgxlkl_stop_spdk();
 }
 
 static void lkl_mount_virtual() {
@@ -1224,7 +1227,7 @@ void lkl_exit() {
         }
     }
 
-    //spdk_context_detach(spdk_context);
+    spdk_context_detach(spdk_context);
 
     res = lkl_sys_halt();
     if (res < 0) {

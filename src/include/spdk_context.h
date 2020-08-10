@@ -23,6 +23,7 @@ struct spdk_ns_entry {
 struct spdk_context {
     struct spdk_ctrlr_entry *controllers;
     struct spdk_ns_entry *namespaces;
+    void *spdk_nvme_driver;
     char* key;
     size_t key_len;
     int attach_error;

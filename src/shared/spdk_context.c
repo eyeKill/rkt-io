@@ -27,7 +27,6 @@ void spdk_context_detach(struct spdk_context *ctx) {
                     spdk_nvme_ctrlr_free_io_qpair(ns_entry->qpairs[i]);
                 }
             }
-            free(ns_entry->qpairs);
         }
         ns_entry = next;
     }
@@ -48,6 +47,9 @@ void spdk_context_free(struct spdk_context *ctx) {
     struct spdk_ns_entry *ns_entry = ctx->namespaces;
     while (ns_entry) {
         struct spdk_ns_entry *next = ns_entry->next;
+        if (ns_entry->qpairs) {
+            free(ns_entry->qpairs);
+        }
 
         free(ns_entry);
         ns_entry = next;
@@ -172,8 +174,7 @@ static void attach_cb(void *_ctx, const struct spdk_nvme_transport_id *trid,
 }
 
 static int register_qpairs(struct spdk_context *ctx) {
-    // uint32_t cores =  get_nprocs();
-    uint32_t cores = 1;
+    uint32_t cores =  get_nprocs();
 
     struct spdk_ns_entry *ns_entry = ctx->namespaces;
     while (ns_entry != NULL) {
@@ -248,6 +249,9 @@ static void *poll_ctrlrs(void *arg) {
     return NULL;
 }
 
+// global state in spdk that we need to copy into the enclave
+extern void *g_spdk_nvme_driver;
+
 int spdk_initialize(struct spdk_context *ctx, bool primary_proc) {
     assert(ctx != NULL);
 
@@ -278,6 +282,7 @@ int spdk_initialize(struct spdk_context *ctx, bool primary_proc) {
     }
 
     if (!primary_proc) {
+        ctx->spdk_nvme_driver = g_spdk_nvme_driver;
         r = pthread_create(&ctx->ctrlr_thread_id, NULL, &poll_ctrlrs, ctx);
         if (r != 0) {
             spdk_context_cleanup(ctx);
