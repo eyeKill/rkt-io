@@ -1032,7 +1032,7 @@ void load_x86_kernel_modules(void) {
         } else {
             SGXLKL_VERBOSE("Successfully loaded kernel module %s\n", kmods[i].name);
         }
-        usleep(10);
+        usleep(100);
     }
 }
 #endif /* X86MODULES */
