@@ -87,6 +87,30 @@ void sgxlkl_unregister_spdk_device(struct spdk_dev *dev) {
     close(dev->ns_entry.ctl_fd);
 }
 
+int sgxlkl_debug_spdk(void) {
+    struct lkl_ifreq ifr;
+    int fd, err;
+
+    fd = lkl_sys_open("/dev/spdk-control", LKL_O_RDONLY, 0);
+
+    if (fd < 0) {
+        fprintf(stderr, "spdk: cannot open /dev/spdk-control: %s\n",
+                lkl_strerror(-fd));
+        return fd;
+    }
+
+    err = lkl_sys_ioctl(fd, SPDK_CTL_DEBUG, 0);
+    lkl_sys_close(fd);
+
+    if (err < 0) {
+        fprintf(stderr, "spdk: ioctl SPDK_CTL_SHUTDOWN failed: %s\n",
+                lkl_strerror(-fd));
+    }
+
+    return err;
+}
+
+
 int sgxlkl_stop_spdk(void) {
     struct lkl_ifreq ifr;
     int fd, err;
