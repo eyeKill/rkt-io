@@ -124,6 +124,7 @@ int main(int argc, char** argv) {
   }
   fprintf(stderr, "fsync()\n");
   fsync(fd);
+  close(fd);
   if (direct_io) {
     munmap(buf, BUF_SIZE);
   } else {
