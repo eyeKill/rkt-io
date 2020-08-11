@@ -97,6 +97,9 @@ static size_t sleeptime_ns = 1600;
 static size_t futex_wake_spins = 500;
 static volatile int schedqueuelen = 0;
 
+// not thread-safe
+#undef DEBUG
+
 #if DEBUG
 int thread_count = 1;
 struct lthread_queue *__active_lthreads = NULL;
@@ -642,7 +645,7 @@ int lthread_create(struct lthread **new_lt, struct lthread_attr *attrp, void *fu
 
     a_inc(&libc.threads_minus_1);
 
-    SGXLKL_TRACE_THREAD("[tid=%-3d] create: thread_count=%d\n", lt->tid, thread_count);
+    //SGXLKL_TRACE_THREAD("[tid=%-3d] create: thread_count=%d\n", lt->tid, thread_count);
 
 #if DEBUG
     struct lthread_queue *new_ltq = (struct lthread_queue*) malloc(sizeof(struct lthread_queue));
@@ -689,7 +692,7 @@ void lthread_exit(void *ptr) {
     /* switch thread to exiting state */
     _lthread_lock(lt);
 
-    SGXLKL_TRACE_THREAD("[tid=%-3d] thread_exit: thread_count=%d\n", lt->tid, thread_count);
+    //SGXLKL_TRACE_THREAD("[tid=%-3d] thread_exit: thread_count=%d\n", lt->tid, thread_count);
 
     lt->yield_cbarg = ptr;
     lt->attr.state |= BIT(LT_ST_EXITED);
@@ -709,13 +712,12 @@ int lthread_join(struct lthread *lt, void **ptr, uint64_t timeout) {
     }
     _lthread_lock(lt);
     if (lt->attr.state & BIT(LT_ST_EXITED)) {
-        SGXLKL_TRACE_THREAD("[tid=%-3d] join:  tid=%d count=%d\n", (lthread_self() ? lthread_self()->tid : 0), lt->tid, thread_count);
+        //SGXLKL_TRACE_THREAD("[tid=%-3d] join:  tid=%d count=%d\n", (lthread_self() ? lthread_self()->tid : 0), lt->tid, thread_count);
 
         /* we can test for exited flag only with lock acquired */
         _lthread_unlock(lt);
     } else {
-
-        SGXLKL_TRACE_THREAD("[tid=%-3d] join:  tid=%d count=%d\n", (lthread_self() ? lthread_self()->tid : 0), lt->tid, thread_count);
+        //SGXLKL_TRACE_THREAD("[tid=%-3d] join:  tid=%d count=%d\n", (lthread_self() ? lthread_self()->tid : 0), lt->tid, thread_count);
 
         /* thread is still running, set current lthread as joiner */
         if (a_cas_p(&lt->lt_join, 0, current) != 0) {
