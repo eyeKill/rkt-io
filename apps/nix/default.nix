@@ -330,9 +330,26 @@ in {
     command = [ "bin/hdparm" "-Tt" "/dev/spdk0" ];
   };
 
+  redis-native = runImage {
+    pkg = pkgsMusl.redis.overrideAttrs (old: {
+      makeFlags = old.makeFlags ++ [ "MALLOC=libc" ];
+      srcs = "/home/harshanavkis/redis-6.0.6";
+      #src = fetchurl {
+      #  url    = "http://download.redis.io/releases/redis-6.0.6.tar.gz";
+      #  sha256 = "12ad49b163af5ef39466e8d2f7d212a58172116e5b441eebecb4e6ca22363d94";
+      #};
+    });
+    command = [ "bin/redis-server" ];
+    native = true;
+  };
+  
   redis = runImage {
     pkg = pkgsMusl.redis.overrideAttrs (old: {
-      makeFlags = old.makeFlags + " MALLOC=libc";
+      makeFlags = old.makeFlags ++ [ "MALLOC=libc" ];
+      src = fetchurl {
+        url    = "http://download.redis.io/releases/redis-6.0.6.tar.gz";
+        sha256 = "12ad49b163af5ef39466e8d2f7d212a58172116e5b441eebecb4e6ca22363d94";
+      };
     });
     command = [ "bin/redis-server" ];
   };
