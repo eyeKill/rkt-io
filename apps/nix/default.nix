@@ -538,7 +538,9 @@ in {
       yes "a" | head -c ${toString (3 * 1024 * 1024)} > $out || true
     '';
     native = true;
-  };  
+  };
+
+  ycsb = pkgs.callPackage ./ycsb {};
 
   nginx-scone = runImage {
     pkg = (pkgsMusl.nginx.override {
