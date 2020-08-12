@@ -109,7 +109,7 @@ let
   hello-graphene = pkgs.callPackage ./hello {};
 
   inherit (pkgs.callPackages ./scone {})
-    scone-cc sconeStdenv sconeEnv;
+    scone-cc sconeStdenv sconeEnv scone-unwrapped;
   inherit (pkgs.callPackages ./graphene {}) runGraphene;
   sgx-lkl = pkgs.callPackage ./sgx-lkl {};
 
@@ -216,6 +216,9 @@ in {
   };
 
   inherit iperf3-scone sconeStdenv sconeEnv;
+
+  # provides scone command
+  scone = scone-unwrapped;
 
   iperf3-graphene = runGraphene {
     pkg = iperf3-graphene;
