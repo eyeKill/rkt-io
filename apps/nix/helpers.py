@@ -144,6 +144,7 @@ def scone_env() -> Dict[str, str]:
     return dict(
         SCONE_SSPINS=str(10000),
         SCONE_CONFIG=str(ROOT.joinpath("scone/sgx-musl.conf")),
+        SCONE_HEAP="1G",
     )
 
 

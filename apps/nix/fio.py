@@ -12,6 +12,7 @@ from helpers import (
     nix_build,
     read_stats,
     write_stats,
+    scone_env
 )
 from storage import Storage, StorageKind
 
@@ -83,7 +84,7 @@ def benchmark_native(storage: Storage, stats: Dict[str, List]) -> None:
 
 def benchmark_scone(storage: Storage, stats: Dict[str, List]) -> None:
     with storage.setup(StorageKind.NATIVE) as mnt:
-        benchmark_fio(storage, "scone", "fio-scone", mnt, stats)
+        benchmark_fio(storage, "scone", "fio-scone", mnt, stats, extra_env=scone_env())
 
 
 def benchmark_sgx_lkl(storage: Storage, stats: Dict[str, List]) -> None:
