@@ -1,6 +1,7 @@
 import json
 import os
 import subprocess
+import time
 import signal
 import pandas as pd
 from io import StringIO
@@ -31,8 +32,9 @@ def process_ycsb_out(
 ) -> None:
     csv_file    = StringIO(ycsb_out)
     df          = pd.read_csv(csv_file, header=None)
-    csv_headers = df.iloc[:, 1]
-    csv_vals    = df.iloc[:, 2]
+    csv_headers = list(df.iloc[:, 1].values)
+    csv_vals    = list(df.iloc[:, 2].values)
+    csv_vals    = [str(i) for i in csv_vals]
 
     if len(bench_result) == 0:
         csv_headers = list_to_csv(csv_headers)
@@ -58,6 +60,7 @@ def benchmark_redis(
 
     with spawn(redis_server, extra_env=extra_env):
         while True:
+            time.sleep(5)
             try:
                 print(f"Running wrk benchmark for {system} case")
                 load_proc = remote_ycsb.run(
@@ -67,37 +70,40 @@ def benchmark_redis(
                         "redis",
                         "-s",
                         "-P",
-                        "share/ycsb/workloads/workloada",
+                        f"{remote_ycsb.nix_path}/share/ycsb/workloads/workloada",
                         "-p",
-                        f"redis.host={settings.local_dpdk_ip}"
+                        f"redis.host={settings.local_dpdk_ip}",
+                        "-p",
+                        "redis.port=6379"
                     ]
                 )
-
-                run_proc = remote_ycsb.run(
-                    "bin/ycsb",
-                    [
-                        "run",
-                        "redis",
-                        "-s",
-                        "-P",
-                        "share/ycsb/workloads/workloada",
-                        "-p",
-                        f"redis.host={settings.local_dpdk_ip}"
-                    ]
-                )
-
-                if "load_res" not in stats:
-                    stats["load_res"] = []
-                if "run_res" not in stats:
-                    stats["run_res"] = []
-
-                process_ycsb_out(load_proc.stdout, system, stats["load_res"])
-                process_ycsb_out(run_proc.stdout, system, stats["run_res"])
-
                 break
             except subprocess.CalledProcessError:
                 print(".")
                 pass
+
+        run_proc = remote_ycsb.run(
+                        "bin/ycsb",
+                        [
+                            "run",
+                            "redis",
+                            "-s",
+                            "-P",
+                            f"{remote_ycsb.nix_path}/share/ycsb/workloads/workloada",
+                            "-p",
+                            f"redis.host={settings.local_dpdk_ip}",
+                            "-p",
+                            "redis.port=6379"
+                        ]
+                    )
+
+    if "load_res" not in stats:
+        stats["load_res"] = []
+    if "run_res" not in stats:
+        stats["run_res"] = []
+    
+    process_ycsb_out(load_proc.stdout, system, stats["load_res"])
+    process_ycsb_out(run_proc.stdout, system, stats["run_res"])
 
 def benchmark_redis_native(
     settings: Settings,
@@ -105,7 +111,7 @@ def benchmark_redis_native(
 ) -> None:
     Network(NetworkKind.NATIVE, settings).setup()
     redis_server = nix_build("redis-native")
-    remote_ycsb  = settings.remote_command(nix_build("ycsb"))
+    remote_ycsb  = settings.remote_command(nix_build("ycsb-native"))
 
     benchmark_redis(settings, "native", redis_server, remote_ycsb, stats)
 
@@ -122,7 +128,7 @@ def benchmark_redis_sgx_lkl(
     )
 
     redis_server = nix_build("redis")
-    remote_ycsb  = settings.remote_command(nix_build("ycsb"))
+    remote_ycsb  = settings.remote_command(nix_build("ycsb-native"))
 
     benchmark_redis(settings, "native", redis_server, remote_ycsb, stats, extra_env=extra_env)
 
@@ -134,7 +140,7 @@ def benchmark_redis_sgx_io(
     extra_env = dict(SGXLKL_DPDK_MTU="1500")
 
     redis_server = nix_build("redis")
-    remote_ycsb  = settings.remote_command(nix_build("ycsb"))
+    remote_ycsb  = settings.remote_command(nix_build("ycsb-native"))
 
     benchmark_redis(settings, "native", redis_server, remote_ycsb, stats, extra_env=extra_env)
 
@@ -143,8 +149,8 @@ def main() -> None:
     settings = create_settings()
 
     benchmark_redis_native(settings, stats)
-    benchmark_redis_sgx_lkl(settings, stats)
-    benchmark_redis_sgx_io(settings, stats)
+    # benchmark_redis_sgx_lkl(settings, stats)
+    # benchmark_redis_sgx_io(settings, stats)
 
     load_df = pd.DataFrame(stats["load_res"])
     run_df  = pd.DataFrame(stats["run_res"])
