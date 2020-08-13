@@ -34,6 +34,7 @@ def cryptsetup_luks_open(dev: str, cryptsetup_name: str, key: str) -> None:
 def cryptsetup_luks_close(cryptsetup_name: str) -> None:
     run(["sudo", "cryptsetup", "close", cryptsetup_name])
 
+MOUNTPOINT = ROOT.joinpath("iotest-mnt")
 
 class Mount:
     def __init__(
@@ -47,26 +48,22 @@ class Mount:
 
     def __enter__(self) -> str:
         assert self.kind == StorageKind.NATIVE
-        self.mountpoint = ROOT.joinpath("iotest-mnt")
-        self.mountpoint.mkdir(exist_ok=True)
-
-        if self.mountpoint.is_mount():
-            run(["sudo", "umount", str(self.mountpoint)])
+        MOUNTPOINT.mkdir(exist_ok=True)
 
         if self.hd_key:
             cryptsetup_luks_open(self.raw_dev, self.cryptsetup_name, self.hd_key)
 
-        run(["sudo", "mount", self.dev, self.mountpoint.name])
-        run(["sudo", "chown", "-R", getpass.getuser(), self.mountpoint.name])
+        run(["sudo", "mount", self.dev, str(MOUNTPOINT)])
+        run(["sudo", "chown", "-R", getpass.getuser(), str(MOUNTPOINT)])
 
-        return self.mountpoint.name
+        return str(MOUNTPOINT)
 
     def __exit__(self, type: Any, value: Any, traceback: Any) -> None:
         for i in range(3):
             try:
-                run(["sudo", "umount", self.mountpoint.name])
+                run(["sudo", "umount", str(MOUNTPOINT)])
             except subprocess.CalledProcessError:
-                print(f"unmount {self.mountpoint.name} failed; retry in 1s")
+                print(f"unmount {MOUNTPOINT} failed; retry in 1s")
                 time.sleep(1)
             break
 
@@ -113,6 +110,9 @@ class Storage:
         self.image = nix_build("iotest-image")
 
     def setup(self, kind: StorageKind) -> Mount:
+        if MOUNTPOINT.is_mount():
+            run(["sudo", "umount", str(MOUNTPOINT)])
+
         run(
             [
                 "sudo",
