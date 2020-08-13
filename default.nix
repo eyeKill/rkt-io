@@ -176,6 +176,8 @@ in (overrideCC stdenv gcc_nolibc).mkDerivation {
   FSTEST_MNT = "/mnt/vdb";
   SGXLKL_TAP_OFFLOAD="1";
   SGXLKL_TAP_MTU="9000";
+  SGXLKL_KERNEL_VERBOSE = 1;
+  SGXLKL_VERBOSE = 1;
 
   shellHook = ''
     export DOCKER_HOST=unix://$PWD/.docker/docker.sock
