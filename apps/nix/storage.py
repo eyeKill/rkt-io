@@ -47,7 +47,11 @@ class Mount:
 
     def __enter__(self) -> str:
         assert self.kind == StorageKind.NATIVE
-        self.mountpoint = tempfile.TemporaryDirectory(prefix="iotest-mnt")
+        self.mountpoint = ROOT.joinpath("iotest-mnt")
+        self.mountpoint.mkdir(exist_ok=True)
+
+        if self.mountpoint.is_mount():
+            run(["sudo", "umount", str(self.mountpoint)])
 
         if self.hd_key:
             cryptsetup_luks_open(self.raw_dev, self.cryptsetup_name, self.hd_key)
