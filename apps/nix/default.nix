@@ -345,10 +345,13 @@ in {
   
   redis = runImage {
     pkg = pkgsMusl.redis.overrideAttrs (old: {
-      makeFlags = old.makeFlags ++ [ "MALLOC=libc" ];
+      name = "redis-6.0.6";
+      buildInputs = [ ]; # no lua/systemd
+      nativeBuildInputs = [ pkg-config ];
+      makeFlags = [ "MALLOC=libc" "PREFIX=$(out)" ];
       src = fetchurl {
         url    = "http://download.redis.io/releases/redis-6.0.6.tar.gz";
-        sha256 = "12ad49b163af5ef39466e8d2f7d212a58172116e5b441eebecb4e6ca22363d94";
+        sha256 = "151x6qicmrmlxkmiwi2vdq8p50d52b9gglp8csag6pmgcfqlkb8j";
       };
     });
     command = [ "bin/redis-server" ];
