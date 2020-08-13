@@ -178,6 +178,7 @@ in (overrideCC stdenv gcc_nolibc).mkDerivation {
   SGXLKL_TAP_MTU="9000";
   SGXLKL_KERNEL_VERBOSE = 1;
   SGXLKL_VERBOSE = 1;
+  SCONE_HEAP = "1G";
 
   shellHook = ''
     export DOCKER_HOST=unix://$PWD/.docker/docker.sock
