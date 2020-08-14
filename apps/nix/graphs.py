@@ -68,7 +68,7 @@ def fio_read_graph(df: pd.DataFrame) -> Any:
     g = catplot(
         data=apply_aliases(df),
         x=column_alias("system"),
-        y=column_alias("read-iobytes"),
+        y=column_alias("read-io_bytes"),
         hue=column_alias("job"),
         kind="bar",
         height=2.5,
@@ -82,7 +82,7 @@ def fio_write_graph(df: pd.DataFrame) -> Any:
     g = catplot(
         data=apply_aliases(df),
         x=column_alias("system"),
-        y=column_alias("write-iobytes"),
+        y=column_alias("write-io_bytes"),
         hue=column_alias("job"),
         kind="bar",
         height=2.5,
