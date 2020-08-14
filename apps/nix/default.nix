@@ -657,5 +657,46 @@ in {
       '';
   };
 
+  sqlite-native = runImage {
+    pkg = pkgsMusl.sqlite.overrideAttrs (old: {
+      src = fetchFromGitHub {
+        owner="harshanavkis";
+        repo="sqlite-speedtest-custom";
+        rev = "6caae00fa543bc255000cf66b4b0aef8f15ad698";
+        sha256 = "0km2z8avlzr276jqnm1y4qwdbgnwzdjd8qingsii313mwq0d0sgr";
+      };
+
+      buildInputs = [ pkgsMusl.tcl ];
+      outputs = ["out"];
+      makeFlags = ["speedtest1"];
+      installPhase = ''
+        mkdir -p $out/bin
+        cp speedtest1 $out/bin
+      '';
+    });
+    native = true;
+    command = [ "bin/speedtest1" "2000" "bench.db" ];
+  };
+
+  sqlite = runImage {
+    pkg = pkgsMusl.sqlite.overrideAttrs (old: {
+      src = fetchFromGitHub {
+        owner="harshanavkis";
+        repo="sqlite-speedtest-custom";
+        rev = "6caae00fa543bc255000cf66b4b0aef8f15ad698";
+        sha256 = "0km2z8avlzr276jqnm1y4qwdbgnwzdjd8qingsii313mwq0d0sgr";
+      };
+
+      buildInputs = [ pkgsMusl.tcl ];
+      outputs = ["out"];
+      makeFlags = ["speedtest1"];
+      installPhase = ''
+        mkdir -p $out/bin
+        cp speedtest1 $out/bin
+      '';
+    });
+    command = [ "bin/speedtest1" "2000" "bench.db" ];
+  };
+
   wrk-bench = pkgsMusl.wrk;
 }
