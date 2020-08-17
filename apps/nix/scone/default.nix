@@ -82,6 +82,7 @@ in rec {
       done
 
       ln -s $out/opt/scone/cross-compiler/x86_64-linux-musl/lib $out/lib
+      ln -s $out/opt/scone/bin/scone $out/bin/scone
     '';
     nativeBuildInputs = [
       autoPatchelfHook makeWrapper

@@ -14,6 +14,7 @@ class StorageKind(Enum):
     NATIVE = 1
     LKL = 2
     SPDK = 3
+    SCONE = 4
 
 
 def get_total_memory() -> int:
@@ -47,7 +48,7 @@ class Mount:
         self.hd_key = hd_key
 
     def __enter__(self) -> str:
-        assert self.kind == StorageKind.NATIVE
+        assert self.kind == StorageKind.NATIVE or self.kind == StorageKind.SCONE
         MOUNTPOINT.mkdir(exist_ok=True)
 
         if self.hd_key:
@@ -67,7 +68,7 @@ class Mount:
                 time.sleep(1)
             break
 
-        if self.raw_dev != self.dev:
+        if self.raw_dev != self.dev and self.kind != StorageKind.SCONE:
             cryptsetup_luks_close(self.cryptsetup_name)
 
 
@@ -96,7 +97,7 @@ def setup_hugepages(kind: StorageKind) -> None:
     total_memory = get_total_memory()
     # leave 5 GB for the system
     gigabyte = 1024 * 1024 * 1024
-    spdk_memory = total_memory - 15 * gigabyte
+    spdk_memory = total_memory - 25 * gigabyte
     if spdk_memory < gigabyte:
         raise RuntimeError("Get more memory dude!")
     num = int(spdk_memory / 2048 / 1024)
@@ -104,12 +105,45 @@ def setup_hugepages(kind: StorageKind) -> None:
     set_hugepages(num)
 
 
+def setup_luks(plain_dev: str, luks_name: str, key: str) -> str:
+    run(
+        [
+            "sudo",
+            "cryptsetup",
+            "-v",
+            "--type",
+            "luks2",
+            "luksFormat",
+            plain_dev,
+            "--batch-mode",
+            "--cipher",
+            "capi:xts(aes)-plain64",
+            # "aes-xts-plain64",
+            "--key-size",
+            "256",
+            "--hash",
+            "sha256",
+            # default is argon2i, which requires 1GB of RAM
+            "--pbkdf",
+            "pbkdf2",
+        ],
+        input=key,
+    )
+    cryptsetup_luks_open(plain_dev, luks_name, key)
+    return f"/dev/mapper/{luks_name}"
+
+# https://sconedocs.github.io/SCONE_Fileshield/
+
 class Storage:
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
-        self.image = nix_build("iotest-image")
 
     def setup(self, kind: StorageKind) -> Mount:
+        if kind == StorageKind.SCONE and self.settings.spdk_hd_key:
+            image = nix_build("iotest-image-scone")
+        else:
+            image = nix_build("iotest-image")
+
         if MOUNTPOINT.is_mount():
             run(["sudo", "umount", str(MOUNTPOINT)])
 
@@ -132,42 +166,15 @@ class Storage:
 
         # TRIM for optimal performance
         run(["sudo", "blkdiscard", raw_dev])
-        if self.settings.spdk_hd_key:
-            run(
-                [
-                    "sudo",
-                    "cryptsetup",
-                    "-v",
-                    "--type",
-                    "luks2",
-                    "luksFormat",
-                    raw_dev,
-                    "--batch-mode",
-                    "--cipher",
-                    "capi:xts(aes)-plain64",
-                    # "aes-xts-plain64",
-                    "--key-size",
-                    "256",
-                    "--hash",
-                    "sha256",
-                    # default is argon2i, which requires 1GB of RAM
-                    "--pbkdf",
-                    "pbkdf2",
-                ],
-                input=self.settings.spdk_hd_key,
-            )
-            run(
-                ["sudo", "cryptsetup", "open", raw_dev, spdk_device],
-                input=self.settings.spdk_hd_key,
-            )
-            dev = f"/dev/mapper/{spdk_device}"
+        if self.settings.spdk_hd_key and kind != StorageKind.SCONE:
+            dev = setup_luks(raw_dev, spdk_device, self.settings.spdk_hd_key)
         else:
             dev = raw_dev
         run(
             [
                 "sudo",
                 "dd",
-                f"if={self.image}",
+                f"if={image}",
                 f"of={dev}",
                 "bs=128M",
                 "conv=fdatasync",
@@ -177,7 +184,7 @@ class Storage:
         )
         run(["sudo", "resize2fs", dev])
 
-        if self.settings.spdk_hd_key:
+        if self.settings.spdk_hd_key and kind != StorageKind.SCONE:
             run(["sudo", "cryptsetup", "close", spdk_device])
 
         if kind == StorageKind.SPDK:

@@ -171,7 +171,7 @@ in (overrideCC stdenv gcc_nolibc).mkDerivation {
   SGXLKL_TAP = "sgxlkl_tap0";
   SGXLKL_IP4 = "10.0.42.1";
   SGXLKL_GW4 = "10.0.42.254";
-  
+
   SGXLKL_DPDK_MAC = "62:48:ed:5e:f7:d8";
   FSTEST_MNT = "/mnt/vdb";
   SGXLKL_TAP_OFFLOAD="1";

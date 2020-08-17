@@ -1,14 +1,20 @@
 { stdenv, stdenvAdapters, closureInfo
 , pkgsMusl, e2fsprogs, lkl, enableDebugging
+, lib, scone ? null
 }:
 
-{ pkg, extraFiles ? {}, extraCommands ? "", debugSymbols ? true, diskSize ? "1G" }:
-with stdenv.lib;
-
+{ pkg
+, extraFiles ? {}
+, extraCommands ? ""
+, debugSymbols ? true
+, diskSize ? "1G"
+, enableSconeFileshield ? false
+}:
 let
   piePkg = enableDebugging (pkg.overrideAttrs (old: {
     hardeningEnable = [ "pie" ] ++ (old.hardeningEnable or []);
   }));
+
   finalPkg = piePkg.override {
     stdenv = if debugSymbols then
       stdenvAdapters.keepDebugInfo piePkg.stdenv
@@ -32,7 +38,7 @@ let
   } // extraFiles;
 in stdenv.mkDerivation {
   name = "image";
-  buildInputs = [ e2fsprogs lkl ];
+  nativeBuildInputs = [ e2fsprogs lkl ] ++ lib.optional enableSconeFileshield scone;
   unpackPhase = ":";
 
   passthru.pkg = finalPkg;
@@ -42,28 +48,47 @@ in stdenv.mkDerivation {
     # Filter out musl libc since,
     # sgx-musl will provide its own version.
     # Also filter gcc because it is included in debug symbols.
+    root=$(readlink -f root)
     grep -v '${pkgsMusl.musl}' ${closure}/store-paths | grep -v '${pkgsMusl.gcc-unwrapped}' \
-      | xargs cp -r -t root/nix/store
+      | xargs cp -r -t "$root/nix/store"
 
-    ${concatMapStrings (file: ''
-      dir="root/$(dirname ${file})"
+    ${lib.concatMapStrings (file: ''
+
+      dir="$root/$(dirname ${file})"
       if [ ! -d "$dir" ]; then
         mkdir -p "$dir"
       fi
       ${if builtins.isString files.${file} then ''
-        cat > root/${file} <<'EOF'
+        cat > "$root/${file}" <<'EOF'
         ${files.${file}}
         EOF
       '' else ''
-        install -D ${files.${file}.path} root/${file}
+        install -D ${files.${file}.path} "$root/${file}"
       ''}
-    '') (attrNames files)}
+    '') (lib.attrNames files)}
 
     ${extraCommands}
+
+    ${lib.optionalString enableSconeFileshield ''
+      mkdir cryptroot
+      # creates empty .scone/state.env
+      export HOME=$TMPDIR/scone
+
+      pushd cryptroot
+      scone fspf create fspf.pb
+
+      scone fspf addr fspf.pb / --kernel / --not-protected
+      scone fspf addr fspf.pb /mnt/nvme --encrypted --kernel /mnt/nvme
+      scone fspf addf fspf.pb /mnt/nvme "$root" .
+      scone fspf encrypt fspf.pb > .scone-keytag
+      root=$(readlink -f .)
+      popd
+
+    ''}
 
     # FIXME calculate storage requirement
     truncate -s ${diskSize}  $out
     mkfs.ext4 $out
-    cptofs -t ext4 -i $out root/* /
+    cptofs -t ext4 -i $out $root/* $root/.* /
   '';
 }

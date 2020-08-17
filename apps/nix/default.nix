@@ -4,8 +4,6 @@ with import (builtins.fetchTarball {
 }) {};
 
 let
-  buildImage = callPackage ./build-image.nix {};
-  runImage = callPackage ./run-image.nix { inherit buildImage; };
 
   busybox = pkgsMusl.busybox.overrideAttrs (old: {
     CFLAGS = "-pie";
@@ -48,9 +46,15 @@ let
   mysql = (pkgsMusl.callPackage ./mysql-5.5.x.nix {}).overrideAttrs (old: {
     patches = [ ./mysql.patch ];
   });
-  mysqlDatadir = "/var/lib/mysql";
+
   fio = pkgsMusl.fio.overrideAttrs (old: {
     src = ./fio-src;
+    #src = fetchFromGitHub {
+    #  owner = "Mic92";
+    #  repo = "fio";
+    #  rev = "9360ff0b37f305b31ad197ba7d31c39872f61f75";
+    #  sha256 = "1av86xjgwlcg2p9g5l9jni6d9aij7kqdf4qqsk68gc7yc28r7ggi";
+    #};
     patches = (old.patches or []) ++ [
       ./fio-pool-size.patch
     ];
@@ -72,6 +76,8 @@ let
     configureFlags = [ "--disable-shm" ];
   });
 
+  mysqlDatadir = "/var/lib/mysql";
+
   #fio-scone = pkgsMusl.fio;
   fio-scone = fio.override {
     stdenv = sconeStdenv;
@@ -90,7 +96,7 @@ let
 
   fioCommand = [
     "bin/fio"
-    "--output-format=json+"
+    #"--output-format=json+"
     "fio-rand-RW.job"
   ];
   iozone = pkgsMusl.iozone.overrideAttrs (attr: {
@@ -112,6 +118,16 @@ let
     scone-cc sconeStdenv sconeEnv scone-unwrapped;
   inherit (pkgs.callPackages ./graphene {}) runGraphene;
   sgx-lkl = pkgs.callPackage ./sgx-lkl {};
+
+  buildImage = callPackage ./build-image.nix {
+    scone = scone-unwrapped;
+  };
+  runImage = callPackage ./run-image.nix {
+    inherit buildImage;
+  };
+  iotest-image = pkgs.callPackage ./iotest-image.nix {
+    inherit mysql mysqlDatadir buildImage;
+  };
 
   pthread-socket = pkgsMusl.callPackage ./pthread-socket {};
   network-test = pkgsMusl.callPackage ./network-test {};
@@ -298,7 +314,8 @@ in {
 
   fio-sgx-lkl = runImage {
     pkg = fio;
-    sgx-lkl-run = "${sgx-lkl}/bin/sgx-lkl-run";
+    #sgx-lkl-run = "${sgx-lkl}/bin/sgx-lkl-run";
+    sgx-lkl-run = toString ../../../sgx-lkl-org/build/sgx-lkl-run;
     command = [ "bin/fio" ];
   };
 
@@ -437,124 +454,10 @@ in {
     command = [ "bin/python3" "introspect-blocks.py" ];
   };
 
-  iotest-image = buildImage {
-    pkg = pkgs.callPackage ./dummy.nix {};
-    extraFiles = {
-      "/var/www/file-3mb".path = runCommand "file-3mb" {} ''
-        yes "a" | head -c ${toString (3 * 1024 * 1024)} > $out || true
-      '';
-      "etc/nginx.conf" = ''
-        master_process off;
-        daemon off;
-        error_log stderr;
-        events {}
-        http {
-          access_log off;
-          aio threads;
-          server {
-            listen 9000;
-            default_type text/plain;
-            location / {
-              return 200 "$remote_addr\n";
-            }
-            location /test {
-              alias /var/www;
-            }
-          }
-        }
-      '';
-      "fio-rand-RW.job" = ''
-        [global]
-        name=fio-rand-RW
-        filename=fio-rand-RW
-        rw=randrw
-        rwmixread=60
-        rwmixwrite=40
-        bs=4K
-        direct=0
-        numjobs=4
-        time_based=1
-        runtime=10
-        thread
-
-        [file1]
-        size=15G
-        iodepth=16
-      '';
-      "fio-seq-RW.job" = ''
-        [global]
-        name=fio-seq-RW
-        filename=fio-seq-RW
-        rw=rw
-        rwmixread=60
-        rwmixwrite=40
-        bs=256K
-        direct=0
-        numjobs=4
-        time_based=1
-        runtime=60
-        thread
-
-        [file1]
-        size=10G
-        iodepth=16
-      '';
-      "fio-rand-read.job" = ''
-        [global]
-        name=fio-rand-read
-        filename=fio-rand-read
-        rw=randrw
-        rwmixread=60
-        rwmixwrite=40
-        bs=4K
-        direct=0
-        numjobs=4
-        time_based=1
-        runtime=900
-        thread
-
-        [file1]
-        size=1G
-        iodepth=16
-      '';
-      "fio-rand-write.job" = ''
-        [global]
-        name=fio-rand-write
-        filename=fio-rand-write
-        rw=randwrite
-        bs=4K
-        direct=0
-        numjobs=4
-        time_based=1
-        runtime=10
-
-        [file1]
-        size=1G
-        iodepth=16
-      '';
-      "/etc/my.cnf" = ''
-        [mysqld]
-        user=root
-        datadir=${mysqlDatadir}
-      '';
-      "/etc/resolv.conf" = "";
-      "/etc/services" = "${iana-etc}/etc/services";
-      "/var/lib/mysql/.keep" = "";
-      "/run/mysqld/.keep" = "";
-    };
-    extraCommands = ''
-      ${mysql}/bin/mysql_install_db --datadir=$(readlink -f root/${mysqlDatadir}) --basedir=${mysql}
-      ${mysql}/bin/mysqld_safe --datadir=$(readlink -f root/${mysqlDatadir}) --socket=$TMPDIR/mysql.sock &
-      while [[ ! -e $TMPDIR/mysql.sock ]]; do
-      sleep 1
-      done
-      ${mysql}/bin/mysql -u root --socket=$TMPDIR/mysql.sock <<EOF
-      GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' IDENTIFIED BY 'root' WITH GRANT OPTION;
-      CREATE DATABASE root;
-      FLUSH PRIVILEGES;
-      EOF
-    '';
+  iotest-image-scone = iotest-image.override {
+    enableSconeFileshield = true;
   };
+  inherit iotest-image;
 
   nginx-native = runImage {
     pkg = nginx;
