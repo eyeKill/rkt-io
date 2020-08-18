@@ -23,10 +23,6 @@ from storage import Storage, StorageKind
 from network import Network, NetworkKind, setup_remote_network
 
 
-def list_to_csv(val_list: List["str"]) -> str:
-    return ",".join(val_list)
-
-
 def process_ycsb_out(ycsb_out: str, system: str, bench_result: List[str]) -> None:
     csv_file = StringIO(ycsb_out)
     df = pd.read_csv(csv_file, header=None)
@@ -35,13 +31,9 @@ def process_ycsb_out(ycsb_out: str, system: str, bench_result: List[str]) -> Non
     csv_vals = [str(i) for i in csv_vals]
 
     if len(bench_result) == 0:
-        csv_headers = list_to_csv(csv_headers)
-        csv_headers = f"system, {csv_headers}"
-        bench_result.append(csv_headers)
+        bench_result.append(",".join(["system"] + csv_headers))
 
-    csv_vals = list_to_csv(csv_vals)
-    csv_vals = f"{system},{csv_vals}"
-    bench_result.append(csv_vals)
+    bench_result.append(",".join([system] + csv_vals))
 
 
 def benchmark_redis(
