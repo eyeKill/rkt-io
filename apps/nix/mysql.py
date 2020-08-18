@@ -22,7 +22,7 @@ from helpers import (
     spawn,
     flamegraph_env,
 )
-from network import Network, NetworkKind
+from network import Network, NetworkKind, setup_remote_network
 from storage import Storage, StorageKind
 
 
@@ -94,7 +94,7 @@ def benchmark_mysql(
         extra_env=env,
     ):
         common_flags = [
-            f"--mysql-host={storage.settings.local_dpdk_ip6}",
+            f"--mysql-host={storage.settings.local_dpdk_ip}",
             "--mysql-db=root",
             "--mysql-user=root",
             "--mysql-password=root",
@@ -104,7 +104,7 @@ def benchmark_mysql(
         while True:
             try:
                 proc = nc_command(storage.settings).run(
-                    "bin/nc", ["-z", "-v", storage.settings.local_dpdk_ip6, "3306"]
+                    "bin/nc", ["-z", "-v", storage.settings.local_dpdk_ip, "3306"]
                 )
                 break
             except subprocess.CalledProcessError:
@@ -113,7 +113,7 @@ def benchmark_mysql(
 
         sysbench.run("bin/sysbench", common_flags + ["prepare"])
         proc = sysbench.run("bin/sysbench", common_flags + ["run"])
-        process_sysbench(proc.stdout.decode("utf-8"), system, stats)
+        process_sysbench(proc.stdout, system, stats)
         sysbench.run("bin/sysbench", common_flags + ["cleanup"])
 
 
@@ -134,7 +134,7 @@ def benchmark_sgx_lkl(storage: Storage, stats: Dict[str, List]) -> None:
     )
 
 
-def benchmark_sgx_io(storage: Storage, stats: Dict[str, List]):
+def benchmark_sgx_io(storage: Storage, stats: Dict[str, List]) -> None:
     Network(NetworkKind.DPDK, storage.settings).setup()
     storage.setup(StorageKind.SPDK)
     extra_env = dict(SGXLKL_DPDK_MTU="1500")
@@ -147,6 +147,7 @@ def main() -> None:
     stats: DefaultDict[str, List] = defaultdict(list)
 
     settings = create_settings()
+    setup_remote_network(settings)
     storage = Storage(settings)
     benchmark_native(storage, stats)
     benchmark_sgx_lkl(storage, stats)

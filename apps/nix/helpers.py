@@ -113,6 +113,7 @@ class Settings:
     tap_ifname: str
     tap_bridge_cidr: str
     tap_bridge_cidr6: str
+    remote_nic_ifname: str
 
     @property
     def cidr(self) -> str:
@@ -207,4 +208,5 @@ def create_settings() -> Settings:
         tap_bridge_cidr6=os.environ.get(
             "SGXLKL_BRIDGE_CIDR6", "fdbf:9188:5fbd:a895::3/64"
         ),
+        remote_nic_ifname=os.environ.get("REMOTE_NIC_IFNAME", "enp1s0f1"),
     )

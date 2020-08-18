@@ -15,6 +15,15 @@ class NetworkKind(Enum):
 def ip(args: List[str]) -> None:
     run(["sudo", "ip"] + args)
 
+def remote_cmd(ssh_host: str, args: List[str]) -> None:
+    run(["ssh", ssh_host, "--"] + args)
+
+def setup_remote_network(settings: Settings) -> None:
+    remote_cmd(settings.remote_ssh_host, ["sudo", "ip", "link", "set", settings.remote_nic_ifname, "up"])
+    remote_cmd(settings.remote_ssh_host, ["sudo", "ip", "addr", "flush", "dev", settings.remote_nic_ifname])
+    remote_cmd(settings.remote_ssh_host, ["sudo", "ip", "addr", "add", f"{settings.remote_dpdk_ip}/{settings.dpdk_netmask}", "dev", settings.remote_nic_ifname])
+    remote_cmd(settings.remote_ssh_host, ["sudo", "ip", "link", "set", settings.remote_nic_ifname, "mtu", "1500"])
+    remote_cmd(settings.remote_ssh_host, ["sudo", "ip", "link", "set", settings.remote_nic_ifname, "up"])
 
 class Network:
     def __init__(self, kind: NetworkKind, settings: Settings) -> None:
