@@ -40,7 +40,6 @@ else
 	ln -fs ${LINUX_HEADERS_INC}/x86_64-linux-gnu/asm/ ${HOST_MUSL_BUILD}/include/asm
 endif
 	ln -fs ${LINUX_HEADERS_INC}/asm-generic/ ${HOST_MUSL_BUILD}/include/asm-generic
-	install third_party/sys-queue.h ${HOST_MUSL_BUILD}/include/sys/queue.h
 	# Fix musl-gcc for gcc version that have been built with --enable-default-pie
 	gcc -v 2>&1 | grep "\-\-enable-default-pie" > /dev/null && sed -i 's/"$$@"/-fpie -pie "\$$@"/g' ${HOST_MUSL_BUILD}/bin/musl-gcc || true
 	grep fno-omit-frame-pointer ${HOST_MUSL_BUILD}/lib/musl-gcc.specs || \
@@ -56,7 +55,8 @@ dpdk-config-${1} ${DPDK_CONFIG}: ${CURDIR}/src/dpdk/override/defconfig | ${DPDK}
 # for it when running lkl. In particular this affects rte_errno and makes it thread-unsafe.
 dpdk-${1} ${DPDK_BUILD}/.build: ${DPDK_CONFIG} | ${DPDK_CC} ${DPDK}/.git
 	+make -j`tools/ncore.sh` -C ${DPDK_BUILD} WERROR_FLAGS= CC=${DPDK_CC} RTE_SDK=${DPDK} V=1 \
-		EXTRA_CFLAGS="-Wno-error -lc ${DPDK_EXTRA_CFLAGS} -mavx2 -UDEBUG"
+		EXTRA_CFLAGS="-Wno-error -lc ${DPDK_EXTRA_CFLAGS} -mavx2 -UDEBUG -I ${MAKE_ROOT}/third_party/sys-queue/include/" \
+		HOST_EXTRA_CFLAGS="-I ${MAKE_ROOT}/third_party/sys-queue/include/"
 	touch ${DPDK_BUILD}/.build
 
 spdk-source-${1} ${SPDK_BUILD}/mk: | ${SPDK}/.git
@@ -197,11 +197,12 @@ SPDK_LIBS += -Wl,--no-whole-archive
 # -nostdinc does vanish both libc headers and gcc intriniscs,
 # we only want get rid-off libc headers
 GCC_HEADERS = $(shell CPP='${CPP}' ./tools/find-gcc-headers.sh)
-SPDK_SGX_CFLAGS = -msse4.2 -I${DPDK_BUILD_SGX}/include -I${SPDK_BUILD_SGX}/include -I${GCC_HEADERS}
+
+SPDK_SGX_CFLAGS = -msse4.2 -I${DPDK_BUILD_SGX}/include -I${SPDK_BUILD_SGX}/include -I${GCC_HEADERS} -I${MAKE_ROOT}/third_party/sys-queue/include
 SPDK_SGX_LDFLAGS = -L${DPDK_BUILD_SGX}/lib -L${SPDK_BUILD_SGX}/build/lib ${SPDK_LIBS}
 SPDK_SGX_LDFLAGS += ${BUILD_DIR}/init_array.o
 
-SPDK_NATIVE_CFLAGS = -msse4.2 -I${DPDK_BUILD_NATIVE}/include -I${SPDK_BUILD_NATIVE}/include
+SPDK_NATIVE_CFLAGS = -msse4.2 -I${DPDK_BUILD_NATIVE}/include -I${SPDK_BUILD_NATIVE}/include -I${MAKE_ROOT}/third_party/sys-queue/include
 SPDK_NATIVE_LDFLAGS = -L${DPDK_BUILD_NATIVE}/lib -L${SPDK_BUILD_NATIVE}/build/lib -L${LIBUUID_HOST_BUILD}/lib ${SPDK_LIBS}
 SPDK_NATIVE_LDFLAGS += -luuid
 
