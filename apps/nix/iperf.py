@@ -60,7 +60,7 @@ def _benchmark_iperf(
     system: str,
     stats: Dict[str, List[int]],
     extra_env: Dict[str, str] = {},
-):
+) -> None:
     env = extra_env.copy()
     env.update(flamegraph_env(f"iperf-{direction}-{system}-{NOW}"))
     env[
@@ -131,7 +131,7 @@ def benchmark_sgx_lkl(settings: Settings, stats: Dict[str, List[int]]) -> None:
     benchmark_iperf(settings, "iperf", "sgx-lkl", stats, extra_env=extra_env)
 
 
-def benchmark_sgx_io(settings: Settings, stats: Dict[str, List[int]]):
+def benchmark_sgx_io(settings: Settings, stats: Dict[str, List[int]]) -> None:
     Network(NetworkKind.DPDK, settings).setup()
     extra_env = dict(SGXLKL_DPDK_MTU="1500")
 

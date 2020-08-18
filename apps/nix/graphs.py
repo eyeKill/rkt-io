@@ -19,7 +19,7 @@ def column_alias(name: str) -> str:
     return COLUMN_ALIASES.get(name, name)
 
 
-def catplot(**kwargs) -> Any:
+def catplot(**kwargs: Any) -> Any:
     g = sns.catplot(**kwargs)
     g.despine(top=False, right=False)
     plt.autoscale()

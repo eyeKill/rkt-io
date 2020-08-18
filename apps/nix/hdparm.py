@@ -29,7 +29,7 @@ def benchmark_hdparm(
     device: str,
     stats: Dict[str, List],
     extra_env: Dict[str, str] = {},
-):
+) -> None:
     env = os.environ.copy()
     env.update(flamegraph_env(f"hdparm-{system}-{NOW}"))
     env.update(extra_env)

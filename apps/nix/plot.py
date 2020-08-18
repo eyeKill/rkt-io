@@ -1,7 +1,8 @@
 # workaround to select Agg as backend consistenly
-import matplotlib as mpl
-import matplotlib.pyplot as plt
-import seaborn as sns
+import matplotlib as mpl # type: ignore
+import matplotlib.pyplot as plt # type: ignore
+import seaborn as sns # type: ignore
+from typing import Any
 
 mpl.use("Agg")
 mpl.rcParams["text.latex.preamble"] = [r"\usepackage{amsmath}"]
@@ -15,7 +16,7 @@ sns.set_context(font_scale=1.5)
 sns.set_palette(sns.color_palette(palette="gray", n_colors=2))
 
 
-def rescale_barplot_width(ax, factor=0.6):
+def rescale_barplot_width(ax: Any, factor: float=0.6) -> None:
     for bar in ax.patches:
         x = bar.get_x()
         new_width = bar.get_width() * factor
@@ -24,7 +25,7 @@ def rescale_barplot_width(ax, factor=0.6):
         bar.set_x(center - new_width / 2.0)
 
 
-def alternate_bar_color(graph):
+def alternate_bar_color(graph: Any) -> None:
     for i, patch in enumerate(graph.axes[0][0].patches):
         if i % 2 == 0:
             patch.set_facecolor(

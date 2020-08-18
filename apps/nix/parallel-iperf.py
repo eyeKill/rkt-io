@@ -15,7 +15,7 @@ def run_iperf(
     iperf_cmd: List[str],
     results: List[Dict[str, Any]],
     index: int,
-):
+) -> None:
     with condition:
         condition.wait()
         proc = subprocess.run(iperf_cmd, stdout=subprocess.PIPE)
