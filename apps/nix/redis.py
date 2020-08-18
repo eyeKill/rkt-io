@@ -20,7 +20,7 @@ from helpers import (
     spawn
 )
 from storage import Storage, StorageKind
-from network import Network, NetworkKind
+from network import Network, NetworkKind, setup_remote_network
 
 def list_to_csv(val_list: List['str']) -> str:
     return ','.join(val_list)
@@ -147,6 +147,7 @@ def benchmark_redis_sgx_io(
 def main() -> None:
     stats: Dict[str, List[str]] = {}
     settings = create_settings()
+    setup_remote_network(settings)
 
     benchmark_redis_native(settings, stats)
     # benchmark_redis_sgx_lkl(settings, stats)

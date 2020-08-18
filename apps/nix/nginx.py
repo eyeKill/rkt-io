@@ -17,7 +17,7 @@ from helpers import (
     spawn
 )
 from storage import Storage, StorageKind
-from network import Network, NetworkKind
+from network import Network, NetworkKind, setup_remote_network
 from process_wrk import parse_wrk_output, wrk_data, wrk_csv_cols
 
 def process_wrk_output(
@@ -145,6 +145,7 @@ def main() -> None:
 	# stats: DefaultDict[str, List] = defaultdict(list)
 	bench_result: List[str] = []
 	settings = create_settings()
+        setup_remote_network(settings)
 	wrk_args = read_wrk_args("wrk_args.json")
 
 	build_mount_iotest()
