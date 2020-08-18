@@ -7,7 +7,7 @@ import subprocess
 import sys
 import tempfile
 from datetime import datetime
-from typing import List, Dict, IO
+from typing import List, Dict, IO, Iterator, Any
 from contextlib import contextmanager
 
 NOW = datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -83,11 +83,11 @@ def post_process_perf(perf_data: str, flamegraph: str) -> None:
     perf = subprocess.Popen(["perf", "script", "-i", perf_data],
                             stdout=subprocess.PIPE)
     assert perf.stdout is not None
-    perf_stdout: IO[bytes] = perf.stdout
     perf_script = os.environ.get("PERF_SCRIPT_FILENAME", None)
+    perf_stdout = perf.stdout
     if perf_script is not None:
         with open(perf_script, "wb") as perf_script_fd:
-            shutil.copyfileobj(perf_stdout, perf_script_fd)
+            shutil.copyfileobj(perf_stdout, perf_script_fd) # type: ignore
         perf_stdout = open(perf_script, "rb")
 
     if not enable_flamegraph():
@@ -106,7 +106,7 @@ def post_process_perf(perf_data: str, flamegraph: str) -> None:
 
 
 @contextmanager
-def debug_mount_env(image: str):
+def debug_mount_env(image: str) -> Iterator[Dict[str, str]]:
     env = os.environ.copy()
     if image == "NONE" or not (enable_flamegraph() or enable_traceshark()):
         yield env
@@ -129,7 +129,7 @@ def run(
     cmd: List[str],
     env: Dict[str, str],
     tmpdirname: str,
-):
+) -> None:
     native_mode = image == "NONE"
 
     if native_mode:
@@ -142,7 +142,7 @@ def run(
     print(" ".join(complete_cmd))
     proc = subprocess.Popen(complete_cmd, env=env)
 
-    def stop_proc(signum, frame) -> None:
+    def stop_proc(signum: Any, frame: Any) -> None:
         proc.terminate()
 
     signal.signal(signal.SIGINT, stop_proc)
