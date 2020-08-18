@@ -443,8 +443,10 @@ in {
 
   netcat = runImage {
     pkg = pkgsMusl.busybox;
-    command = [ "bin/nc" "10.0.42.2" ];
+    command = [ "bin/nc" "10.0.42.1" ];
   };
+
+  netcat-native = pkgsMusl.netcat;
 
   python-scripts = runImage {
     pkg = pkgsMusl.python3Minimal;
