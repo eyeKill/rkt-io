@@ -26,7 +26,7 @@ def benchmark_simpleio(
     stats: Dict[str, List],
     extra_env: Dict[str, str] = {},
     do_write: bool = True,
-):
+) -> None:
     env = dict(SGXLKL_CWD=directory)
     env.update(flamegraph_env(f"simpleio-{system}-{NOW}"))
     env.update(extra_env)
@@ -81,7 +81,7 @@ def benchmark_sgx_io(storage: Storage, stats: Dict[str, List]) -> None:
     storage.setup(StorageKind.SPDK)
 
     benchmark_simpleio(
-        storage, "sgx-io", "simpleio-sgx-io", "/mnt/spdk0", stats, extra_env=scone_env()
+        storage, "sgx-io", "simpleio-sgx-io", "/mnt/spdk0", stats
     )
 
 
@@ -99,7 +99,7 @@ def benchmark_sgx_lkl(storage: Storage, stats: Dict[str, List]) -> None:
 
 def benchmark_scone(storage: Storage, stats: Dict[str, List]) -> None:
     with storage.setup(StorageKind.NATIVE) as mnt:
-        benchmark_simpleio(storage, "scone", "simpleio-scone", mnt, stats)
+        benchmark_simpleio(storage, "scone", "simpleio-scone", mnt, stats, extra_env=scone_env(mnt))
 
 
 def benchmark_native(storage: Storage, stats: Dict[str, List]) -> None:
