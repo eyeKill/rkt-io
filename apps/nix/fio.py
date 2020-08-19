@@ -83,8 +83,8 @@ def benchmark_native(storage: Storage, stats: Dict[str, List]) -> None:
 
 
 def benchmark_scone(storage: Storage, stats: Dict[str, List]) -> None:
-    with storage.setup(StorageKind.NATIVE) as mnt:
-        benchmark_fio(storage, "scone", "fio-scone", mnt, stats, extra_env=scone_env())
+    with storage.setup(StorageKind.SCONE) as mnt:
+        benchmark_fio(storage, "scone", "fio-scone", mnt, stats, extra_env=scone_env(mnt))
 
 
 def benchmark_sgx_lkl(storage: Storage, stats: Dict[str, List]) -> None:

@@ -144,7 +144,8 @@ let
     withStream = false;
   }).overrideAttrs (old: {
     configureFlags = [
-      "--with-file-aio" "--with-threads"
+      "--with-file-aio"
+      "--with-threads"
       "--http-log-path=/var/log/nginx/access.log"
       "--error-log-path=/var/log/nginx/error.log"
       "--pid-path=/var/log/nginx/nginx.pid"
@@ -457,7 +458,7 @@ in {
   };
 
   iotest-image-scone = iotest-image.override {
-    enableSconeFileshield = true;
+    sconeEncryptedDir = "${toString ./.}/iotest-mnt";
   };
   inherit iotest-image;
 

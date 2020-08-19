@@ -5,11 +5,11 @@
 , mysql
 , mysqlDatadir
 , callPackage
-, enableSconeFileshield ? false
+, sconeEncryptedDir ? null
 }:
 buildImage {
   pkg = callPackage ./dummy.nix {};
-  inherit enableSconeFileshield;
+  inherit sconeEncryptedDir;
   extraFiles = {
     "/var/www/file-3mb".path = runCommand "file-3mb" {} ''
       yes "a" | head -c ${toString (3 * 1024 * 1024)} > $out || true

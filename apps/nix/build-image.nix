@@ -8,7 +8,7 @@
 , extraCommands ? ""
 , debugSymbols ? true
 , diskSize ? "1G"
-, enableSconeFileshield ? false
+, sconeEncryptedDir ? null
 }:
 let
   piePkg = enableDebugging (pkg.overrideAttrs (old: {
@@ -38,8 +38,8 @@ let
   } // extraFiles;
 in stdenv.mkDerivation {
   name = "image";
-  nativeBuildInputs = [ e2fsprogs lkl ] ++ lib.optional enableSconeFileshield scone;
-  unpackPhase = ":";
+  nativeBuildInputs = [ e2fsprogs lkl ] ++ lib.optional (sconeEncryptedDir != null) scone;
+  dontUnpack = true;
 
   passthru.pkg = finalPkg;
 
@@ -69,7 +69,7 @@ in stdenv.mkDerivation {
 
     ${extraCommands}
 
-    ${lib.optionalString enableSconeFileshield ''
+    ${lib.optionalString (sconeEncryptedDir != null) ''
       mkdir cryptroot
       # creates empty .scone/state.env
       export HOME=$TMPDIR/scone
@@ -78,12 +78,11 @@ in stdenv.mkDerivation {
       scone fspf create fspf.pb
 
       scone fspf addr fspf.pb / --kernel / --not-protected
-      scone fspf addr fspf.pb /mnt/nvme --encrypted --kernel /mnt/nvme
-      scone fspf addf fspf.pb /mnt/nvme "$root" .
+      scone fspf addr fspf.pb ${sconeEncryptedDir} --encrypted --kernel ${sconeEncryptedDir}
+      scone fspf addf fspf.pb ${sconeEncryptedDir} "$root" .
       scone fspf encrypt fspf.pb > .scone-keytag
       root=$(readlink -f .)
       popd
-
     ''}
 
     # FIXME calculate storage requirement

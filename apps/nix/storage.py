@@ -51,7 +51,7 @@ class Mount:
         assert self.kind == StorageKind.NATIVE or self.kind == StorageKind.SCONE
         MOUNTPOINT.mkdir(exist_ok=True)
 
-        if self.hd_key:
+        if self.hd_key and self.kind != StorageKind.SCONE:
             cryptsetup_luks_open(self.raw_dev, self.cryptsetup_name, self.hd_key)
 
         run(["sudo", "mount", self.dev, str(MOUNTPOINT)])

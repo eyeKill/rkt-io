@@ -141,12 +141,21 @@ def nix_build(attr: str) -> str:
     return run(["nix-build", "-A", attr, "--out-link", attr]).stdout.strip()
 
 
-def scone_env() -> Dict[str, str]:
-    return dict(
+def scone_env(mountpoint: Optional[str]) -> Dict[str, str]:
+    env = dict(
         SCONE_SSPINS=str(10000),
         SCONE_CONFIG=str(ROOT.joinpath("scone/sgx-musl.conf")),
         SCONE_HEAP="1G",
     )
+    if mountpoint:
+        keytag = Path(mountpoint).joinpath(".scone-keytag")
+        if keytag.exists():
+            with open(keytag) as f:
+                columns = f.read().rstrip("\n").split(" ")
+                env["SCONE_FSPF_KEY"] = columns[10]
+                env["SCONE_FSPF_TAG"] = columns[8]
+            env["SCONE_FSPF"] = str(Path(mountpoint).joinpath("fspf.pb"))
+    return env
 
 
 def flamegraph_env(name: str) -> Dict[str, str]:
