@@ -18,7 +18,6 @@ from storage import Storage, StorageKind
 
 
 def benchmark_fio(
-    storage: Storage,
     system: str,
     attr: str,
     directory: str,
@@ -61,6 +60,7 @@ def benchmark_fio(
                     break
     finally:
         proc.send_signal(signal.SIGINT)
+        proc.wait()
     if data == "":
         raise RuntimeError(f"Did not get a result when running benchmark for {system}")
     jsondata = json.loads(data)
@@ -78,30 +78,35 @@ def benchmark_fio(
 
 
 def benchmark_native(storage: Storage, stats: Dict[str, List]) -> None:
+    mount = storage.setup(StorageKind.SCONE)
     with storage.setup(StorageKind.NATIVE) as mnt:
-        benchmark_fio(storage, "native", "fio-native", mnt, stats)
+        benchmark_fio("native", "fio-native", mnt, stats, extra_env=mount.extra_env())
 
 
 def benchmark_scone(storage: Storage, stats: Dict[str, List]) -> None:
-    with storage.setup(StorageKind.SCONE) as mnt:
-        benchmark_fio(storage, "scone", "fio-scone", mnt, stats, extra_env=scone_env(mnt))
+    mount = storage.setup(StorageKind.SCONE)
+    with mount as mnt:
+        extra_env = scone_env(mnt)
+        extra_env.update(mount.extra_env())
+        benchmark_fio("scone", "fio-scone", mnt, stats, extra_env=extra_env)
 
 
 def benchmark_sgx_lkl(storage: Storage, stats: Dict[str, List]) -> None:
-    storage.setup(StorageKind.LKL)
-    benchmark_fio(
-        storage,
-        "sgx-lkl",
-        "fio-sgx-lkl",
-        "/mnt/nvme",
-        stats,
-        extra_env=dict(SGXLKL_HDS="/dev/nvme0n1:/mnt/nvme"),
-    )
+    mount = storage.setup(StorageKind.LKL)
+    with mount as mnt:
+        benchmark_fio(
+            "sgx-lkl",
+            "fio-sgx-lkl",
+            mnt,
+            stats,
+            extra_env=mount.extra_env(),
+        )
 
 
 def benchmark_sgx_io(storage: Storage, stats: Dict[str, List]) -> None:
-    storage.setup(StorageKind.SPDK)
-    benchmark_fio(storage, "sgx-io", "fio-sgx-io", "/mnt/spdk0", stats)
+    mount = storage.setup(StorageKind.SPDK)
+    with mount as mnt:
+        benchmark_fio("sgx-io", "fio-sgx-io", mnt, stats, extra_env=mount.extra_env())
 
 
 def main() -> None:

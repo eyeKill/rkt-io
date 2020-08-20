@@ -1,9 +1,8 @@
 import getpass
 import os
-import tempfile
 import time
 from enum import Enum
-from typing import Any, Optional
+from typing import Any, Optional, Dict
 from pathlib import Path
 import subprocess
 
@@ -35,20 +34,31 @@ def cryptsetup_luks_open(dev: str, cryptsetup_name: str, key: str) -> None:
 def cryptsetup_luks_close(cryptsetup_name: str) -> None:
     run(["sudo", "cryptsetup", "close", cryptsetup_name])
 
+
+# Use a fixed path here so that we can unmount previous failed runs
 MOUNTPOINT = ROOT.joinpath("iotest-mnt")
+
 
 class Mount:
     def __init__(
         self, kind: StorageKind, raw_dev: str, dev: str, hd_key: Optional[str]
     ) -> None:
         self.kind = kind
-        self.raw_dev = dev
+        self.raw_dev = raw_dev
         self.dev = dev
         self.cryptsetup_name = Path(self.raw_dev).name
         self.hd_key = hd_key
 
+    def extra_env(self) -> Dict[str, str]:
+        if self.kind == StorageKind.LKL:
+            return dict(SGXLKL_HDS=f"{self.raw_dev}:/mnt/spdk0")
+        return {}
+
     def __enter__(self) -> str:
+        if self.kind == StorageKind.SPDK or self.kind == StorageKind.LKL:
+            return "/mnt/spdk0"
         assert self.kind == StorageKind.NATIVE or self.kind == StorageKind.SCONE
+
         MOUNTPOINT.mkdir(exist_ok=True)
 
         if self.hd_key and self.kind != StorageKind.SCONE:
@@ -60,6 +70,9 @@ class Mount:
         return str(MOUNTPOINT)
 
     def __exit__(self, type: Any, value: Any, traceback: Any) -> None:
+        if self.kind == StorageKind.SPDK or self.kind == StorageKind.LKL:
+            return
+
         for i in range(3):
             try:
                 run(["sudo", "umount", str(MOUNTPOINT)])
@@ -134,6 +147,7 @@ def setup_luks(plain_dev: str, luks_name: str, key: str) -> str:
 
 # https://sconedocs.github.io/SCONE_Fileshield/
 
+
 class Storage:
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
@@ -196,7 +210,7 @@ class Storage:
                 ]
             )
         elif kind == StorageKind.LKL:
-            run(["sudo", "chown", getpass.getuser(), dev])
+            run(["sudo", "chown", getpass.getuser(), raw_dev])
 
         setup_hugepages(kind)
 
