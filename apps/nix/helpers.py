@@ -61,7 +61,7 @@ class Chdir(object):
 
 
 @contextmanager
-def spawn(*args: str, extra_env: Dict[str, str] = {}) -> Iterator:
+def spawn(*args: str, extra_env: Dict[str, str] = {}) -> Iterator[subprocess.Popen]:
     env = os.environ.copy()
 
     env.update(extra_env)
