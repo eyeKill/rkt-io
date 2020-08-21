@@ -32,6 +32,7 @@ class Benchmark:
         self.settings = create_settings()
         self.storage = Storage(settings)
         self.network = Network(settings)
+        self.remote_redis = settings.remote_command(nix_build("redis-cli"))
         self.remote_ycsb = settings.remote_command(nix_build("ycsb-native"))
 
     def run(
@@ -47,27 +48,29 @@ class Benchmark:
             "SGXLKL_SYSCTL"
         ] = "net.core.rmem_max=56623104;net.core.wmem_max=56623104;net.core.rmem_default=56623104;net.core.wmem_default=56623104;net.core.optmem_max=40960;net.ipv4.tcp_rmem=4096 87380 56623104;net.ipv4.tcp_wmem=4096 65536 56623104;"
 
-        with spawn(redis_server, "--dir", db_dir, extra_env=extra_env):
+        with spawn(redis_server, "bin/redis-server", "--dir", db_dir, "--protected-mode", "no", extra_env=extra_env):
+            print(f"wating for redis for {system} benchmark...", end="")
             while True:
                 try:
-                    print(f"Running wrk benchmark for {system} case")
-                    args = [
-                        "load",
-                        "redis",
-                        "-s",
-                        "-P",
-                        f"{self.remote_ycsb.nix_path}/share/ycsb/workloads/workloada",
-                        "-p",
-                        f"redis.host={self.settings.local_dpdk_ip}",
-                        "-p",
-                        "redis.port=6379",
-                    ]
-                    load_proc = self.remote_ycsb.run("bin/ycsb", args)
+                    self.remote_redis.run("bin/redis-cli", ["-h", self.settings.local_dpdk_ip, "ping"])
+                    print()
                     break
                 except subprocess.CalledProcessError:
-                    time.sleep(5)
+                    time.sleep(1)
                     print(".")
                     pass
+
+            load_proc = self.remote_ycsb.run("bin/ycsb", [
+                "load",
+                "redis",
+                "-s",
+                "-P",
+                f"{self.remote_ycsb.nix_path}/share/ycsb/workloads/workloada",
+                "-p",
+                f"redis.host={self.settings.local_dpdk_ip}",
+                "-p",
+                "redis.port=6379",
+            ])
 
             run_proc = self.remote_ycsb.run(
                 "bin/ycsb",
@@ -155,6 +158,7 @@ def main() -> None:
     load_df = pd.DataFrame(stats["load_res"])
     run_df = pd.DataFrame(stats["run_res"])
 
+    print("wrote redis_load.csv, redis_run.csv")
     load_df.to_csv("redis_load.csv")
     run_df.to_csv("redis_run.csv")
 
