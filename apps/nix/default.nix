@@ -43,6 +43,17 @@ let
     debugSymbols = false;
   });
 
+  redis = pkgsMusl.redis.overrideAttrs (old: {
+    name = "redis-6.0.6";
+    buildInputs = [ ]; # no lua/systemd
+    nativeBuildInputs = [ pkgsMusl.pkg-config ];
+    makeFlags = [ "MALLOC=libc" "PREFIX=$(out)" ];
+    src = pkgsMusl.fetchurl {
+      url = "http://download.redis.io/releases/redis-6.0.6.tar.gz";
+      sha256 = "151x6qicmrmlxkmiwi2vdq8p50d52b9gglp8csag6pmgcfqlkb8j";
+    };
+  });
+
   mysql = (pkgsMusl.callPackage ./mysql-5.5.x.nix {}).overrideAttrs (old: {
     patches = [ ./mysql.patch ];
   });
@@ -348,32 +359,22 @@ in {
     command = [ "bin/hdparm" "-Tt" "/dev/spdk0" ];
   };
 
+  redis-cli = redis;
+
   redis-native = runImage {
-    pkg = pkgsMusl.redis.overrideAttrs (old: {
-      name = "redis-6.0.6";
-      buildInputs = [ ]; # no lua/systemd
-      nativeBuildInputs = [ pkg-config ];
-      makeFlags = [ "MALLOC=libc" "PREFIX=$(out)" ];
-      src = fetchurl {
-        url    = "http://download.redis.io/releases/redis-6.0.6.tar.gz";
-        sha256 = "151x6qicmrmlxkmiwi2vdq8p50d52b9gglp8csag6pmgcfqlkb8j";
-      };
-    });
-    command = [ "bin/redis-server" "--protected-mode" "no" ];
+    pkg = redis;
     native = true;
+    command = [ "bin/redis-server" "--protected-mode" "no" ];
   };
   
-  redis = runImage {
-    pkg = pkgsMusl.redis.overrideAttrs (old: {
-      name = "redis-6.0.6";
-      buildInputs = [ ]; # no lua/systemd
-      nativeBuildInputs = [ pkg-config ];
-      makeFlags = [ "MALLOC=libc" "PREFIX=$(out)" ];
-      src = fetchurl {
-        url    = "http://download.redis.io/releases/redis-6.0.6.tar.gz";
-        sha256 = "151x6qicmrmlxkmiwi2vdq8p50d52b9gglp8csag6pmgcfqlkb8j";
-      };
-    });
+  redis-sgx-lkl = runImage {
+    pkg = redis;
+    sgx-lkl-run = "${sgx-lkl}/bin/sgx-lkl-run";
+    command = [ "bin/redis-server" "--protected-mode" "no" ];
+  };
+
+  redis-sgx-io = runImage {
+    pkg = redis;
     command = [ "bin/redis-server" "--protected-mode" "no" ];
   };
 
