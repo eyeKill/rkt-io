@@ -48,14 +48,18 @@ class Benchmark:
             "SGXLKL_SYSCTL"
         ] = "net.core.rmem_max=56623104;net.core.wmem_max=56623104;net.core.rmem_default=56623104;net.core.wmem_default=56623104;net.core.optmem_max=40960;net.ipv4.tcp_rmem=4096 87380 56623104;net.ipv4.tcp_wmem=4096 65536 56623104;"
 
-        with spawn(redis_server, "bin/redis-server", "--dir", db_dir, "--protected-mode", "no", extra_env=extra_env):
-            print(f"wating for redis for {system} benchmark...", end="")
+        args = ["bin/redis-server", "--dir", db_dir, "--protected-mode", "no"]
+        with spawn(redis_server, *args, extra_env=extra_env) as proc:
+            print(f"waiting for redis for {system} benchmark...", end="")
             while True:
                 try:
                     self.remote_redis.run("bin/redis-cli", ["-h", self.settings.local_dpdk_ip, "ping"])
                     print()
                     break
                 except subprocess.CalledProcessError:
+                    status = proc.poll()
+                    if status is not None:
+                        raise OSError(f"redis-server exiteded with {status}")
                     time.sleep(1)
                     print(".")
                     pass
