@@ -2,29 +2,30 @@ import subprocess
 import time
 import pandas as pd
 from io import StringIO
-from typing import Dict, List
+from typing import Dict, List, DefaultDict
 
 from helpers import (
     Settings,
     create_settings,
     nix_build,
     spawn,
+    read_stats,
+    write_stats,
+    NOW,
 )
 from storage import Storage, StorageKind
 from network import Network, NetworkKind, setup_remote_network
 
 
-def process_ycsb_out(ycsb_out: str, system: str, bench_result: List[str]) -> None:
-    csv_file = StringIO(ycsb_out)
-    df = pd.read_csv(csv_file, header=None)
-    csv_headers = list(df.iloc[:, 1].values)
-    csv_vals = list(df.iloc[:, 2].values)
-    csv_vals = [str(i) for i in csv_vals]
-
-    if len(bench_result) == 0:
-        bench_result.append(",".join(["system"] + csv_headers))
-
-    bench_result.append(",".join([system] + csv_vals))
+def process_ycsb_out(ycsb_out: str, system: str, results: Dict[str, List]) -> None:
+    for line in ycsb_out.split("\n"):
+        if line == "":
+            break
+        operation, metric, value = line.split(", ")
+        results["system"].append(system)
+        results["operation"].append(operation)
+        results["metric"].append(metric)
+        results["value"].append(value)
 
 
 class Benchmark:
@@ -40,7 +41,7 @@ class Benchmark:
         system: str,
         redis_server: str,
         db_dir: str,
-        stats: Dict[str, List[str]],
+        stats: Dict[str, List],
         extra_env: Dict[str, str],
     ) -> None:
         env = extra_env.copy()
@@ -54,14 +55,12 @@ class Benchmark:
             while True:
                 try:
                     self.remote_redis.run("bin/redis-cli", ["-h", self.settings.local_dpdk_ip, "ping"])
-                    print()
                     break
                 except subprocess.CalledProcessError:
                     status = proc.poll()
                     if status is not None:
                         raise OSError(f"redis-server exiteded with {status}")
                     time.sleep(1)
-                    print(".")
                     pass
 
             load_proc = self.remote_ycsb.run("bin/ycsb", [
@@ -91,18 +90,12 @@ class Benchmark:
                 ],
             )
 
-        if "load_res" not in stats:
-            stats["load_res"] = []
-        if "run_res" not in stats:
-            stats["run_res"] = []
-
-        process_ycsb_out(load_proc.stdout, system, stats["load_res"])
-        process_ycsb_out(run_proc.stdout, system, stats["run_res"])
+        process_ycsb_out(run_proc.stdout, system, stats)
 
 
 def benchmark_redis_native(
         benchmark: Benchmark,
-        stats: Dict[str, List[str]],
+        stats: Dict[str, List],
 ) -> None:
     extra_env = benchmark.network.setup(NetworkKind.NATIVE)
     redis_server = nix_build("redis-native")
@@ -121,7 +114,7 @@ def benchmark_redis_native(
 
 def benchmark_redis_sgx_lkl(
         benchmark: Benchmark,
-        stats: Dict[str, List[str]],
+        stats: Dict[str, List],
 ) -> None:
     extra_env = benchmark.network.setup(NetworkKind.TAP)
     redis_server = nix_build("redis-sgx-lkl")
@@ -130,12 +123,12 @@ def benchmark_redis_sgx_lkl(
 
     with mount as mnt:
         benchmark.run(
-            "native", redis_server, mnt, stats, extra_env=extra_env
+            "sgx-lkl", redis_server, mnt, stats, extra_env=extra_env
         )
 
 
 def benchmark_redis_sgx_io(
-        benchmark: Benchmark, stats: Dict[str, List[str]]
+        benchmark: Benchmark, stats: DefaultDict[str, List[str]]
 ) -> None:
     extra_env = benchmark.network.setup(NetworkKind.DPDK)
     redis_server = nix_build("redis-sgx-io")
@@ -144,27 +137,35 @@ def benchmark_redis_sgx_io(
 
     with mount as mnt:
         benchmark.run(
-            "native", redis_server, mnt, stats, extra_env=extra_env
+            "sgx-io", redis_server, mnt, stats, extra_env=extra_env
         )
 
 
 def main() -> None:
-    stats: Dict[str, List[str]] = {}
+    stats = read_stats("redis.json")
     settings = create_settings()
     setup_remote_network(settings)
 
     benchmark = Benchmark(settings)
 
-    benchmark_redis_native(benchmark, stats)
-    benchmark_redis_sgx_lkl(benchmark, stats)
-    benchmark_redis_sgx_io(benchmark, stats)
+    benchmarks = {
+        "native": benchmark_redis_native,
+        "sgx-io": benchmark_redis_sgx_io,
+        "sgx-lkl": benchmark_redis_sgx_lkl,
+    }
 
-    load_df = pd.DataFrame(stats["load_res"])
-    run_df = pd.DataFrame(stats["run_res"])
+    system = set(stats["system"])
+    for name, benchmark_func in benchmarks.items():
+        if name in system:
+            print(f"skip {name} benchmark")
+            continue
+        benchmark_func(benchmark, stats)
 
-    print("wrote redis_load.csv, redis_run.csv")
-    load_df.to_csv("redis_load.csv")
-    run_df.to_csv("redis_run.csv")
+    csv = f"redis-{NOW}.tsv"
+    print(csv)
+    throughput_df = pd.DataFrame(stats)
+    throughput_df.to_csv(csv, index=False, sep="\t")
+    throughput_df.to_csv("redis-latest.tsv", index=False, sep="\t")
 
 
 if __name__ == "__main__":
