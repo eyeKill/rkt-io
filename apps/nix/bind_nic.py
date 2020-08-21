@@ -17,7 +17,7 @@ def main() -> None:
         )
         sys.exit(1)
     settings = create_settings()
-    Network(kind, settings).setup()
+    Network(settings).setup(kind)
 
 
 if __name__ == "__main__":
