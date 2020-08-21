@@ -54,7 +54,7 @@ class Network:
             ip(["link", "set", self.settings.native_nic_ifname, "up"])
 
     def extra_env(self, kind: NetworkKind) -> Dict[str, str]:
-        if kind == NetworkKind.DPDK:
+        if kind == NetworkKind.TAP:
             return dict(
                 SGXLKL_IP4=self.settings.local_dpdk_ip,
                 SGXLKL_IP6=self.settings.local_dpdk_ip6,
