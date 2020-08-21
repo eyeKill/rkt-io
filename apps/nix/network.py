@@ -1,7 +1,7 @@
 import getpass
 import subprocess
 from enum import Enum
-from typing import List
+from typing import List, Dict
 
 from helpers import ROOT, Settings, nix_build, run
 
@@ -15,8 +15,10 @@ class NetworkKind(Enum):
 def ip(args: List[str]) -> None:
     run(["sudo", "ip"] + args)
 
+
 def remote_cmd(ssh_host: str, args: List[str]) -> None:
     run(["ssh", ssh_host, "--"] + args)
+
 
 def setup_remote_network(settings: Settings) -> None:
     cmds = [
@@ -31,14 +33,13 @@ def setup_remote_network(settings: Settings) -> None:
 
 
 class Network:
-    def __init__(self, kind: NetworkKind, settings: Settings) -> None:
-        self.kind = kind
+    def __init__(self, settings: Settings) -> None:
         self.settings = settings
 
-    def bind_driver(self) -> None:
+    def bind_driver(self, kind: NetworkKind) -> None:
         devbind = ROOT.joinpath("..", "..", "dpdk", "usertools", "dpdk-devbind.py")
 
-        if self.kind != NetworkKind.DPDK:
+        if kind != NetworkKind.DPDK:
             driver = self.settings.native_nic_driver
         else:
             driver = self.settings.dpdk_nic_driver
@@ -49,13 +50,26 @@ class Network:
 
         run(["sudo", "python3", str(devbind), "-b", driver, self.settings.nic_pci_id])
 
-        if self.kind == NetworkKind.NATIVE:
+        if kind == NetworkKind.NATIVE:
             ip(["link", "set", self.settings.native_nic_ifname, "up"])
 
-    def setup(self) -> None:
-        self.bind_driver()
+    def extra_env(self, kind: NetworkKind) -> Dict[str, str]:
+        if kind == NetworkKind.DPDK:
+            return dict(
+                SGXLKL_IP4=self.settings.local_dpdk_ip,
+                SGXLKL_IP6=self.settings.local_dpdk_ip6,
+                SGXLKL_TAP_OFFLOAD="1",
+                SGXLKL_TAP_MTU="1500",
+            )
+        elif kind == NetworkKind.DPDK:
+            return dict(SGXLKL_DPDK_MTU="1500")
+        else:
+            return {}
 
-        if self.kind != NetworkKind.DPDK:
+    def setup(self, kind: NetworkKind) -> Dict[str, str]:
+        self.bind_driver(kind)
+
+        if kind != NetworkKind.DPDK:
             ip(["addr", "flush", "dev", self.settings.native_nic_ifname])
 
         try:
@@ -81,7 +95,7 @@ class Network:
 
         subprocess.run(["sudo", "ip", "link", "del", "iperf-br"])
 
-        if self.kind == NetworkKind.TAP:
+        if kind == NetworkKind.TAP:
             ip(["link", "add", "name", "iperf-br", "mtu", "1500", "type", "bridge"])
             ip(["link", "set", "dev", "iperf-br", "up"])
             ip(["link", "set", self.settings.native_nic_ifname, "master", "iperf-br"])
@@ -97,12 +111,13 @@ class Network:
             )
             for cidr in [self.settings.tap_bridge_cidr, self.settings.tap_bridge_cidr6]:
                 ip(["addr", "add", "dev", "iperf-br", cidr])
-        elif self.kind == NetworkKind.NATIVE:
+        elif kind == NetworkKind.NATIVE:
             for cidr in [self.settings.cidr, self.settings.cidr6]:
                 ip(["addr", "add", cidr, "dev", self.settings.native_nic_ifname])
 
-        if self.kind != NetworkKind.DPDK:
+        if kind != NetworkKind.DPDK:
             ip(["link", "set", "dev", self.settings.native_nic_ifname, "mtu", "1500"])
             ip(["link", "set", self.settings.native_nic_ifname, "up"])
 
         print("########################################")
+        return self.extra_env(kind)
