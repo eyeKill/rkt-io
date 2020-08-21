@@ -1,22 +1,13 @@
-import json
-import os
 import subprocess
 import time
-import signal
 import pandas as pd
 from io import StringIO
-from collections import defaultdict
-from typing import Any, DefaultDict, Dict, List, Optional
+from typing import Dict, List
 
 from helpers import (
-    NOW,
     Settings,
-    RemoteCommand,
     create_settings,
-    flamegraph_env,
     nix_build,
-    read_stats,
-    write_stats,
     spawn,
 )
 from storage import Storage, StorageKind
@@ -36,102 +27,118 @@ def process_ycsb_out(ycsb_out: str, system: str, bench_result: List[str]) -> Non
     bench_result.append(",".join([system] + csv_vals))
 
 
-def benchmark_redis(
-    settings: Settings,
-    system: str,
-    redis_server: str,
-    remote_ycsb: RemoteCommand,
-    stats: Dict[str, List[str]],
-    extra_env: Dict[str, str] = {},
-) -> None:
-    env = extra_env.copy()
-    env[
-        "SGXLKL_SYSCTL"
-    ] = "net.core.rmem_max=56623104;net.core.wmem_max=56623104;net.core.rmem_default=56623104;net.core.wmem_default=56623104;net.core.optmem_max=40960;net.ipv4.tcp_rmem=4096 87380 56623104;net.ipv4.tcp_wmem=4096 65536 56623104;"
+class Benchmark:
+    def __init__(self, settings: Settings) -> None:
+        self.settings = create_settings()
+        self.storage = Storage(settings)
+        self.network = Network(settings)
+        self.remote_ycsb = settings.remote_command(nix_build("ycsb-native"))
 
-    with spawn(redis_server, extra_env=extra_env):
-        while True:
-            time.sleep(5)
-            try:
-                print(f"Running wrk benchmark for {system} case")
-                load_proc = remote_ycsb.run(
-                    "bin/ycsb",
-                    [
+    def run(
+        self,
+        system: str,
+        redis_server: str,
+        db_dir: str,
+        stats: Dict[str, List[str]],
+        extra_env: Dict[str, str],
+    ) -> None:
+        env = extra_env.copy()
+        env[
+            "SGXLKL_SYSCTL"
+        ] = "net.core.rmem_max=56623104;net.core.wmem_max=56623104;net.core.rmem_default=56623104;net.core.wmem_default=56623104;net.core.optmem_max=40960;net.ipv4.tcp_rmem=4096 87380 56623104;net.ipv4.tcp_wmem=4096 65536 56623104;"
+
+        with spawn(redis_server, "--dir", db_dir, extra_env=extra_env):
+            while True:
+                try:
+                    print(f"Running wrk benchmark for {system} case")
+                    args = [
                         "load",
                         "redis",
                         "-s",
                         "-P",
-                        f"{remote_ycsb.nix_path}/share/ycsb/workloads/workloada",
+                        f"{self.remote_ycsb.nix_path}/share/ycsb/workloads/workloada",
                         "-p",
-                        f"redis.host={settings.local_dpdk_ip}",
+                        f"redis.host={self.settings.local_dpdk_ip}",
                         "-p",
                         "redis.port=6379",
-                    ],
-                )
-                break
-            except subprocess.CalledProcessError:
-                print(".")
-                pass
+                    ]
+                    load_proc = self.remote_ycsb.run("bin/ycsb", args)
+                    break
+                except subprocess.CalledProcessError:
+                    time.sleep(5)
+                    print(".")
+                    pass
 
-        run_proc = remote_ycsb.run(
-            "bin/ycsb",
-            [
-                "run",
-                "redis",
-                "-s",
-                "-P",
-                f"{remote_ycsb.nix_path}/share/ycsb/workloads/workloada",
-                "-p",
-                f"redis.host={settings.local_dpdk_ip}",
-                "-p",
-                "redis.port=6379",
-            ],
+            run_proc = self.remote_ycsb.run(
+                "bin/ycsb",
+                [
+                    "run",
+                    "redis",
+                    "-s",
+                    "-P",
+                    f"{self.remote_ycsb.nix_path}/share/ycsb/workloads/workloada",
+                    "-p",
+                    f"redis.host={self.settings.local_dpdk_ip}",
+                    "-p",
+                    "redis.port=6379",
+                ],
+            )
+
+        if "load_res" not in stats:
+            stats["load_res"] = []
+        if "run_res" not in stats:
+            stats["run_res"] = []
+
+        process_ycsb_out(load_proc.stdout, system, stats["load_res"])
+        process_ycsb_out(run_proc.stdout, system, stats["run_res"])
+
+
+def benchmark_redis_native(
+        benchmark: Benchmark,
+        stats: Dict[str, List[str]],
+) -> None:
+    extra_env = benchmark.network.setup(NetworkKind.NATIVE)
+    redis_server = nix_build("redis-native")
+    mount = benchmark.storage.setup(StorageKind.NATIVE)
+    extra_env.update(mount.extra_env())
+
+    with mount as mnt:
+        benchmark.run(
+            "native",
+            redis_server,
+            mnt,
+            stats,
+            extra_env=extra_env,
         )
 
-    if "load_res" not in stats:
-        stats["load_res"] = []
-    if "run_res" not in stats:
-        stats["run_res"] = []
 
-    process_ycsb_out(load_proc.stdout, system, stats["load_res"])
-    process_ycsb_out(run_proc.stdout, system, stats["run_res"])
+def benchmark_redis_sgx_lkl(
+        benchmark: Benchmark,
+        stats: Dict[str, List[str]],
+) -> None:
+    extra_env = benchmark.network.setup(NetworkKind.TAP)
+    redis_server = nix_build("redis-sgx-lkl")
+    mount = benchmark.storage.setup(StorageKind.LKL)
+    extra_env.update(mount.extra_env())
 
-
-def benchmark_redis_native(settings: Settings, stats: Dict[str, List[str]]) -> None:
-    Network(NetworkKind.NATIVE, settings).setup()
-    redis_server = nix_build("redis-native")
-    remote_ycsb = settings.remote_command(nix_build("ycsb-native"))
-
-    benchmark_redis(settings, "native", redis_server, remote_ycsb, stats)
-
-
-def benchmark_redis_sgx_lkl(settings: Settings, stats: Dict[str, List[str]]) -> None:
-    Network(NetworkKind.TAP, settings).setup()
-    extra_env = dict(
-        SGXLKL_IP4=settings.local_dpdk_ip,
-        SGXLKL_IP6=settings.local_dpdk_ip6,
-        SGXLKL_TAP_OFFLOAD="1",
-        SGXLKL_TAP_MTU="1500",
-    )
-
-    redis_server = nix_build("redis")
-    remote_ycsb = settings.remote_command(nix_build("ycsb-native"))
-
-    benchmark_redis(
-        settings, "native", redis_server, remote_ycsb, stats, extra_env=extra_env
-    )
+    with mount as mnt:
+        benchmark.run(
+            "native", redis_server, mnt, stats, extra_env=extra_env
+        )
 
 
-def benchmark_redis_sgx_io(settings: Settings, stats: Dict[str, List[str]]) -> None:
-    Network(NetworkKind.DPDK, settings).setup()
-    extra_env = dict(SGXLKL_DPDK_MTU="1500")
+def benchmark_redis_sgx_io(
+        benchmark: Benchmark, stats: Dict[str, List[str]]
+) -> None:
+    extra_env = benchmark.network.setup(NetworkKind.DPDK)
+    redis_server = nix_build("redis-sgx-io")
+    mount = benchmark.storage.setup(StorageKind.LKL)
+    extra_env.update(mount.extra_env())
 
-    redis_server = nix_build("redis")
-    remote_ycsb = settings.remote_command(nix_build("ycsb-native"))
-
-    benchmark_redis(
-        settings, "native", redis_server, remote_ycsb, stats, extra_env=extra_env
-    )
+    with mount as mnt:
+        benchmark.run(
+            "native", redis_server, mnt, stats, extra_env=extra_env
+        )
 
 
 def main() -> None:
@@ -139,9 +146,11 @@ def main() -> None:
     settings = create_settings()
     setup_remote_network(settings)
 
-    benchmark_redis_native(settings, stats)
-    # benchmark_redis_sgx_lkl(settings, stats)
-    # benchmark_redis_sgx_io(settings, stats)
+    benchmark = Benchmark(settings)
+
+    benchmark_redis_native(benchmark, stats)
+    benchmark_redis_sgx_lkl(benchmark, stats)
+    benchmark_redis_sgx_io(benchmark, stats)
 
     load_df = pd.DataFrame(stats["load_res"])
     run_df = pd.DataFrame(stats["run_res"])
