@@ -54,7 +54,9 @@ class Benchmark:
             print(f"waiting for redis for {system} benchmark...", end="")
             while True:
                 try:
-                    self.remote_redis.run("bin/redis-cli", ["-h", self.settings.local_dpdk_ip, "ping"])
+                    self.remote_redis.run(
+                        "bin/redis-cli", ["-h", self.settings.local_dpdk_ip, "ping"]
+                    )
                     break
                 except subprocess.CalledProcessError:
                     status = proc.poll()
@@ -63,17 +65,20 @@ class Benchmark:
                     time.sleep(1)
                     pass
 
-            load_proc = self.remote_ycsb.run("bin/ycsb", [
-                "load",
-                "redis",
-                "-s",
-                "-P",
-                f"{self.remote_ycsb.nix_path}/share/ycsb/workloads/workloada",
-                "-p",
-                f"redis.host={self.settings.local_dpdk_ip}",
-                "-p",
-                "redis.port=6379",
-            ])
+            load_proc = self.remote_ycsb.run(
+                "bin/ycsb",
+                [
+                    "load",
+                    "redis",
+                    "-s",
+                    "-P",
+                    f"{self.remote_ycsb.nix_path}/share/ycsb/workloads/workloada",
+                    "-p",
+                    f"redis.host={self.settings.local_dpdk_ip}",
+                    "-p",
+                    "redis.port=6379",
+                ],
+            )
 
             run_proc = self.remote_ycsb.run(
                 "bin/ycsb",
@@ -93,10 +98,7 @@ class Benchmark:
         process_ycsb_out(run_proc.stdout, system, stats)
 
 
-def benchmark_redis_native(
-        benchmark: Benchmark,
-        stats: Dict[str, List],
-) -> None:
+def benchmark_redis_native(benchmark: Benchmark, stats: Dict[str, List],) -> None:
     extra_env = benchmark.network.setup(NetworkKind.NATIVE)
     redis_server = nix_build("redis-native")
     mount = benchmark.storage.setup(StorageKind.NATIVE)
@@ -104,31 +106,22 @@ def benchmark_redis_native(
 
     with mount as mnt:
         benchmark.run(
-            "native",
-            redis_server,
-            mnt,
-            stats,
-            extra_env=extra_env,
+            "native", redis_server, mnt, stats, extra_env=extra_env,
         )
 
 
-def benchmark_redis_sgx_lkl(
-        benchmark: Benchmark,
-        stats: Dict[str, List],
-) -> None:
+def benchmark_redis_sgx_lkl(benchmark: Benchmark, stats: Dict[str, List],) -> None:
     extra_env = benchmark.network.setup(NetworkKind.TAP)
     redis_server = nix_build("redis-sgx-lkl")
     mount = benchmark.storage.setup(StorageKind.LKL)
     extra_env.update(mount.extra_env())
 
     with mount as mnt:
-        benchmark.run(
-            "sgx-lkl", redis_server, mnt, stats, extra_env=extra_env
-        )
+        benchmark.run("sgx-lkl", redis_server, mnt, stats, extra_env=extra_env)
 
 
 def benchmark_redis_sgx_io(
-        benchmark: Benchmark, stats: DefaultDict[str, List[str]]
+    benchmark: Benchmark, stats: DefaultDict[str, List[str]]
 ) -> None:
     extra_env = benchmark.network.setup(NetworkKind.DPDK)
     redis_server = nix_build("redis-sgx-io")
@@ -136,9 +129,7 @@ def benchmark_redis_sgx_io(
     extra_env.update(mount.extra_env())
 
     with mount as mnt:
-        benchmark.run(
-            "sgx-io", redis_server, mnt, stats, extra_env=extra_env
-        )
+        benchmark.run("sgx-io", redis_server, mnt, stats, extra_env=extra_env)
 
 
 def main() -> None:
@@ -160,6 +151,7 @@ def main() -> None:
             print(f"skip {name} benchmark")
             continue
         benchmark_func(benchmark, stats)
+        write_stats("redis.json", stats)
 
     csv = f"redis-{NOW}.tsv"
     print(csv)
