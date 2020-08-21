@@ -139,7 +139,7 @@ def benchmark_redis_sgx_io(
 ) -> None:
     extra_env = benchmark.network.setup(NetworkKind.DPDK)
     redis_server = nix_build("redis-sgx-io")
-    mount = benchmark.storage.setup(StorageKind.LKL)
+    mount = benchmark.storage.setup(StorageKind.SPDK)
     extra_env.update(mount.extra_env())
 
     with mount as mnt:
