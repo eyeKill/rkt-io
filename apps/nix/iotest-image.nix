@@ -11,10 +11,16 @@ buildImage {
   pkg = callPackage ./dummy.nix {};
   inherit sconeEncryptedDir;
   extraFiles = {
-    "/var/www/file-3mb".path = runCommand "file-3mb" {} ''
+    "file-3mb".path = runCommand "file-3mb" {} ''
       yes "a" | head -c ${toString (3 * 1024 * 1024)} > $out || true
     '';
-    "etc/nginx.conf" = ''
+
+    "nginx/proxy/.keep" = "";
+    "nginx/scgi/.keep" = "";
+    "nginx/uwsgi/.keep" = "";
+    "nginx/client_body/.keep" = "";
+    "nginx/fastcgi/.keep" = "";
+    "nginx/nginx.conf" = ''
       master_process off;
       daemon off;
       error_log stderr;
@@ -29,11 +35,12 @@ buildImage {
             return 200 "$remote_addr\n";
           }
           location /test {
-            alias /var/www;
+            alias /proc/self/cwd;
           }
         }
       }
     '';
+
     "fio-rand-RW.job" = ''
       [global]
       name=fio-rand-RW

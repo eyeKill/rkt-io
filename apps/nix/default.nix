@@ -157,14 +157,14 @@ let
     configureFlags = [
       "--with-file-aio"
       "--with-threads"
-      "--http-log-path=/var/log/nginx/access.log"
-      "--error-log-path=/var/log/nginx/error.log"
-      "--pid-path=/var/log/nginx/nginx.pid"
-      "--http-client-body-temp-path=/var/cache/nginx/"
-      "--http-proxy-temp-path=/var/cache/nginx/proxy"
-      "--http-fastcgi-temp-path=/var/cache/nginx/fastcgi"
-      "--http-uwsgi-temp-path=/var/cache/nginx/uwsgi"
-      "--http-scgi-temp-path=/var/cache/nginx/scgi"
+      "--http-log-path=/proc/self/cwd/nginx/access.log"
+      "--error-log-path=/proc/self/cwd/nginx/error.log"
+      "--pid-path=/proc/self/cwd/nginx/nginx.pid"
+      "--http-client-body-temp-path=/proc/self/cwd/nginx/client_body"
+      "--http-proxy-temp-path=/proc/self/cwd/nginx/proxy"
+      "--http-fastcgi-temp-path=/proc/self/cwd/nginx/fastcgi"
+      "--http-uwsgi-temp-path=/proc/self/cwd/nginx/uwsgi"
+      "--http-scgi-temp-path=/proc/self/cwd/nginx/scgi"
     ];
   });
 in {
@@ -465,103 +465,19 @@ in {
 
   nginx-native = runImage {
     pkg = nginx;
-    command = [ "bin/nginx" "-c" "/tmp/mnt/etc/nginx.conf" ];
-    extraFiles."/var/www/file-3mb".path = runCommand "file-3mb" {} ''
-      yes "a" | head -c ${toString (3 * 1024 * 1024)} > $out || true
-    '';
+    command = [ "bin/nginx" "-c" "/etc/nginx.conf" ];
     native = true;
   };
 
-  ycsb-native = pkgs.callPackage ./ycsb {};
-
-  nginx-scone = runImage {
-    pkg = (pkgsMusl.nginx.override {
-      gd = null;
-      geoip = null;
-      libxslt = null;
-      withStream = false;
-      stdenv = sconeStdenv;
-    }).overrideAttrs (old: {
-      configureFlags = [
-        "--with-file-aio" "--with-threads"
-        "--http-log-path=/var/log/nginx/access.log"
-        "--error-log-path=/var/log/nginx/error.log"
-        "--pid-path=/var/log/nginx/nginx.pid"
-        "--http-client-body-temp-path=/var/cache/nginx/client_body"
-        "--http-proxy-temp-path=/var/cache/nginx/proxy"
-        "--http-fastcgi-temp-path=/var/cache/nginx/fastcgi"
-        "--http-uwsgi-temp-path=/var/cache/nginx/uwsgi"
-        "--http-scgi-temp-path=/var/cache/nginx/scgi"
-      ];
-      buildInputs = [
-        ((pkgsStatic.pcre.override {
-          stdenv = sconeStdenv;
-        }).overrideAttrs (old: {
-          configureFlags = old.configureFlags ++ [
-            "--disable-shared"
-          ];
-          # disable-shared breaks the tests
-          doCheck = false;
-        }))
-        (pkgsStatic.zlib.override {
-          stdenv = sconeStdenv;
-        })
-      ];
-    });
-    command = [ "bin/nginx" "-c" "/etc/nginx.conf" ];
-    extraFiles."/var/www/file-3mb".path = runCommand "file-3mb" {} ''
-      yes "a" | head -c ${toString (3 * 1024 * 1024)} > $out || true
-    '';
-    extraFiles."etc/nginx.conf" = ''
-      master_process off;
-      daemon off;
-      error_log stderr;
-      events {}
-      http {
-        access_log off;
-        aio threads;
-        server {
-          listen 9000;
-          default_type text/plain;
-          location / {
-            return 200 "$remote_addr\n";
-          }
-          location /test {
-            alias /var/www;
-          }
-        }
-      }
-      '';
-    native = true;
-  };  
-
-  nginx = runImage {
+  nginx-sgx-io = runImage {
     pkg = nginx;
     command = [ "bin/nginx" "-c" "/etc/nginx.conf" ];
-    # sgx-io: /mnt/spdk0 /mnt/spdk1
-    # scone/native/sgx-lkl: /mnt/nvme
-    extraFiles."/var/cache/nginx/.keep" = "";
-    extraFiles."/var/log/nginx/.keep" = "";
-    extraFiles."etc/nginx.conf" = ''
-       master_process off;
-       daemon off;
-       error_log stderr;
-       events {}
-       http {
-         access_log off;
-         aio threads;
-         server {
-           listen 9000;
-           default_type text/plain;
-           location / {
-             return 200 "$remote_addr\n";
-           }
-           location /test {
-             alias /var/www;
-           }
-         }
-       }
-      '';
+  };
+
+  nginx-sgx-lkl = runImage {
+    pkg = nginx;
+    sgx-lkl-run = "${sgx-lkl}/bin/sgx-lkl-run";
+    command = [ "bin/nginx" "-c" "/etc/nginx.conf" ];
   };
 
   sqlite-native = runImage {
