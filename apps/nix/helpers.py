@@ -101,6 +101,7 @@ class Settings:
     remote_dpdk_ip: str
     remote_dpdk_ip6: str
     local_dpdk_ip: str
+    local_dpdk_gw: str
     local_dpdk_ip6: str
     dpdk_netmask: int
     dpdk_netmask6: int
@@ -203,6 +204,7 @@ def create_settings() -> Settings:
         remote_dpdk_ip=remote_dpdk_ip,
         remote_dpdk_ip6=remote_dpdk_ip6,
         local_dpdk_ip=os.environ.get("SGXLKL_DPKD_IP4", "10.0.42.1"),
+        local_dpdk_gw=os.environ.get("SGXLKL_DPKD_GW4", "10.0.42.254"),
         local_dpdk_ip6=os.environ.get("SGXLKL_DPKD_IP6", "fdbf:9188:5fbd:a895::1"),
         dpdk_netmask=int(os.environ.get("DEFAULT_DPDK_IPV4_MASK", "24")),
         dpdk_netmask6=int(os.environ.get("DEFAULT_DPDK_IPV6_MASK", "64")),

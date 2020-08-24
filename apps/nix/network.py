@@ -57,6 +57,7 @@ class Network:
         if kind == NetworkKind.TAP:
             return dict(
                 SGXLKL_IP4=self.settings.local_dpdk_ip,
+                SGXLKL_GW=self.settings.local_dpdk_gw,
                 SGXLKL_IP6=self.settings.local_dpdk_ip6,
                 SGXLKL_TAP_OFFLOAD="1",
                 SGXLKL_TAP_MTU="1500",
