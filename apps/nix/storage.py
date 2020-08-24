@@ -31,8 +31,8 @@ def cryptsetup_luks_open(dev: str, cryptsetup_name: str, key: str) -> None:
     run(["sudo", "cryptsetup", "open", dev, cryptsetup_name], input=key)
 
 
-def cryptsetup_luks_close(cryptsetup_name: str) -> None:
-    run(["sudo", "cryptsetup", "close", cryptsetup_name])
+def cryptsetup_luks_close(cryptsetup_name: str, check: bool=True) -> None:
+    run(["sudo", "cryptsetup", "close", cryptsetup_name], check=False)
 
 
 # Use a fixed path here so that we can unmount previous failed runs
@@ -49,15 +49,18 @@ class Mount:
         self.cryptsetup_name = Path(self.raw_dev).name
         self.hd_key = hd_key
 
+        self.mountpoint = Path("/mnt/spdk0")
+        if self.kind in [StorageKind.SPDK, StorageKind.SCONE]:
+            self.mountpoint = MOUNTPOINT
+
     def extra_env(self) -> Dict[str, str]:
         if self.kind == StorageKind.LKL:
             return dict(SGXLKL_HDS=f"{self.raw_dev}:/mnt/spdk0")
         return {}
 
-    def __enter__(self) -> str:
-        if self.kind == StorageKind.SPDK or self.kind == StorageKind.LKL:
-            return "/mnt/spdk0"
-        assert self.kind == StorageKind.NATIVE or self.kind == StorageKind.SCONE
+    def mount(self) -> None:
+        if self.kind in [StorageKind.NATIVE, StorageKind.SCONE]:
+            return
 
         MOUNTPOINT.mkdir(exist_ok=True)
 
@@ -67,10 +70,8 @@ class Mount:
         run(["sudo", "mount", self.dev, str(MOUNTPOINT)])
         run(["sudo", "chown", "-R", getpass.getuser(), str(MOUNTPOINT)])
 
-        return str(MOUNTPOINT)
-
-    def __exit__(self, type: Any, value: Any, traceback: Any) -> None:
-        if self.kind == StorageKind.SPDK or self.kind == StorageKind.LKL:
+    def umount(self) -> None:
+        if self.kind in [StorageKind.SPDK, StorageKind.LKL]:
             return
 
         for i in range(3):
@@ -83,6 +84,14 @@ class Mount:
 
         if self.raw_dev != self.dev and self.kind != StorageKind.SCONE:
             cryptsetup_luks_close(self.cryptsetup_name)
+
+    def __enter__(self) -> str:
+        self.mount()
+
+        return str(self.mountpoint)
+
+    def __exit__(self, type: Any, value: Any, traceback: Any) -> None:
+        self.umount()
 
 
 def set_hugepages(num: int) -> None:
@@ -161,6 +170,11 @@ class Storage:
         if MOUNTPOINT.is_mount():
             run(["sudo", "umount", str(MOUNTPOINT)])
 
+        spdk_device = self.settings.spdk_device()
+
+        if os.path.exists(f"/dev/mapper/{spdk_device}"):
+            cryptsetup_luks_close(spdk_device, check=False)
+
         run(
             [
                 "sudo",
@@ -170,7 +184,6 @@ class Storage:
         )
         time.sleep(2)  # wait for device to appear
 
-        spdk_device = self.settings.spdk_device()
 
         raw_dev = f"/dev/{spdk_device}"
 

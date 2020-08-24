@@ -21,6 +21,7 @@ def main() -> None:
         sys.exit(1)
     settings = create_settings()
     mount = Storage(settings).setup(kind)
+    mount.mount()
     print(mount.dev)
 
 
