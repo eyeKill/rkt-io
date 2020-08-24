@@ -1,26 +1,19 @@
-import json
-import os
 import re
 import subprocess
-import tempfile
-import time
-from collections import defaultdict
-from enum import Enum
 from functools import lru_cache
-from typing import Any, DefaultDict, Dict, List, Union
+from typing import Dict, List
 
 import pandas as pd
 from helpers import (
     NOW,
-    ROOT,
-    Chdir,
     RemoteCommand,
     Settings,
     create_settings,
     nix_build,
-    run,
     spawn,
     flamegraph_env,
+    read_stats,
+    write_stats,
 )
 from network import Network, NetworkKind, setup_remote_network
 from storage import Storage, StorageKind
@@ -71,91 +64,109 @@ def process_sysbench(output: str, system: str, stats: Dict[str, List]) -> None:
     stats["system"].append(system)
 
 
-def benchmark_mysql(
-    storage: Storage,
-    attr: str,
-    system: str,
-    mnt: str,
-    stats: Dict[str, List],
-    extra_env: Dict[str, str] = {},
-) -> None:
+class Benchmark:
+    def __init__(self, settings: Settings) -> None:
+        self.settings = settings
+        self.network = Network(settings)
+        self.storage = Storage(settings)
 
-    env = dict(SGXLKL_CWD=mnt)
-    env.update(flamegraph_env(f"mysql-{system}-{NOW}"))
-    env.update(extra_env)
-    mysql = nix_build(attr)
-    sysbench = sysbench_command(storage.settings)
+    def run(
+        self,
+        attr: str,
+        system: str,
+        mnt: str,
+        stats: Dict[str, List],
+        extra_env: Dict[str, str] = {},
+    ) -> None:
+        env = dict(SGXLKL_CWD=mnt)
+        env.update(flamegraph_env(f"mysql-{system}-{NOW}"))
+        env.update(extra_env)
+        mysql = nix_build(attr)
+        sysbench = sysbench_command(self.storage.settings)
 
-    with spawn(
-        mysql,
-        "bin/mysqld",
-        f"--datadir={mnt}/var/lib/mysql",
-        "--socket=/tmp/mysql.sock",
-        extra_env=env,
-    ):
-        common_flags = [
-            f"--mysql-host={storage.settings.local_dpdk_ip}",
-            "--mysql-db=root",
-            "--mysql-user=root",
-            "--mysql-password=root",
-            f"{sysbench.nix_path}/share/sysbench/oltp_read_write.lua",
-        ]
+        with spawn(
+            mysql,
+            "bin/mysqld",
+            f"--datadir={mnt}/var/lib/mysql",
+            "--socket=/tmp/mysql.sock",
+            extra_env=env,
+        ):
+            common_flags = [
+                f"--mysql-host={self.settings.local_dpdk_ip}",
+                "--mysql-db=root",
+                "--mysql-user=root",
+                "--mysql-password=root",
+                f"{sysbench.nix_path}/share/sysbench/oltp_read_write.lua",
+            ]
 
-        while True:
-            try:
-                proc = nc_command(storage.settings).run(
-                    "bin/nc", ["-z", "-v", storage.settings.local_dpdk_ip, "3306"]
-                )
-                break
-            except subprocess.CalledProcessError:
-                print(".")
-                pass
+            while True:
+                try:
+                    proc = nc_command(self.settings).run(
+                        "bin/nc", ["-z", "-v", self.settings.local_dpdk_ip, "3306"]
+                    )
+                    break
+                except subprocess.CalledProcessError:
+                    print(".")
+                    pass
 
-        sysbench.run("bin/sysbench", common_flags + ["prepare"])
-        proc = sysbench.run("bin/sysbench", common_flags + ["run"])
-        process_sysbench(proc.stdout, system, stats)
-        sysbench.run("bin/sysbench", common_flags + ["cleanup"])
-
-
-def benchmark_native(storage: Storage, stats: Dict[str, List]) -> None:
-    with storage.setup(StorageKind.NATIVE) as mnt:
-        Network(NetworkKind.NATIVE, storage.settings).setup()
-        benchmark_mysql(storage, "mariadb-native", "fio-native", mnt, stats)
-
-
-def benchmark_sgx_lkl(storage: Storage, stats: Dict[str, List]) -> None:
-    Network(NetworkKind.TAP, storage.settings).setup()
-    storage.setup(StorageKind.LKL)
-    extra_env = dict(
-        SGXLKL_IP6=storage.settings.local_dpdk_ip6, SGXLKL_HDS="/dev/nvme0n1:/mnt/nvme"
-    )
-    benchmark_mysql(
-        storage, "mariadb", "sgx-lkl", "/mnt/nvme", stats, extra_env=extra_env
-    )
+            sysbench.run("bin/sysbench", common_flags + ["prepare"])
+            proc = sysbench.run("bin/sysbench", common_flags + ["run"])
+            process_sysbench(proc.stdout, system, stats)
+            sysbench.run("bin/sysbench", common_flags + ["cleanup"])
 
 
-def benchmark_sgx_io(storage: Storage, stats: Dict[str, List]) -> None:
-    Network(NetworkKind.DPDK, storage.settings).setup()
-    storage.setup(StorageKind.SPDK)
-    extra_env = dict(SGXLKL_DPDK_MTU="1500")
-    benchmark_mysql(
-        storage, "mariadb", "sgx-io", "/mnt/vdb", stats, extra_env=extra_env
-    )
+def benchmark_native(benchmark: Benchmark, stats: Dict[str, List]) -> None:
+    extra_env = benchmark.network.setup(NetworkKind.NATIVE)
+    mount = benchmark.storage.setup(StorageKind.NATIVE)
+    extra_env.update(mount.extra_env())
+    with mount as mnt:
+        benchmark.run("mariadb-native", "native", mnt, stats, extra_env=extra_env)
+
+
+def benchmark_sgx_lkl(benchmark: Benchmark, stats: Dict[str, List]) -> None:
+    extra_env = benchmark.network.setup(NetworkKind.TAP)
+    mount = benchmark.storage.setup(StorageKind.LKL)
+    extra_env.update(mount.extra_env())
+    with mount as mnt:
+        benchmark.run("mariadb", "sgx-lkl", mnt, stats, extra_env=extra_env)
+
+
+def benchmark_sgx_io(benchmark: Benchmark, stats: Dict[str, List]) -> None:
+    extra_env = benchmark.network.setup(NetworkKind.DPDK)
+    mount = benchmark.storage.setup(StorageKind.SPDK)
+    extra_env.update(mount.extra_env())
+
+    with mount as mnt:
+        benchmark.run("mariadb", "sgx-io", mnt, stats, extra_env=extra_env)
 
 
 def main() -> None:
-    stats: DefaultDict[str, List] = defaultdict(list)
+    stats = read_stats("mysql.json")
 
     settings = create_settings()
+    benchmark = Benchmark(settings)
+
+    benchmarks = {
+        "native": benchmark_native,
+        "sgx-io": benchmark_sgx_io,
+        "sgx-lkl": benchmark_sgx_lkl,
+    }
+
     setup_remote_network(settings)
-    storage = Storage(settings)
-    benchmark_native(storage, stats)
-    benchmark_sgx_lkl(storage, stats)
-    benchmark_sgx_io(storage, stats)
+
+    system = set(stats["system"])
+    for name, benchmark_func in benchmarks.items():
+        if name in system:
+            print(f"skip {name} benchmark")
+            continue
+        benchmark_func(benchmark, stats)
+        write_stats("mysql.json", stats)
 
     csv = f"mysql-{NOW}.tsv"
     print(csv)
-    pd.DataFrame(stats).to_csv(csv, index=False, sep="\t")
+    throughput_df = pd.DataFrame(stats)
+    throughput_df.to_csv(csv, index=False, sep="\t")
+    throughput_df.to_csv("mysql-latest.tsv", index=False, sep="\t")
 
 
 if __name__ == "__main__":
