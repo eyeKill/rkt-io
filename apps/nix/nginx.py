@@ -43,8 +43,6 @@ class Benchmark:
         extra_env: Dict[str, str] = {},
     ) -> None:
         env = extra_env.copy()
-        sysctl = "net.core.rmem_max=56623104;net.core.wmem_max=56623104;net.core.rmem_default=56623104;net.core.wmem_default=56623104;net.core.optmem_max=40960;net.ipv4.tcp_rmem=4096 87380 56623104;net.ipv4.tcp_wmem=4096 65536 56623104;"
-        env["SGXLKL_SYSCTL"] = sysctl
         env.update(dict(SGXLKL_CWD=mnt))
 
         nginx_server = nix_build(attr)

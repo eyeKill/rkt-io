@@ -63,7 +63,8 @@ class Network:
                 SGXLKL_TAP_MTU="1500",
             )
         elif kind == NetworkKind.DPDK:
-            return dict(SGXLKL_DPDK_MTU="1500")
+            sysctl = "net.core.rmem_max=56623104;net.core.wmem_max=56623104;net.core.rmem_default=56623104;net.core.wmem_default=56623104;net.core.optmem_max=40960;net.ipv4.tcp_rmem=4096 87380 56623104;net.ipv4.tcp_wmem=4096 65536 56623104;"
+            return dict(SGXLKL_DPDK_MTU="1500", SGXLKL_SYSCTL=sysctl)
         else:
             return {}
 

@@ -46,11 +46,6 @@ class Benchmark:
         stats: Dict[str, List],
         extra_env: Dict[str, str],
     ) -> None:
-        env = extra_env.copy()
-        env[
-            "SGXLKL_SYSCTL"
-        ] = "net.core.rmem_max=56623104;net.core.wmem_max=56623104;net.core.rmem_default=56623104;net.core.wmem_default=56623104;net.core.optmem_max=40960;net.ipv4.tcp_rmem=4096 87380 56623104;net.ipv4.tcp_wmem=4096 65536 56623104;"
-
         args = ["bin/redis-server", "--dir", db_dir, "--protected-mode", "no"]
         with spawn(redis_server, *args, extra_env=extra_env) as proc:
             print(f"waiting for redis for {system} benchmark...", end="")
