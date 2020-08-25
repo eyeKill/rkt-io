@@ -58,6 +58,36 @@ let
     patches = [ ./mysql.patch ];
   });
 
+  mysql-image = { sgx-lkl-run ? "sgx-lkl-run" }: runImage {
+    pkg = mysql;
+    inherit sgx-lkl-run;
+    command = [ "bin/mysqld" "--socket=/tmp/mysql.sock" ];
+    extraFiles = {
+      "/etc/my.cnf" = ''
+        [mysqld]
+        user=root
+        datadir=${mysqlDatadir}
+      '';
+      "/etc/resolv.conf" = "";
+      "/etc/services" = "${iana-etc}/etc/services";
+      "/var/lib/mysql/.keep" = "";
+      "/run/mysqld/.keep" = "";
+    };
+    extraCommands = ''
+      export PATH=$PATH:${lib.getBin nettools}/bin
+      ${mysql}/bin/mysql_install_db --datadir=$(readlink -f root/${mysqlDatadir}) --basedir=${mysql}
+      ${mysql}/bin/mysqld_safe --datadir=$(readlink -f root/${mysqlDatadir}) --socket=$TMPDIR/mysql.sock &
+      while [[ ! -e $TMPDIR/mysql.sock ]]; do
+        sleep 1
+      done
+      ${mysql}/bin/mysql -u root --socket=$TMPDIR/mysql.sock <<EOF
+      GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' IDENTIFIED BY 'root' WITH GRANT OPTION;
+      CREATE DATABASE root;
+      FLUSH PRIVILEGES;
+      EOF
+   '';
+  };
+
   fio = pkgsMusl.fio.overrideAttrs (old: {
     src = ./fio-src;
     #src = fetchFromGitHub {
@@ -380,46 +410,19 @@ in {
     command = [ "bin/redis-server" "--protected-mode" "no" ];
   };
 
-  mariadb = runImage {
-    pkg = mysql;
-    command = [ "bin/mysqld" "--socket=/tmp/mysql.sock" ];
-    extraFiles = {
-      "/etc/my.cnf" = ''
-        [mysqld]
-        user=root
-        datadir=${mysqlDatadir}
-      '';
-      "/etc/resolv.conf" = "";
-      "/etc/services" = "${iana-etc}/etc/services";
-      "/var/lib/mysql/.keep" = "";
-      "/run/mysqld/.keep" = "";
-    };
-    extraCommands = ''
-      export PATH=$PATH:${lib.getBin nettools}/bin
-      ${mysql}/bin/mysql_install_db --datadir=$(readlink -f root/${mysqlDatadir}) --basedir=${mysql}
-      ${mysql}/bin/mysqld_safe --datadir=$(readlink -f root/${mysqlDatadir}) --socket=$TMPDIR/mysql.sock &
-      while [[ ! -e $TMPDIR/mysql.sock ]]; do
-        sleep 1
-      done
-      ${mysql}/bin/mysql -u root --socket=$TMPDIR/mysql.sock <<EOF
-      GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' IDENTIFIED BY 'root' WITH GRANT OPTION;
-      CREATE DATABASE root;
-      FLUSH PRIVILEGES;
-      EOF
-   '';
+  mysql-sgx-io = mysql-image {};
+  mysql-sgx-lkl = mysql-image {
+    sgx-lkl-run = "${sgx-lkl}/bin/sgx-lkl-run";
   };
-
-  mariadbPkg = mysql;
+  mysql-native = runImage {
+    pkg = mysql;
+    native = true;
+    command = [ "bin/mysqld" ];
+  };
 
   perl = runImage {
     pkg = pkgsMusl.perl;
     command = [ "bin/perl" "-e" "print 'foo\n';" ];
-  };
-
-  mariadb-native = runImage {
-    pkg = mysql;
-    native = true;
-    command = [ "bin/mysqld" ];
   };
 
   samba = runImage {

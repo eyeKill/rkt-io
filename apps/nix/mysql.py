@@ -120,7 +120,7 @@ def benchmark_native(benchmark: Benchmark, stats: Dict[str, List]) -> None:
     mount = benchmark.storage.setup(StorageKind.NATIVE)
     extra_env.update(mount.extra_env())
     with mount as mnt:
-        benchmark.run("mariadb-native", "native", mnt, stats, extra_env=extra_env)
+        benchmark.run("mysql-native", "native", mnt, stats, extra_env=extra_env)
 
 
 def benchmark_sgx_lkl(benchmark: Benchmark, stats: Dict[str, List]) -> None:
@@ -128,7 +128,7 @@ def benchmark_sgx_lkl(benchmark: Benchmark, stats: Dict[str, List]) -> None:
     mount = benchmark.storage.setup(StorageKind.LKL)
     extra_env.update(mount.extra_env())
     with mount as mnt:
-        benchmark.run("mariadb", "sgx-lkl", mnt, stats, extra_env=extra_env)
+        benchmark.run("mysql-sgx-lkl", "sgx-lkl", mnt, stats, extra_env=extra_env)
 
 
 def benchmark_sgx_io(benchmark: Benchmark, stats: Dict[str, List]) -> None:
@@ -137,7 +137,7 @@ def benchmark_sgx_io(benchmark: Benchmark, stats: Dict[str, List]) -> None:
     extra_env.update(mount.extra_env())
 
     with mount as mnt:
-        benchmark.run("mariadb", "sgx-io", mnt, stats, extra_env=extra_env)
+        benchmark.run("mysql-sgx-io", "sgx-io", mnt, stats, extra_env=extra_env)
 
 
 def main() -> None:
