@@ -50,7 +50,7 @@ class Mount:
         self.hd_key = hd_key
 
         self.mountpoint = Path("/mnt/spdk0")
-        if self.kind in [StorageKind.SPDK, StorageKind.SCONE]:
+        if self.kind in [StorageKind.NATIVE, StorageKind.SCONE]:
             self.mountpoint = MOUNTPOINT
 
     def extra_env(self) -> Dict[str, str]:
