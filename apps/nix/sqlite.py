@@ -1,14 +1,13 @@
-import json
 import os
 import subprocess
 import signal
-from typing import Dict, List, Optional
+from typing import Dict, List, Any
+import re
 
 import pandas as pd
 from helpers import (
     NOW,
     create_settings,
-    flamegraph_env,
     nix_build,
     read_stats,
     write_stats,
@@ -21,7 +20,7 @@ def benchmark_sqlite(
     system: str,
     attr: str,
     directory: str,
-    stats: Dict[str, List[str]],
+    stats: Dict[str, List[Any]],
     extra_env: Dict[str, str] = {},
 ) -> None:
     env = os.environ.copy()
@@ -41,63 +40,76 @@ def benchmark_sqlite(
     proc = subprocess.Popen(cmd, stdout=stdout, text=True, env=env)
 
     print(f"[Benchmark]:{system}")
-    data = []
 
+    stats["system"].append(system)
+    n_rows = 0
     try:
         if proc.stdout is None:
             proc.wait()
         else:
             for line in proc.stdout:
-                line = line.split(" ")[-1]
-                data.append(line.replace("\n", ""))
+                line = line.rstrip()
+                print(line)
+                match = re.match(r"(?: \d+ - |\s+)([^.]+)[.]+\s+([0-9.]+)s", line)
+                if match:
+                    stats[match.group(1)].append(match.group(2))
+                    n_rows += 1
     finally:
         proc.send_signal(signal.SIGINT)
 
-    if data == []:
-        raise RuntimeError(f"Did not get a result when running benchmark for {system}")
-
-    data[0] = system
-    stats[system] = data
+    expected = 33
+    if n_rows != expected:
+        raise RuntimeError(f"Expected {expected} rows, got: {n_rows} when running benchmark for {system}")
 
 
-def benchmark_sqlite_native(storage: Storage, stats: Dict[str, List[str]]) -> None:
-    with storage.setup(StorageKind.NATIVE) as mnt:
-        benchmark_sqlite(storage, "native", "sqlite-native", mnt, stats)
+def benchmark_sqlite_native(storage: Storage, stats: Dict[str, List[Any]]) -> None:
+    mount = storage.setup(StorageKind.NATIVE)
+    with mount as mnt:
+        benchmark_sqlite(storage, "native", "sqlite-native", mnt, stats, extra_env=mount.extra_env())
 
 
-def benchmark_sqlite_sgx_lkl(storage: Storage, stats: Dict[str, List[str]]) -> None:
-    storage.setup(StorageKind.LKL)
-    benchmark_sqlite(
-        storage,
-        "sgx-lkl",
-        "sqlite",
-        "/mnt/nvme",
-        stats,
-        extra_env=dict(SGXLKL_HDS="/dev/nvme0n1:/mnt/nvme"),
-    )
+def benchmark_sqlite_sgx_lkl(storage: Storage, stats: Dict[str, List[Any]]) -> None:
+    mount = storage.setup(StorageKind.LKL)
+    with mount as mnt:
+        benchmark_sqlite(
+            storage,
+            "sgx-lkl",
+            "sqlite",
+            mnt,
+            stats,
+            extra_env=mount.extra_env())
 
 
-def benchmark_sqlite_sgx_io(storage: Storage, stats: Dict[str, List[str]]) -> None:
-    storage.setup(StorageKind.SPDK)
-    benchmark_sqlite(storage, "sgx-io", "sqlite", "/mnt/spdk0", stats)
+def benchmark_sqlite_sgx_io(storage: Storage, stats: Dict[str, List[Any]]) -> None:
+    mount = storage.setup(StorageKind.SPDK)
+    with mount as mnt:
+        benchmark_sqlite(storage, "sgx-io", "sqlite", mnt, stats, extra_env=mount.extra_env())
 
 
 def main() -> None:
+    stats = read_stats("sqlite.json")
     settings = create_settings()
     storage = Storage(settings)
-    stats: Dict[str, List[str]] = {}
 
-    benchmark_sqlite_native(storage, stats)
-    benchmark_sqlite_sgx_lkl(storage, stats)
-    benchmark_sqlite_sgx_io(storage, stats)
-
-    aggr_data = []
-    for i in stats:
-        aggr_data.append(stats[i])
+    benchmarks = {
+        "native": benchmark_sqlite_native,
+        "sgx-lkl": benchmark_sqlite_sgx_lkl,
+        "sgx-io": benchmark_sqlite_sgx_io,
+    }
+    system = set(stats["system"])
+    for name, benchmark in benchmarks.items():
+        if name in system:
+            print(f"skip {name} benchmark")
+            continue
+        benchmark(storage, stats)
+        write_stats("sqlite.json", stats)
 
     csv = f"sqlite-speedtest-{NOW}.tsv"
-    df = pd.DataFrame(aggr_data)
+    print(csv)
+    df = pd.DataFrame(stats)
+    breakpoint()
     df.to_csv(csv, index=False, sep="\t")
+    df.to_csv("sqlite-speedtest-latest.tsv", index=False, sep="\t")
 
 
 if __name__ == "__main__":
