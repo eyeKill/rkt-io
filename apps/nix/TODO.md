@@ -11,6 +11,13 @@
   - [ ] sgx-lkl
   - [ ] SCONE
   - [ ] sgx-io
+ 
+# Other
+- [x] fio
+  - [x] native
+  - [x] sgx-lkl
+  - [x] SCONE
+  - [x] sgx-io
 
 ## Applications
 
