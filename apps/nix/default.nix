@@ -359,6 +359,8 @@ in {
     command = [ "bin/hdparm" "-Tt" "/dev/spdk0" ];
   };
 
+  ycsb-native = pkgs.callPackage ./ycsb {};
+
   redis-cli = redis;
 
   redis-native = runImage {
