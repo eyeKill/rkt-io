@@ -61,7 +61,7 @@ class Mount:
         return {}
 
     def mount(self) -> None:
-        if self.kind in [StorageKind.NATIVE, StorageKind.SCONE]:
+        if self.kind not in [StorageKind.NATIVE, StorageKind.SCONE]:
             return
 
         MOUNTPOINT.mkdir(exist_ok=True)
@@ -73,7 +73,7 @@ class Mount:
         run(["sudo", "chown", "-R", getpass.getuser(), str(MOUNTPOINT)])
 
     def umount(self) -> None:
-        if self.kind in [StorageKind.SPDK, StorageKind.LKL]:
+        if self.kind not in [StorageKind.NATIVE, StorageKind.SCONE]:
             return
 
         for i in range(3):
