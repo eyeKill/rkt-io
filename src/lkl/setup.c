@@ -1196,9 +1196,17 @@ void lkl_exit() {
     // Switch back to root so we can unmount all filesystems
     lkl_set_working_dir("/");
 
-    lkl_stop_spdk();
+    SGXLKL_VERBOSE("Stop spdk\n");
+    // too slow in some benchmarks,
+    // since we throw the disk image away afterwards anyway,
+    // we just skip this step
+    if (!spdk_context->skip_unmount) {
+        lkl_stop_spdk();
+    }
+    SGXLKL_VERBOSE("Stop dpdk\n");
     lkl_stop_dpdk();
 
+    SGXLKL_VERBOSE("Unmount disks\n");
     // Unmount disks
     long res;
     for (int i = num_disks - 1; i >= 0; --i) {
