@@ -21,11 +21,11 @@ def process_ycsb_out(ycsb_out: str, system: str, results: Dict[str, List]) -> No
     for line in ycsb_out.split("\n"):
         if line == "":
             break
-        operation, metric, value = line.split(", ")
+        operation, metric, value = line.split(",")
         results["system"].append(system)
-        results["operation"].append(operation)
-        results["metric"].append(metric)
-        results["value"].append(value)
+        results["operation"].append(operation.strip())
+        results["metric"].append(metric.strip())
+        results["value"].append(value.strip())
 
 
 class Benchmark:
