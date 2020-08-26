@@ -29,12 +29,14 @@ def process_ycsb_out(ycsb_out: str, system: str, results: Dict[str, List]) -> No
 
 
 class Benchmark:
-    def __init__(self, settings: Settings) -> None:
+    def __init__(self, settings: Settings, record_count: int, operation_count: int) -> None:
         self.settings = create_settings()
         self.storage = Storage(settings)
         self.network = Network(settings)
         self.remote_redis = settings.remote_command(nix_build("redis-cli"))
         self.remote_ycsb = settings.remote_command(nix_build("ycsb-native"))
+        self.record_count = record_count
+        self.operation_count = operation_count
 
     def run(
         self,
@@ -77,6 +79,10 @@ class Benchmark:
                     f"redis.host={self.settings.local_dpdk_ip}",
                     "-p",
                     "redis.port=6379",
+                    "-p",
+                    f"recordcount={self.record_count}",
+                    "-p",
+                    f"operationcount={self.operation_count}",
                 ],
             )
 
@@ -92,6 +98,10 @@ class Benchmark:
                     f"redis.host={self.settings.local_dpdk_ip}",
                     "-p",
                     "redis.port=6379",
+                    "-p",
+                    f"recordcount={self.record_count}",
+                    "-p",
+                    f"operationcount={self.operation_count}",
                 ],
             )
 
@@ -136,8 +146,10 @@ def main() -> None:
     stats = read_stats("redis.json")
     settings = create_settings()
     setup_remote_network(settings)
+    record_count = 1000000
+    op_count = 10000000
 
-    benchmark = Benchmark(settings)
+    benchmark = Benchmark(settings, record_count, op_count)
 
     benchmarks = {
         "native": benchmark_redis_native,
