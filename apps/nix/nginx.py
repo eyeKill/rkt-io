@@ -18,9 +18,10 @@ from network import Network, NetworkKind, setup_remote_network
 from process_wrk import parse_wrk_output
 
 
-def process_wrk_output(wrk_out: str, system: str, stats: Dict[str, List[str]]) -> None:
+def process_wrk_output(wrk_out: str, system: str, stats: Dict[str, List[str]], connections: int) -> None:
     wrk_metrics = parse_wrk_output(wrk_out)
     stats["system"].append(system)
+    stats["connections"].append(str(connections))
     for k, v in wrk_metrics.items():
         stats[k].append(v)
 
@@ -62,10 +63,11 @@ class Benchmark:
                     time.sleep(1)
                 pass
 
+            wrk_connections = 400
             wrk_proc = self.remote_wrk.run(
-                "bin/wrk", ["-t", "12", "-c", "400", "-d", "30s", f"http://{host}:9000"]
+                "bin/wrk", ["-t", "12", "-c", f"{wrk_connections}", "-d", "30s", f"http://{host}:9000"]
             )
-            process_wrk_output(wrk_proc.stdout, system, stats)
+            process_wrk_output(wrk_proc.stdout, system, stats, wrk_connections)
 
 
 def benchmark_nginx_native(
