@@ -148,7 +148,7 @@ let
   });
 
   iperf3 = pkgsMusl.callPackage ./iperf {};
-  iperf3-scone = pkgs.callPackage ./iperf {
+  iperf3-scone = iperf3.override {
     stdenv = sconeStdenv;
     enableStatic = true;
   };
@@ -244,36 +244,32 @@ in {
     command = [ "bin/simpleio" ];
   };
 
-  iperf = runImage {
+  iperf-sgx-io = runImage {
     pkg = iperf3;
-    command = [ "bin/iperf" "4" ];
+    command = [ "bin/iperf3" "4" ];
   };
 
-  iperf3-sgx-lkl = runImage {
+  iperf-sgx-lkl = runImage {
     pkg = iperf3;
     # debugging
     #sgx-lkl-run = toString ../../../sgx-lkl-org/build/sgx-lkl-run;
     sgx-lkl-run = "${sgx-lkl}/bin/sgx-lkl-run";
-    command = [ "bin/iperf" "1" ];
-  };
-
-  iperf2 = runImage {
-    pkg = iperf2;
-    command = [ "bin/iperf" "-s" ];
-  };
-
-  iperf2-client = runImage {
-    pkg = iperf2;
-    command = [ "bin/iperf" "-c" "10.0.2.2" ];
+    command = [ "bin/iperf3" "4" ];
   };
 
   iperf-native = runImage {
-    pkg = pkgsMusl.iperf;
+    pkg = iperf3;
     native = true;
-    command = [ "bin/iperf" "-s" ];
+    command = [ "bin/iperf3" "4" ];
   };
 
-  inherit iperf3-scone sconeStdenv sconeEnv;
+  iperf-scone = runImage {
+    pkg = iperf3-scone;
+    native = true;
+    command = [ "bin/iperf3" "4" ];
+  };
+
+  inherit sconeStdenv sconeEnv;
 
   # provides scone command
   scone = scone-unwrapped;
@@ -314,10 +310,7 @@ in {
     '';
   };
 
-  iperf-client = runImage {
-    pkg = pkgsMusl.iperf;
-    command = [ "bin/iperf" "-c" ];
-  };
+  iperf-client = pkgsMusl.iperf;
 
   iproute = runImage {
     pkg = pkgsMusl.iproute;

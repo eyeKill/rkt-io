@@ -18,6 +18,8 @@ def run_iperf(
 ) -> None:
     with condition:
         condition.wait()
+        # DEBUG
+        # print(f"$ {' '.join(iperf_cmd)}")
         proc = subprocess.run(iperf_cmd, stdout=subprocess.PIPE)
         results[index] = json.loads(proc.stdout.decode("utf-8"))
 

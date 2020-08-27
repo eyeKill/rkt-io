@@ -3,22 +3,21 @@
 import sys
 import json
 import subprocess
-from collections import defaultdict
-from typing import Any, DefaultDict, Dict, List
+import time
+from typing import Any, Dict, List
 
 import pandas as pd
 from helpers import (
+    read_stats,
+    write_stats,
     NOW,
-    ROOT,
-    RemoteCommand,
     Settings,
     create_settings,
     flamegraph_env,
     nix_build,
-    run,
-    spawn,
+    spawn
 )
-from network import Network, NetworkKind
+from network import Network, NetworkKind, setup_remote_network
 
 
 def _postprocess_iperf(
@@ -52,100 +51,99 @@ def _postprocess_iperf(
             stats["direction"].append(direction)
 
 
-def _benchmark_iperf(
-    settings: Settings,
-    local_iperf: str,
-    remote_iperf: RemoteCommand,
-    direction: str,
-    system: str,
-    stats: Dict[str, List[int]],
-    extra_env: Dict[str, str] = {},
-) -> None:
-    env = extra_env.copy()
-    env.update(flamegraph_env(f"iperf-{direction}-{system}-{NOW}"))
-    env[
-        "SGXLKL_SYSCTL"
-    ] = "net.core.rmem_max=56623104;net.core.wmem_max=56623104;net.core.rmem_default=56623104;net.core.wmem_default=56623104;net.core.optmem_max=40960;net.ipv4.tcp_rmem=4096 87380 56623104;net.ipv4.tcp_wmem=4096 65536 56623104;"
-    with spawn(local_iperf, extra_env=env):
-        # if True:
-        while True:
-            try:
-                proc = remote_iperf.run(
-                    "bin/iperf",
-                    [
+class Benchmark():
+    def __init__(self, settings: Settings):
+        self.settings = settings
+        self.network = Network(settings)
+        self.parallel_iperf = self.settings.remote_command(nix_build("parallel-iperf"))
+        self.iperf_client = self.settings.remote_command(nix_build("iperf-client"))
+
+    def _run(
+            self,
+            local_iperf: str,
+            direction: str,
+            system: str,
+            stats: Dict[str, List[int]],
+            extra_env: Dict[str, str] = {}) -> None:
+        env = extra_env.copy()
+        env.update(flamegraph_env(f"iperf-{direction}-{system}-{NOW}"))
+        iperf = f"{self.iperf_client.nix_path}/bin/iperf3"
+        with spawn(local_iperf, extra_env=env) as iperf_server:
+            while True:
+                try:
+                    self.iperf_client.run("bin/iperf3", [
                         "-c",
-                        settings.local_dpdk_ip,
+                        self.settings.local_dpdk_ip,
                         "-n",
                         "1024",
                         "--connect-timeout",
                         "3",
-                    ],
-                )
-                break
-            except subprocess.CalledProcessError:
-                print(".")
-                pass
+                    ])
+                    break
+                except subprocess.CalledProcessError:
+                    status = iperf_server.poll()
+                    time.sleep(1)
+                if status is not None:
+                    raise OSError(f"iperf exiteded with {status}")
 
-        iperf_args = ["-c", settings.local_dpdk_ip, "--json", "-t", "10"]
-        if direction == "send":
-            iperf_args += ["-R"]
+            iperf_args = ["-c", self.settings.local_dpdk_ip, "--json", "-t", "10"]
+            if direction == "send":
+                iperf_args += ["-R"]
 
-        proc = remote_iperf.run(
-            "bin/parallel-iperf", ["1", "iperf3"] + iperf_args, extra_env=extra_env
-        )
-        _postprocess_iperf(json.loads(proc.stdout), direction, system, stats)
+            parallel_iperf = self.parallel_iperf.run("bin/parallel-iperf", ["1", iperf] + iperf_args)
+            _postprocess_iperf(json.loads(parallel_iperf.stdout), direction, system, stats)
 
+    def run(self,
+            attr: str,
+            system: str,
+            stats: Dict[str, List[int]],
+            extra_env: Dict[str, str] = {}) -> None:
+        local_iperf = nix_build(attr)
 
-def benchmark_iperf(
-    settings: Settings,
-    attr: str,
-    system: str,
-    stats: Dict[str, List[int]],
-    extra_env: Dict[str, str] = {},
-) -> None:
-    local_iperf = nix_build(attr)
-    remote_iperf = settings.remote_command(nix_build("parallel-iperf"))
-
-    _benchmark_iperf(
-        settings, local_iperf, remote_iperf, "send", system, stats, extra_env
-    )
-    _benchmark_iperf(
-        settings, local_iperf, remote_iperf, "receive", system, stats, extra_env
-    )
+        self._run(local_iperf, "send", system, stats, extra_env)
+        self._run(local_iperf, "receive", system, stats, extra_env)
 
 
-def benchmark_native(settings: Settings, stats: Dict[str, List[int]]) -> None:
-    Network(NetworkKind.NATIVE, settings).setup()
-
-    benchmark_iperf(settings, "iperf-native", "native", stats)
-
-
-def benchmark_sgx_lkl(settings: Settings, stats: Dict[str, List[int]]) -> None:
-    Network(NetworkKind.TAP, settings).setup()
-    extra_env = dict(
-        SGXLKL_IP4=settings.local_dpdk_ip,
-        SGXLKL_IP6=settings.local_dpdk_ip6,
-        SGXLKL_TAP_OFFLOAD="1",
-        SGXLKL_TAP_MTU="1500",
-    )
-    benchmark_iperf(settings, "iperf", "sgx-lkl", stats, extra_env=extra_env)
+def benchmark_native(benchmark: Benchmark, stats: Dict[str, List[int]]) -> None:
+    extra_env = benchmark.network.setup(NetworkKind.NATIVE)
+    benchmark.run("iperf-native", "native", stats, extra_env=extra_env)
 
 
-def benchmark_sgx_io(settings: Settings, stats: Dict[str, List[int]]) -> None:
-    Network(NetworkKind.DPDK, settings).setup()
-    extra_env = dict(SGXLKL_DPDK_MTU="1500")
+def benchmark_scone(benchmark: Benchmark, stats: Dict[str, List[int]]) -> None:
+    extra_env = benchmark.network.setup(NetworkKind.NATIVE)
+    benchmark.run("iperf-scone", "native", stats, extra_env=extra_env)
 
-    benchmark_iperf(settings, "iperf", "sgx-io", stats, extra_env=extra_env)
+
+def benchmark_sgx_lkl(benchmark: Benchmark, stats: Dict[str, List[int]]) -> None:
+    extra_env = benchmark.network.setup(NetworkKind.TAP)
+    benchmark.run("iperf-sgx-lkl", "sgx-lkl", stats, extra_env=extra_env)
+
+
+def benchmark_sgx_io(benchmark: Benchmark, stats: Dict[str, List[int]]) -> None:
+    extra_env = benchmark.network.setup(NetworkKind.DPDK)
+    benchmark.run("iperf-sgx-io", "sgx-io", stats, extra_env=extra_env)
 
 
 def main() -> None:
-    stats: DefaultDict[str, List] = defaultdict(list)
-
+    stats = read_stats("iperf.json")
     settings = create_settings()
+    setup_remote_network(settings)
 
-    benchmark_sgx_io(settings, stats)
-    benchmark_sgx_lkl(settings, stats)
-    benchmark_native(settings, stats)
+    benchmark = Benchmark(settings)
+    benchmarks = {
+        "native": benchmark_native,
+        "sgx-io": benchmark_sgx_io,
+        "sgx-lkl": benchmark_sgx_lkl,
+        "scone": benchmark_scone,
+    }
+
+    system = set(stats["system"])
+    for name, benchmark_func in benchmarks.items():
+        if name in system:
+            print(f"skip {name} benchmark")
+            continue
+        benchmark_func(benchmark, stats)
+        write_stats("iperf.json", stats)
 
     csv = f"iperf-{NOW}.tsv"
     print(csv)
