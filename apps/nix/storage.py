@@ -172,10 +172,12 @@ class Storage:
         if MOUNTPOINT.is_mount():
             run(["sudo", "umount", str(MOUNTPOINT)])
 
-        spdk_device = self.settings.spdk_device()
-
-        if os.path.exists(f"/dev/mapper/{spdk_device}"):
-            cryptsetup_luks_close(spdk_device, check=False)
+        try:
+            spdk_device = self.settings.spdk_device()
+            if os.path.exists(f"/dev/mapper/{spdk_device}"):
+                cryptsetup_luks_close(spdk_device, check=False)
+        except RuntimeError: # spdk device might be not mapped to operating system
+            pass
 
         run(
             [
@@ -184,8 +186,9 @@ class Storage:
                 "reset",
             ]
         )
-        time.sleep(2)  # wait for device to appear
 
+        spdk_device = self.settings.spdk_device()
+        time.sleep(2)  # wait for device to appear
 
         raw_dev = f"/dev/{spdk_device}"
 
