@@ -142,7 +142,8 @@ stdenv.mkDerivation {
     tar -C popt --strip 1 -xf ${srcs.popt}
     tar -C protobuf-c --strip 1 -xf ${srcs.protobuf-c}
     tar -C wireguard --strip 1 -xf ${srcs.wireguard}
-    ls -la
+    patchShebangs wireguard/contrib/kernel-tree/create-patch.sh
+
     popd
   '';
 
