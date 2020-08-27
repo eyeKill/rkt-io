@@ -27,6 +27,7 @@ struct spdk_context {
     char* key;
     size_t key_len;
     int attach_error;
+    int skip_unmount;
     pthread_t ctrlr_thread_id;
 };
 
