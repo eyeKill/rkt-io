@@ -6,11 +6,11 @@
   - [ ] sgx-lkl
   - [ ] SCONE
   - [ ] sgx-io
-- [ ] iperf:
-  - [ ] Native
-  - [ ] sgx-lkl
-  - [ ] SCONE
-  - [ ] sgx-io
+- [x] iperf
+  - [x] native
+  - [x] sgx-lkl
+  - [x] SCONE
+  - [x] sgx-io
  
 # Other
 - [x] fio
@@ -18,6 +18,7 @@
   - [x] sgx-lkl
   - [x] SCONE
   - [x] sgx-io
+  
 
 ## Applications
 
