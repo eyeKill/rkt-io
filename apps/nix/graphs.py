@@ -12,6 +12,8 @@ COLUMN_ALIASES: Dict[str, str] = {
     "SQL statistics read": "Read",
     "SQL statistics write": "Write",
     "Latency (ms) avg": "Latency [ms]",
+    "Timing buffer-cache reads": "Cached read [GB/s]",
+    "Timing buffered disk reads": "Buffered read [GB/s]"
 }
 
 
@@ -141,6 +143,47 @@ def mysql_latency_graph(df: pd.DataFrame) -> Any:
     plt.legend(loc="lower right")
     return g
 
+def preprocess_hdparm(df_col: pd.Series) -> Any:
+    df_col = list(df_col.values)
+    for i in range(len(df_col)):
+        temp = df_col[i].split(" ")
+        if temp[1] == "kB/s":
+            df_col[i] = float(df_col[i])/(1000 ** 2)
+        elif temp[1] == "MB/s":
+            df_col[i] = float(df_col[i])/(1000)
+        elif temp[1] == "GB/s":
+            df_col[i] = float(df_col[i])
+
+    return pd.Series(df_col)
+
+def hdparm_graph(df: pd.DataFrame, metric: str) -> Any:
+    plot_col = ["system"]
+
+    if metric == "cached":
+        plot_col.append("Timing buffer-cache reads")
+        df["Timing buffer-cache reads"] = preprocess_hdparm(
+            df["Timing buffer-cache reads"],
+        )
+    elif metric == "buffered":
+        plot_col.append("Timing buffered disk reads")
+        df["Timing buffered disk reads"] = preprocess_hdparm(
+            df["Timing buffered disk reads"],
+        )
+
+    plot_df = df[plot_col]
+    plot_df = apply_aliases(plot_df)
+
+    g = catplot(
+        data=plot_df,
+        x=plot_df.columns[0],
+        y=plot_df.columns[1],
+        kind="bar",
+        height=2.5,
+        aspect=1.2
+    )
+
+    return g
+
 
 def print_usage() -> None:
     print(f"USAGE: {sys.argv[0]} results.tsv...", file=sys.stderr)
@@ -174,6 +217,9 @@ def main() -> None:
             graphs.append(("MySQL-Latency", mysql_latency_graph(df)))
         elif arg.startswith("iperf"):
             graphs.append(("Iperf", iperf_graph(df)))
+        elif arg.startswith("hdparm"):
+            graphs.append(("HDPARM-Cached", hdparm_graph(df, "cached")))
+            graphs.append(("HDPARM-Buffered", hdparm_graph(df, "buffered")))
 
     for name, graph in graphs:
         filename = f"{name}.png"
