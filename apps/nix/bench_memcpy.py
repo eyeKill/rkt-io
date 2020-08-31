@@ -1,6 +1,8 @@
 import json
 import subprocess
-from typing import Dict, List, DefaultDict, Optional
+from collections import defaultdict
+from typing import Dict, List, DefaultDict, Optional, Any
+import pandas as pd
 
 from helpers import (
     NOW,
@@ -9,7 +11,7 @@ from helpers import (
     write_stats,
 )
 
-def bench_memcpy(kind: str, stats: Dict[str, List]):
+def bench_memcpy(kind: str, stats: Dict[str, List]) -> None:
     memcpy = nix_build(f"memcpy-test-{kind}")
     stdout: Optional[int] = subprocess.PIPE
 
@@ -26,15 +28,17 @@ def bench_memcpy(kind: str, stats: Dict[str, List]):
                         stats[i].append(data[i])
                 except Exception as e:
                     continue
+    finally:
+        pass
 
-def bench_old_memcpy(stats: Dict[str, List]):
+def bench_old_memcpy(stats: Dict[str, List]) -> None:
     bench_memcpy("old", stats)
 
-def bench_new_memcpy(stats: Dict[str, List]):
+def bench_new_memcpy(stats: Dict[str, List]) -> None:
     bench_memcpy("new", stats)
 
 def main() -> None:
-    stats = DefaultDict[str, List]
+    stats: DefaultDict[str, List] = defaultdict(list)
 
     benchmarks = {
         "old_memcpy": bench_old_memcpy,
