@@ -33,8 +33,8 @@ double bench_memcpy(int mem_size, int no){
   
   double start_t, end_t;
   start_t = get_time();
-  for(int i=0; i<ITERS; i++){
-    memcpy_funcs[no](dest, src, test_sizes[i]*1024);
+  for(int i=0; i<NUM_PTS; i++){
+    memcpy_funcs[no](dest, src, mem_size*1024);
   }
   end_t = get_time();
   
@@ -47,11 +47,6 @@ double bench_memcpy(int mem_size, int no){
 
 int main(int argc, char** argv){
   if (argc != 2){
-    fprintf(stderr, "%s 0|1\n", argv[0]);
-    exit(EXIT_FAILURE);
-  }
-
-  if ((strtol(argv[1], NULL, 10) != 0) || (strtol(argv[1], NULL, 10) != 1)){
     fprintf(stderr, "%s 0|1\n", argv[0]);
     exit(EXIT_FAILURE);
   }
