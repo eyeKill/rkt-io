@@ -23,9 +23,10 @@ def bench_memcpy(kind: str, stats: Dict[str, List]) -> None:
             for line in proc.stdout:
                 try:
                     data = json.loads(line)
-                    stats["kind"].append(kind)
+                    stats["memcpy-kind"].append(f"memcpy-test-{kind}")
                     for i in data:
-                        stats[i].append(data[i])
+                        stats["memcpy-size"].append(i)
+                        stats["memcpy-time"].append(data[i])
                 except Exception as e:
                     continue
     finally:

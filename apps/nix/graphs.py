@@ -13,7 +13,9 @@ COLUMN_ALIASES: Dict[str, str] = {
     "SQL statistics write": "Write",
     "Latency (ms) avg": "Latency [ms]",
     "Timing buffer-cache reads": "Cached read [GB/s]",
-    "Timing buffered disk reads": "Buffered read [GB/s]"
+    "Timing buffered disk reads": "Buffered read [GB/s]",
+    "memcopy-size": "Copy size [kB]",
+    "memcopy-time": "Latency [ms]"
 }
 
 
@@ -184,6 +186,18 @@ def hdparm_graph(df: pd.DataFrame, metric: str) -> Any:
 
     return g
 
+def memcpy_graph(df: pd.DataFrame) -> Any:
+    g = catplot(
+        data=apply_aliases(df),
+        x=column_alias("memcpy-size"),
+        y=column_alias("memcpy-time"),
+        hue=column_alias("memcpy-kind"),
+        kind="bar",
+        height=2.5,
+        aspect=1.2,
+    )
+
+    return g
 
 def print_usage() -> None:
     print(f"USAGE: {sys.argv[0]} results.tsv...", file=sys.stderr)
@@ -195,7 +209,6 @@ def read_shit(path: str) -> None:
         spamreader = csv.reader(csvfile, delimiter="\t")
         for row in spamreader:
             print(", ".join(row))
-
 
 def main() -> None:
     if len(sys.argv) < 1:
@@ -220,6 +233,8 @@ def main() -> None:
         elif arg.startswith("hdparm"):
             graphs.append(("HDPARM-Cached", hdparm_graph(df, "cached")))
             graphs.append(("HDPARM-Buffered", hdparm_graph(df, "buffered")))
+        elif arg.startswith("memcpy"):
+            graphs.append(("MEMCPY", memcpy_graph(df)))
 
     for name, graph in graphs:
         filename = f"{name}.png"
