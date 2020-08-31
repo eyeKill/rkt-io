@@ -173,6 +173,8 @@ let
   pthread-socket = pkgsMusl.callPackage ./pthread-socket {};
   network-test = pkgsMusl.callPackage ./network-test {};
   latency-test = pkgsMusl.callPackage ./latency-test {};
+  memcpy-test  = pkgsMusl.callPackage ./memcpy-test {};
+
 
   simpleio-musl = pkgsMusl.callPackage ./simpleio {};
   simpleio-scone = simpleio-musl.override {
@@ -218,6 +220,16 @@ in {
   latency-test = runImage {
     pkg = latency-test;
     command = [ "bin/latency-test" ];
+  };
+
+  memcpy-test-old = runImage {
+    pkg = memcpy-test;
+    command = [ "bin/memcpy-test" "0"];
+  };
+
+  memcpy-test-new = runImage {
+    pkg = memcpy-test;
+    command = [ "bin/memcpy-test" "1"];
   };
 
   simpleio-sgx-io = runImage {
