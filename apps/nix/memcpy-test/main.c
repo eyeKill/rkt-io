@@ -28,20 +28,20 @@ double get_time() {
 double bench_memcpy(int mem_size, int no){
   double total_time = 0;
   void *src, *dest;
- for(int i=0; i<ITERS; i++){
-   src = malloc(mem_size*1024);
-   dest = malloc(mem_size*1024);
- 
-   double start_t, end_t;
-   start_t = get_time();
-   memcpy_funcs[no](dest, src, test_sizes[i]*1024);
-   end_t   = get_time();
-   
-   total_time += (end_t - start_t);
-   
-   free(src);
-   free(dest);
+  src = malloc(mem_size*1024);
+  dest = malloc(mem_size*1024);
+  
+  double start_t, end_t;
+  start_t = get_time();
+  for(int i=0; i<ITERS; i++){
+    memcpy_funcs[no](dest, src, test_sizes[i]*1024);
   }
+  end_t = get_time();
+  
+  free(src);
+  free(dest);
+
+  total_time = (end_t - start_t)/ITERS;
   return total_time;
 }  
 
