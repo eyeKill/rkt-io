@@ -46,7 +46,7 @@ int spdk_alloc_dma_memory(struct spdk_dma_memory *ctx) {
     }
 
     // leave two gigabyte for DPDK
-    size_t gigabytes = (hugetbl_size - 2 * gigabyte) / gigabyte;
+    size_t gigabytes = (hugetbl_size - 4 * gigabyte) / gigabyte;
 
     void** allocations = calloc(gigabytes, sizeof(void*));
     ctx->nr_allocations = gigabytes;
