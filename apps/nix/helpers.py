@@ -121,8 +121,16 @@ class Settings:
         return f"{self.local_dpdk_ip}/{self.dpdk_netmask}"
 
     @property
+    def remote_cidr(self) -> str:
+        return f"{self.remote_dpdk_ip}/{self.dpdk_netmask}"
+
+    @property
     def cidr6(self) -> str:
         return f"{self.local_dpdk_ip6}/{self.dpdk_netmask6}"
+
+    @property
+    def remote_cidr6(self) -> str:
+        return f"{self.remote_dpdk_ip6}/{self.dpdk_netmask6}"
 
     def remote_command(self, nix_attr: str) -> RemoteCommand:
         return RemoteCommand(nix_attr, self.remote_ssh_host)

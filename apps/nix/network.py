@@ -8,8 +8,9 @@ from helpers import ROOT, Settings, nix_build, run
 
 class NetworkKind(Enum):
     NATIVE = 1
-    TAP = 2
-    DPDK = 3
+    CLIENT_NATIVE = 2
+    TAP = 3
+    DPDK = 4
 
 
 def ip(args: List[str]) -> None:
@@ -50,7 +51,7 @@ class Network:
 
         run(["sudo", "python3", str(devbind), "-b", driver, self.settings.nic_pci_id])
 
-        if kind == NetworkKind.NATIVE:
+        if kind == NetworkKind.NATIVE or kind == NetworkKind.CLIENT_NATIVE:
             ip(["link", "set", self.settings.native_nic_ifname, "up"])
 
     def extra_env(self, kind: NetworkKind) -> Dict[str, str]:
@@ -113,8 +114,12 @@ class Network:
             )
             for cidr in [self.settings.tap_bridge_cidr, self.settings.tap_bridge_cidr6]:
                 ip(["addr", "add", "dev", "iperf-br", cidr])
-        elif kind == NetworkKind.NATIVE:
-            for cidr in [self.settings.cidr, self.settings.cidr6]:
+        elif kind == NetworkKind.NATIVE or kind == NetworkKind.CLIENT_NATIVE:
+            if kind == NetworkKind.CLIENT_NATIVE:
+                cidrs = [self.settings.remote_cidr, self.settings.remote_cidr6]
+            else:
+                cidrs = [self.settings.cidr, self.settings.cidr6]
+            for cidr in cidrs:
                 ip(["addr", "add", cidr, "dev", self.settings.native_nic_ifname])
 
         if kind != NetworkKind.DPDK:
