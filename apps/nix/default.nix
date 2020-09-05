@@ -199,6 +199,22 @@ let
       "--http-scgi-temp-path=/proc/self/cwd/nginx/scgi"
     ];
   });
+  sqlite-speedtest = (pkgsMusl.sqlite.overrideAttrs (old: {
+      src = fetchFromGitHub {
+        owner="harshanavkis";
+        repo="sqlite-speedtest-custom";
+        rev = "6caae00fa543bc255000cf66b4b0aef8f15ad698";
+        sha256 = "0km2z8avlzr276jqnm1y4qwdbgnwzdjd8qingsii313mwq0d0sgr";
+      };
+      buildInputs = [ pkgsMusl.tcl ];
+      outputs = ["out"];
+      makeFlags = ["speedtest1"];
+      installPhase = ''
+        mkdir -p $out/bin
+        cp speedtest1 $out/bin
+      '';
+    })
+    );
 in {
   musl = pkgs.musl;
 
@@ -383,8 +399,14 @@ in {
     command = [ "bin/ioping" ];
   };
 
-  hdparm = runImage {
+  hdparm-sgx-io = runImage {
     pkg = busybox;
+    command = [ "bin/hdparm" "-Tt" "/dev/spdk0" ];
+  };
+
+  hdparm-sgx-lkl = runImage {
+    pkg = busybox;
+    sgx-lkl-run = "${sgx-lkl}/bin/sgx-lkl-run";
     command = [ "bin/hdparm" "-Tt" "/dev/spdk0" ];
   };
 
@@ -491,43 +513,19 @@ in {
   };
 
   sqlite-native = runImage {
-    pkg = pkgsMusl.sqlite.overrideAttrs (old: {
-      src = fetchFromGitHub {
-        owner="harshanavkis";
-        repo="sqlite-speedtest-custom";
-        rev = "6caae00fa543bc255000cf66b4b0aef8f15ad698";
-        sha256 = "0km2z8avlzr276jqnm1y4qwdbgnwzdjd8qingsii313mwq0d0sgr";
-      };
-
-      buildInputs = [ pkgsMusl.tcl ];
-      outputs = ["out"];
-      makeFlags = ["speedtest1"];
-      installPhase = ''
-        mkdir -p $out/bin
-        cp speedtest1 $out/bin
-      '';
-    });
+    pkg = sqlite-speedtest;
     native = true;
     command = [ "bin/speedtest1" "2000" "bench.db" ];
   };
 
-  sqlite = runImage {
-    pkg = pkgsMusl.sqlite.overrideAttrs (old: {
-      src = fetchFromGitHub {
-        owner="harshanavkis";
-        repo="sqlite-speedtest-custom";
-        rev = "6caae00fa543bc255000cf66b4b0aef8f15ad698";
-        sha256 = "0km2z8avlzr276jqnm1y4qwdbgnwzdjd8qingsii313mwq0d0sgr";
-      };
+  sqlite-sgx-io = runImage {
+    pkg = sqlite-speedtest;
+    command = [ "bin/speedtest1" "2000" "bench.db" ];
+  };
 
-      buildInputs = [ pkgsMusl.tcl ];
-      outputs = ["out"];
-      makeFlags = ["speedtest1"];
-      installPhase = ''
-        mkdir -p $out/bin
-        cp speedtest1 $out/bin
-      '';
-    });
+  sqlite-sgx-lkl = runImage {
+    pkg = sqlite-speedtest;
+    sgx-lkl-run = "${sgx-lkl}/bin/sgx-lkl-run";
     command = [ "bin/speedtest1" "2000" "bench.db" ];
   };
 

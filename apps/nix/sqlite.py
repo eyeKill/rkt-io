@@ -74,7 +74,7 @@ def benchmark_sqlite_sgx_lkl(storage: Storage, stats: Dict[str, List[Any]]) -> N
         benchmark_sqlite(
             storage,
             "sgx-lkl",
-            "sqlite",
+            "sqlite-sgx-lkl",
             mnt,
             stats,
             extra_env=mount.extra_env())
@@ -83,7 +83,7 @@ def benchmark_sqlite_sgx_lkl(storage: Storage, stats: Dict[str, List[Any]]) -> N
 def benchmark_sqlite_sgx_io(storage: Storage, stats: Dict[str, List[Any]]) -> None:
     mount = storage.setup(StorageKind.SPDK)
     with mount as mnt:
-        benchmark_sqlite(storage, "sgx-io", "sqlite", mnt, stats, extra_env=mount.extra_env())
+        benchmark_sqlite(storage, "sgx-io", "sqlite-sgx-io", mnt, stats, extra_env=mount.extra_env())
 
 
 def main() -> None:

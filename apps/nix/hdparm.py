@@ -68,7 +68,7 @@ def benchmark_hdparm_sgx_lkl(storage: Storage, stats: Dict[str, List]) -> None:
     benchmark_hdparm(
         storage,
         "sgx-lkl",
-        "hdparm",
+        "hdparm-sgx-lkl",
         "/dev/vdb",
         stats,
         extra_env=dict(SGXLKL_HDS="/dev/nvme0n1:/mnt/nvme"),
@@ -77,7 +77,7 @@ def benchmark_hdparm_sgx_lkl(storage: Storage, stats: Dict[str, List]) -> None:
 
 def benchmark_hdparm_sgx_io(storage: Storage, stats: Dict[str, List]) -> None:
     storage.setup(StorageKind.SPDK)
-    benchmark_hdparm(storage, "sgx-io", "hdparm", "/dev/spdk0", stats)
+    benchmark_hdparm(storage, "sgx-io", "hdparm-sgx-io", "/dev/spdk0", stats)
 
 
 def main() -> None:
