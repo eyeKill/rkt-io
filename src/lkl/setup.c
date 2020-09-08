@@ -55,6 +55,7 @@ int sgxlkl_trace_thread = 0;
 int sgxlkl_use_host_network = 0;
 int sgxlkl_use_tap_offloading = 0;
 int sgxlkl_mtu = 0;
+int sgxlkl_xts_proxy = 0;
 
 extern struct timespec sgxlkl_app_starttime;
 
@@ -1064,6 +1065,9 @@ void lkl_start_init(enclave_config_t* encl) {
 
     if (getenv_bool("SGXLKL_TRACE_THREAD", 0))
         sgxlkl_trace_thread = 1;
+
+    if (getenv_bool("SGXLKL_XTS_PROXY", 0))
+	sgxlkl_xts_proxy = 1;
 
     if (encl->hostnet)
         sgxlkl_use_host_network = 1;

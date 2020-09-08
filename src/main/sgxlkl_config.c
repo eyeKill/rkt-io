@@ -112,6 +112,7 @@ static struct sgxlkl_config_elem sgxlkl_config[] = {
  /* 73 */ {"SGXLKL_WG_KEY",                   "wg_key",                   TYPE_CHAR, {.def_char = NULL}, 0},
  /* 74 */ {"SGXLKL_WG_PEERS",                 "wg_peers",                 TYPE_CHAR, {.def_char = ""}, 0},
  /* 75 */ {"SGXLKL_X86_ACC",                  "x86_acc",                  TYPE_BOOL, {.def_bool = 0}, 0},
+ /* 76 */ {"SGXLKL_XTS_PROXY",                "xts_proxy",                TYPE_BOOL, {.def_bool = 0}, 0},
 };
 
 static inline struct sgxlkl_config_elem *config_elem_by_key(const char *key) {

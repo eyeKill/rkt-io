@@ -77,6 +77,7 @@
 #define SGXLKL_WG_KEY                   73
 #define SGXLKL_WG_PEERS                 74
 #define SGXLKL_X86_ACC                  75
+#define SGXLKL_XTS_PROXY                76
 
 
 #define DEFAULT_SGXLKL_GW4 "10.0.1.254"
