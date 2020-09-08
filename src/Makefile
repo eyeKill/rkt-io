@@ -70,7 +70,22 @@ ifeq ($(HW_MODE),yes)
 endif
 
 #all: $(LIB_SGX_LKL_BUILD)/sgx-lkl-deploy
-all: builddirs $(LIB_SGX_LKL_BUILD)/sgx/libsgx.a $(LIB_SGX_LKL_BUILD)/sgxlkl/libsgxlkl.a $(LIB_SGX_LKL_BUILD)/sgx-lkl-sign $(LIB_SGX_LKL_BUILD)/sgx-lkl-run $(LIB_SGX_LKL_BUILD)/sgx-lkl-ctl $(LIB_SGX_LKL_BUILD)/sgx-lkl-userpci $(LIB_SGX_LKL_BUILD)/sgx-lkl-virt2phy
+all: builddirs $(LIB_SGX_LKL_BUILD)/sgx/libsgx.a \
+	$(LIB_SGX_LKL_BUILD)/sgxlkl/libsgxlkl.a \
+	$(LIB_SGX_LKL_BUILD)/sgx-lkl-sign \
+	$(LIB_SGX_LKL_BUILD)/sgx-lkl-run \
+	$(LIB_SGX_LKL_BUILD)/sgx-lkl-ctl \
+	$(LIB_SGX_LKL_BUILD)/sgx-lkl-userpci \
+	$(LIB_SGX_LKL_BUILD)/sgx-lkl-virt2phy \
+	$(LIB_SGX_LKL_BUILD)/sgx-lkl-ioperm
+
+# sgx-lkl-ioperm ----
+$(LIB_SGX_LKL_BUILD)/sgx-lkl-ioperm-pre: sgx-lkl-ioperm/main.c
+	$(CC) $^ -o $@
+
+$(LIB_SGX_LKL_BUILD)/sgx-lkl-ioperm: $(LIB_SGX_LKL_BUILD)/sgx-lkl-ioperm-pre
+	cp $^ $@
+	sudo setcap cap_sys_rawio=+ep $@
 
 builddirs:
 	mkdir -p $(LIB_SGX_LKL_BUILD)/sgx
@@ -143,7 +158,7 @@ else
 endif
 
 $(LIB_SGX_LKL_BUILD)/sgx-lkl-run: $(LIB_SGX_LKL_BUILD)/main/main.a $(LIB_SGX_LKL_BUILD)/sgx/libsgx.a ${MBEDTLS}/mbedtls.a $(ATTEST_DEPS) builddirs
-	$(CC) $(CFLAGS_MAIN) -pie -fPIE -o $@ $(LIB_SGX_LKL_BUILD)/main/main.a $(SPDK_NATIVE_LDFLAGS) $(LIB_SGX_LKL_BUILD)/sgx/libsgx.a ${MBEDTLS}/mbedtls.a -ljson-c $(LINK_MAIN) -pthread -ldl -lrt -lz -lm -Wl,-T $(sgxlkl_toolsdir)/sgx-lkl.ld
+	+$(CC) $(CFLAGS_MAIN) -pie -fPIE -o $@ $(LIB_SGX_LKL_BUILD)/main/main.a $(SPDK_NATIVE_LDFLAGS) $(LIB_SGX_LKL_BUILD)/sgx/libsgx.a ${MBEDTLS}/mbedtls.a -ljson-c $(LINK_MAIN) -pthread -ldl -lrt -lz -lm -Wl,-T $(sgxlkl_toolsdir)/sgx-lkl.ld
 
 MAIN_SRCS+=$(wildcard main/*.c) $(wildcard shared/*.c)
 MAIN_OBJS=$(addprefix $(LIB_SGX_LKL_BUILD)/main/,$(MAIN_SRCS:.c=.o))
