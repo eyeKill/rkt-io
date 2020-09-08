@@ -133,6 +133,7 @@ in (overrideCC stdenv gcc_nolibc).mkDerivation {
     openssl
     python3.pkgs.pandas
     python3.pkgs.ipdb
+    perl
     (python3.withPackages(ps: [
       ps.pandas
       ps.seaborn
