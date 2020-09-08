@@ -207,7 +207,7 @@ SPDK_NATIVE_LDFLAGS = -L${DPDK_BUILD_NATIVE}/lib -L${SPDK_BUILD_NATIVE}/build/li
 SPDK_NATIVE_LDFLAGS += -luuid
 
 sgx-lkl-musl: ${LIBLKL} ${LKL_SGXMUSL_HEADERS} ${CRYPTSETUP_BUILD}/lib/libcryptsetup.a ${PROTOBUFC_BUILD}/lib/libprotobuf-c.a ${PROTOBUFC_RPC}/protobuf-c-rpc.a sgx-lkl-musl-config sgx-lkl $(ENCLAVE_DEBUG_KEY) ${BUILD_DIR}/init_array.o | ${SGX_LKL_MUSL_BUILD}
-	+${MAKE} -C ${SGX_LKL_MUSL} CFLAGS="$(MUSL_CFLAGS)" \
+	+${MAKE} -j`tools/ncore.sh` -C ${SGX_LKL_MUSL} CFLAGS="$(MUSL_CFLAGS)" \
     SPDK_SGX_LDFLAGS="$(SPDK_SGX_LDFLAGS)"
 	cp $(SGX_LKL_MUSL)/lib/libsgxlkl.so $(BUILD_DIR)/libsgxlkl.so
 # This way the debug info will be automatically picked up when debugging with gdb. TODO: Fix...
