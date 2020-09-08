@@ -313,7 +313,7 @@ in {
   iperf-client = pkgsMusl.iperf;
 
   iproute = runImage {
-    pkg = pkgsMusl.iproute;
+    pkg = busybox;
     command = [ "bin/ip" "a" ];
   };
 
