@@ -176,7 +176,7 @@ class Storage:
             spdk_device = self.settings.spdk_device()
             if os.path.exists(f"/dev/mapper/{spdk_device}"):
                 cryptsetup_luks_close(spdk_device, check=False)
-        except RuntimeError: # spdk device might be not mapped to operating system
+        except Exception: # spdk device might be not mapped to operating system
             pass
 
         run(
