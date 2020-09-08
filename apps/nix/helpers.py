@@ -135,7 +135,7 @@ class Settings:
             pci_id = path.parents[2].name
             if pci_id == self.nvme_pci_id:
                 return device
-        raise Exception(f"No block device with PCI ID {self.nvme_pci_id} found")
+        raise RuntimeError(f"No block device with PCI ID {self.nvme_pci_id} found")
 
 
 def nix_build(attr: str) -> str:
