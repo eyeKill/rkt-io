@@ -26,8 +26,7 @@ from helpers import (
 )
 from storage import Storage, StorageKind
 
-
-def benchmark_hdparm(
+def benchmark_dd(
     storage: Storage,
     system: str,
     attr: str,
@@ -36,75 +35,72 @@ def benchmark_hdparm(
     extra_env: Dict[str, str] = {},
 ) -> None:
     env = os.environ.copy()
-    env.update(flamegraph_env(f"hdparm-{system}-{NOW}"))
     env.update(extra_env)
-    hdparm = nix_build(attr)
+    dd = nix_build(attr)
+
     print(f"###### {system} >> ######")
-    proc = subprocess.Popen(["sudo", hdparm, "bin/hdparm", "-Tt", device], env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    proc = subprocess.Popen([dd], env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+
     try:
         if proc.stdout is None:
             proc.wait()
         else:
             stats["system"].append(system)
             for line in proc.stdout:
-                print(line)
-                match = re.match(r"(.*):\s+(.*) = (.*)", line)
-                if match:
-                    stats[match.group(1)].append(match.group(3))
+                data = line.split(',')
+                if len(data) == 2:
+                    stats["latency"].append(data[0])
+                    stats["Throughput"].append(data[1])
     finally:
-        #proc.send_signal(signal.SIGINT)
         pass
+
     print(f"###### {system} << ######")
 
-
-def benchmark_hdparm_native(storage: Storage, stats: Dict[str, List]) -> None:
+def benchmark_native_dd(storage: Storage, stats: Dict[str, List]) -> None:
     mnt = storage.setup(StorageKind.NATIVE)
     subprocess.run(["sudo", "chown", getpass.getuser(), mnt.dev])
-    benchmark_hdparm(storage, "native", "hdparm-native", mnt.dev, stats)
+    benchmark_dd(storage, "native", "dd-native", mnt.dev, stats)
 
-
-def benchmark_hdparm_sgx_lkl(storage: Storage, stats: Dict[str, List]) -> None:
+def benchmark_sgx_lkl_dd(storage: Storage, stats: Dict[str, List]) -> None:
     storage.setup(StorageKind.LKL)
-    benchmark_hdparm(
-        storage,
-        "sgx-lkl",
-        "hdparm-sgx-lkl",
-        "/dev/vdb",
-        stats,
-        extra_env=dict(SGXLKL_HDS="/dev/nvme0n1:/mnt/nvme"),
+    benchmark_dd(
+      storage,
+      "sgx-lkl",
+      "dd-sgx-lkl",
+      "/dev/vdb",
+      stats,
+      extra_env=dict(SGXLKL_HDS="/dev/nvme0n1:/mnt/nvme"),
     )
 
-
-def benchmark_hdparm_sgx_io(storage: Storage, stats: Dict[str, List]) -> None:
+def benchmark_sgx_io_dd(storage: Storage, stats: Dict[str, List]) -> None:
     storage.setup(StorageKind.SPDK)
-    benchmark_hdparm(storage, "sgx-io", "hdparm-sgx-io", "/dev/spdk0", stats)
-
+    benchmark_dd(storage, "sgx-io", "dd-sgx-io", "/dev/spdk0", stats)
 
 def main() -> None:
-    stats = read_stats("hdparm.json")
+    stats = read_stats("dd.json")
     settings = create_settings()
     storage = Storage(settings)
 
+    # provide nix expressions for native and sgx_lkl case
     benchmarks = {
-        "native": benchmark_hdparm_native,
-        "sgx-lkl": benchmark_hdparm_sgx_lkl,
-        "sgx-io": benchmark_hdparm_sgx_io,
+        #"native": benchmark_native_dd,
+        #"sgx-lkl": benchmark_sgx_lkl_dd,
+        "sgx-io": benchmark_sgx_io_dd,
     }
 
     system = set(stats["system"])
+
     for name, benchmark in benchmarks.items():
         if name in system:
             print(f"skip {name} benchmark")
             continue
         benchmark(storage, stats)
-        write_stats("hdparm.json", stats)
+        write_stats("dd.json", stats)
 
-    csv = f"hdparm-test-{NOW}.tsv"
-    print(csv)
+    csv = f"dd-test-{NOW}.tsv"
     df = pd.DataFrame(stats)
     df.to_csv(csv, index=False, sep="\t")
-    df.to_csv("hdparm-test-latest.tsv", index=False, sep="\t")
+    df.to_csv("dd-test-latest.tsv", index=False, sep="\t")
 
-
-if __name__ == "__main__":
+if __name__=="__main__":
     main()
