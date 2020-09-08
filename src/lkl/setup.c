@@ -4,6 +4,7 @@
 
 #include <assert.h>
 #include <arpa/inet.h>
+#include <net/if_arp.h>
 #include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -205,6 +206,43 @@ static void lkl_prestart_dpdk(enclave_config_t *encl) {
     }
 }
 
+int set_static_arp(void) {
+    struct arpreq req = {};
+    char mac[6] = { 0x3c, 0xfd, 0xfe, 0xb5, 0x22, 0x99 };
+    char iface[6] = "dpdk0\0";
+    struct sockaddr_in *sin;
+    int s;
+
+    req.arp_flags = ATF_PERM;
+    memcpy(&req.arp_dev, iface, sizeof(iface));
+    req.arp_pa.sa_family = AF_INET;
+
+    sin = (struct sockaddr_in *)&req.arp_pa;
+    sin->sin_family = AF_INET;
+    sin->sin_addr.s_addr = inet_addr("10.0.42.2");
+
+    printf("%s() at %s:%d: set mac address\n", __func__, __FILE__, __LINE__);
+
+    memcpy(&req.arp_ha.sa_data, mac, sizeof(mac));
+
+    req.arp_flags = ATF_PERM | ATF_COM;
+
+    if((s = socket(AF_INET, SOCK_DGRAM, 0)) < 0){
+        perror("socket() failed.");
+        return 1;
+    }
+
+    if(ioctl(s, SIOCSARP, &req) < 0){
+        perror("cannot set static arp");
+        return 1;
+    }
+
+    close(s);
+
+    return 0;
+}
+
+
 static void lkl_poststart_dpdk(enclave_config_t* encl) {
 
     for (size_t i = 0; i < num_dpdk_ifaces; i++) {
@@ -228,6 +266,11 @@ static void lkl_poststart_dpdk(enclave_config_t* encl) {
         if (dpdk->mtu) {
             lkl_if_set_mtu(ifindex, dpdk->mtu);
         }
+
+        // useful for debugging
+        //if (set_static_arp() != 0) {
+        //    exit(1);
+        //}
 
         res = lkl_if_up(ifindex);
         if (res < 0) {
@@ -1162,7 +1205,6 @@ void lkl_start_init(enclave_config_t* encl) {
 
     // Set hostname (provided through SGXLKL_HOSTNAME)
     sethostname(encl->hostname, strlen(encl->hostname));
-
 }
 
 /* Requires starttime to be higher or equal to endtime */
