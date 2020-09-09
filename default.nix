@@ -165,8 +165,9 @@ in (overrideCC stdenv gcc_nolibc).mkDerivation {
     libgcrypt
     json_c
     curl
-    linuxHeaders
   ];
+
+  LINUX_HEADERS_INC = "${linuxHeaders}/include";
 
   SGXLKL_TAP = "sgxlkl_tap0";
 

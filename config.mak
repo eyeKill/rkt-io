@@ -5,6 +5,7 @@
 DISTRO=$(shell lsb_release -si)
 #TODO: use autoconf or auto detect
 LINUX_HEADERS_INC ?= /usr/include
+LINUX_HEADERS_HAVE_ASM=$(shell [ -d "${LINUX_HEADERS_INC}/asm" ] && echo yes || echo no)
 
 FORCE_SUBMODULES_VERSION ?= false
 
