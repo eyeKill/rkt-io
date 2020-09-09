@@ -28,13 +28,18 @@ int main(int argc, char** argv) {
   int fd = 0;
   unsigned i = 0;
   unsigned do_read = 0;
+  long batch_size = 0;
 
-  if (argc < 5) {
-    fprintf(stderr, "USAGE: %s file bytes direct_io read\n", argv[0]);
+  // batch_size in KiB
+  if (argc < 6) {
+    fprintf(stderr, "USAGE: %s file bytes direct_io read batch_size\n", argv[0]);
     return 1;
   }
 
   bytes = PAGE_ALIGN_DOWN(atoll(argv[2]));
+
+  batch_size = strtol(argv[5], NULL, 10);
+  //batch_size *= 1024;
 
   direct_io = argv[3][0] == '1';
 
@@ -49,19 +54,19 @@ int main(int argc, char** argv) {
       return 1;
     }
 
-    if (ftruncate(buf_fd, BUF_SIZE) < 0) {
+    if (ftruncate(buf_fd, batch_size) < 0) {
       perror("ftruncate");
       return 1;
     }
 
-    buf = mmap(NULL, BUF_SIZE, PROT_WRITE|PROT_READ, MAP_PRIVATE, buf_fd, 0);
+    buf = mmap(NULL, batch_size, PROT_WRITE|PROT_READ, MAP_PRIVATE, buf_fd, 0);
     close(buf_fd);
     if (buf == MAP_FAILED) {
       perror("mmap");
       return 1;
     }
   } else {
-    buf = malloc(BUF_SIZE);
+    buf = malloc(batch_size);
     if (!buf) {
       perror("malloc");
       return 1;
@@ -87,11 +92,11 @@ int main(int argc, char** argv) {
       return 1;
     }
   }
-  memset(buf, 'a', BUF_SIZE);
+  memset(buf, 'a', batch_size);
   start = clock();
   last_print = start;
   while (total_written < bytes) {
-    int to_write = MIN(BUF_SIZE, bytes - total_written);
+    int to_write = MIN(batch_size, bytes - total_written);
     ssize_t written;
     if (do_read) {
       written = read(fd, buf, to_write);
@@ -102,7 +107,7 @@ int main(int argc, char** argv) {
     if (written == -1) {
       perror("write");
       if (direct_io) {
-        munmap(buf, BUF_SIZE);
+        munmap(buf, batch_size);
       } else {
         free(buf);
       }
@@ -114,8 +119,8 @@ int main(int argc, char** argv) {
     i++;
     if (i % 100 == 0) {
       clock_t current = clock();
-      fprintf(stderr, "[%.2lf%%] Throughput: %lf MiB / s\n",
-             ((double)total_written/bytes * 100), (written_since_print / 1024 / 1024) / (((double) (current - last_print)) / CLOCKS_PER_SEC));
+      //fprintf(stderr, "[%.2lf%%] Throughput: %lf MiB / s\n",
+      //       ((double)total_written/bytes * 100), (written_since_print / 1024 / 1024) / (((double) (current - last_print)) / CLOCKS_PER_SEC));
       written_since_print = 0;
       last_print = current;
     }
@@ -126,7 +131,7 @@ int main(int argc, char** argv) {
   fsync(fd);
   close(fd);
   if (direct_io) {
-    munmap(buf, BUF_SIZE);
+    munmap(buf, batch_size);
   } else {
     free(buf);
   }

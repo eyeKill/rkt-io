@@ -40,61 +40,72 @@ def benchmark_simpleio(
     if os.environ.get("SGXLKL_ENABLE_GDB", "0") == "1":
         stdout = None
 
-    size = str(40 * 1024 * 1024 * 1024)  # 40G
-    cmd = [
-        simpleio,
-        "bin/simpleio",
-        f"{directory}/file",
-        size,
-        "0",
-        "0" if do_write else "1",
-    ]
+    size = str(10 * 1024 * 1024 * 1024)  # 10G
+
+    # batch sizes in kilobytes
+    batch_sizes = [4, 8, 16, 32, 64, 128, 256, 512]
+
     env_string = []
     for k, v in env.items():
         env_string.append(f"{k}={v}")
-    print(f"$ {' '.join(env_string)} {' '.join(cmd)}")
     report = ""
     in_results = False
     env = os.environ.copy()
     env.update(extra_env)
-    proc = subprocess.Popen(cmd, stdout=stdout, text=True, env=env)
-    try:
-        assert proc.stdout is not None
-        for line in proc.stdout:
-            print(f"stdout: {line}", end="")
-            if line == "<result>\n":
-                in_results = True
-            elif in_results and line == "</result>\n":
-                break
-            elif in_results:
-                report += line
-    finally:
-        proc.send_signal(signal.SIGINT)
-    jsondata = json.loads(report)
-    stats["system"].append(system)
-    stats["bytes"].append(jsondata["bytes"])
-    stats["time"].append(jsondata["time"])
-    stats["workload"].append("write" if do_write else "read")
+
+    for bs in batch_sizes:
+        cmd = [
+            simpleio,
+            "bin/simpleio",
+            f"{directory}/file",
+            size,
+            "0",
+            "0" if do_write else "1",
+            str(bs*1024),
+        ]
+        print(f"$ {' '.join(env_string)} {' '.join(cmd)}")
+        proc = subprocess.Popen(cmd, stdout=stdout, text=True, env=env)
+        try:
+            assert proc.stdout is not None
+            for line in proc.stdout:
+                print(f"stdout: {line}", end="")
+                if line == "<result>\n":
+                    in_results = True
+                elif in_results and line == "</result>\n":
+                    break
+                elif in_results:
+                    report += line
+        finally:
+            proc.send_signal(signal.SIGINT)
+        jsondata = json.loads(report)
+        stats["system"].append(system)
+        stats["bytes"].append(jsondata["bytes"])
+        stats["time"].append(jsondata["time"])
+        stats["workload"].append("write" if do_write else "read")
+        stats["batch-size"].append(bs)
 
 
 def benchmark_sgx_io(storage: Storage, stats: Dict[str, List]) -> None:
-    storage.setup(StorageKind.SPDK)
+    mount = storage.setup(StorageKind.SPDK)
 
-    benchmark_simpleio(
-        storage, "sgx-io", "simpleio-sgx-io", "/mnt/spdk0", stats
-    )
+    with mount as mnt:
+     benchmark_simpleio(
+         storage, "sgx-io", "simpleio-sgx-io", mnt, stats, extra_env=mount.extra_env()
+     )
 
 
 def benchmark_sgx_lkl(storage: Storage, stats: Dict[str, List]) -> None:
-    storage.setup(StorageKind.LKL)
-    benchmark_simpleio(
-        storage,
-        "sgx-lkl",
-        "simpleio-sgx-lkl",
-        "/mnt/nvme",
-        stats,
-        extra_env=dict(SGXLKL_HDS="/dev/nvme0n1:/mnt/nvme"),
-    )
+    mount = storage.setup(StorageKind.LKL)
+
+    with mount as mnt:
+        benchmark_simpleio(
+            storage,
+            "sgx-lkl",
+            "simpleio-sgx-lkl",
+            mnt,
+            stats,
+            extra_env=mount.extra_env(),
+        )
 
 
 def benchmark_scone(storage: Storage, stats: Dict[str, List]) -> None:
