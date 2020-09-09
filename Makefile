@@ -29,7 +29,11 @@ host-musl ${HOST_MUSL_CC}: | ${HOST_MUSL}/.git ${HOST_MUSL_BUILD}
 		--prefix=${HOST_MUSL_BUILD}
 	+${MAKE} -C ${HOST_MUSL} CFLAGS="$(MUSL_CFLAGS)" install
 	ln -fs ${LINUX_HEADERS_INC}/linux/ ${HOST_MUSL_BUILD}/include/linux
+ifeq ($(LINUX_HEADERS_HAVE_ASM),yes)
+	ln -fs ${LINUX_HEADERS_INC}/asm/ ${HOST_MUSL_BUILD}/include/asm
+else
 	ln -fs ${LINUX_HEADERS_INC}/x86_64-linux-gnu/asm/ ${HOST_MUSL_BUILD}/include/asm
+endif
 	ln -fs ${LINUX_HEADERS_INC}/asm-generic/ ${HOST_MUSL_BUILD}/include/asm-generic
 	# Fix musl-gcc for gcc version that have been built with --enable-default-pie
 	gcc -v 2>&1 | grep "\-\-enable-default-pie" > /dev/null && sed -i 's/"$$@"/-fpie -pie "\$$@"/g' ${HOST_MUSL_BUILD}/bin/musl-gcc || true
