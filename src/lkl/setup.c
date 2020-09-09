@@ -58,6 +58,8 @@ int sgxlkl_mtu = 0;
 int sgxlkl_xts_proxy = 0;
 int sgxlkl_gso_offload = 0;
 int sgxlkl_chksum_offload = 0;
+int sgxlkl_dpdk_zerocopy = 0;
+int sgxlkl_spdk_zerocopy = 0;
 
 extern struct timespec sgxlkl_app_starttime;
 
@@ -1076,6 +1078,12 @@ void lkl_start_init(enclave_config_t* encl) {
 
     if (getenv_bool("SGXLKL_CHKSUM_OFFLOAD", 0))
 	sgxlkl_chksum_offload = 1;
+
+    if (getenv_bool("SGXLKL_DPDK_ZEROCOPY", 0))
+	sgxlkl_dpdk_zerocopy = 1;
+
+    if (getenv_bool("SGXLKL_SPDK_ZEROCOPY", 0))
+	sgxlkl_spdk_zerocopy = 1;
 
     if (encl->hostnet)
         sgxlkl_use_host_network = 1;

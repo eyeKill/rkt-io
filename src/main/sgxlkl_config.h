@@ -80,6 +80,8 @@
 #define SGXLKL_XTS_PROXY                76
 #define SGXLKL_GSO_OFFLOAD              77
 #define SGXLKL_CHKSUM_OFFLOAD           78
+#define SGXLKL_DPDK_ZEROCOPY            79
+#define SGXLKL_SPDK_ZEROCOPY            80
 
 
 #define DEFAULT_SGXLKL_GW4 "10.0.1.254"

@@ -115,6 +115,8 @@ static struct sgxlkl_config_elem sgxlkl_config[] = {
  /* 76 */ {"SGXLKL_XTS_PROXY",                "xts_proxy",                TYPE_BOOL, {.def_bool = 0}, 0},
  /* 77 */ {"SGXLKL_GSO_OFFLOAD",              "gso_offload",              TYPE_BOOL, {.def_bool = 0}, 0},
  /* 78 */ {"SGXLKL_CHKSUM_OFFLOAD",           "chksum_offload",           TYPE_BOOL, {.def_bool = 0}, 0},
+ /* 79 */ {"SGXLKL_DPDK_ZEROCOPY",            "dpdk_zerocopy",            TYPE_BOOL, {.def_bool = 0}, 0},
+ /* 80 */ {"SGXLKL_SPDK_ZEROCOPY",            "spdk_zerocopy",            TYPE_BOOL, {.def_bool = 0}, 0},
 };
 
 static inline struct sgxlkl_config_elem *config_elem_by_key(const char *key) {
