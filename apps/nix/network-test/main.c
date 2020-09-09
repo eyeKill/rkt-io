@@ -8,11 +8,12 @@
 #include <string.h>
 #include <stdlib.h>
 
-char buf[1 << 16];
+//char buf[1 << 16];
+#define MIN(X, Y) (((X) < (Y)) ? (X) : (Y))
 
 int main(int argc, char** argv) {
-  if (argc != 3) {
-    fprintf(stderr, "%s read|write <dotted-address>\n", argv[0]);
+  if (argc != 5) {
+    fprintf(stderr, "%s read|write <dotted-address> num_bytes batch_size\n", argv[0]);
     exit(EXIT_FAILURE);
   }
 
@@ -25,12 +26,19 @@ int main(int argc, char** argv) {
     exit(EXIT_FAILURE);
   }
 
+  long num_bytes = strtol(argv[3], NULL, 10);
+  long batch_size = strtol(argv[4], NULL, 10);
+
+  size_t total_sent = 0;
+  clock_t start;
+
   struct sockaddr_in servaddr = {};
   servaddr.sin_family = AF_INET;
   servaddr.sin_addr.s_addr = addr;
   servaddr.sin_port = htons(8888);
 
-  memset(buf, 'a', sizeof(buf));
+  char *buf = (char*) malloc(batch_size*sizeof(char));
+  memset(buf, 'a', batch_size);
 
   for (;;) {
     int fd = socket(AF_INET, SOCK_STREAM, 0);
@@ -41,24 +49,35 @@ int main(int argc, char** argv) {
       usleep(2000000);
     }
 
-    for (;;) {
+    start = clock();
+
+    while(total_sent < num_bytes) {
+      int to_send = MIN(batch_size, num_bytes - total_sent);
       int ret;
       if (read_socket) {
-        ret = read(fd, buf, sizeof(buf));
+        ret = read(fd, buf, to_send);
         if (ret <= 0) {
           perror("read");
           break;
         }
       } else {
-        ret = write(fd, buf, sizeof(buf));
+        ret = write(fd, buf, to_send);
         if (ret == -1) {
           perror("write");
           break;
         }
       }
+
+      total_sent += to_send;
     }
+
+    printf("{\"bytes: %ld\", \"time\": %lf}\n", total_sent, ((double)clock() - start)/CLOCKS_PER_SEC);
     close(fd);
+
+    break;
   }
+
+  free(buf);
 
   return 0;
 }
