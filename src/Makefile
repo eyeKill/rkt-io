@@ -76,16 +76,7 @@ all: builddirs $(LIB_SGX_LKL_BUILD)/sgx/libsgx.a \
 	$(LIB_SGX_LKL_BUILD)/sgx-lkl-run \
 	$(LIB_SGX_LKL_BUILD)/sgx-lkl-ctl \
 	$(LIB_SGX_LKL_BUILD)/sgx-lkl-userpci \
-	$(LIB_SGX_LKL_BUILD)/sgx-lkl-virt2phy \
-	$(LIB_SGX_LKL_BUILD)/sgx-lkl-ioperm
-
-# sgx-lkl-ioperm ----
-$(LIB_SGX_LKL_BUILD)/sgx-lkl-ioperm-pre: sgx-lkl-ioperm/main.c
-	$(CC) $^ -o $@
-
-$(LIB_SGX_LKL_BUILD)/sgx-lkl-ioperm: $(LIB_SGX_LKL_BUILD)/sgx-lkl-ioperm-pre
-	cp $^ $@
-	sudo setcap cap_sys_rawio=+ep $@
+	$(LIB_SGX_LKL_BUILD)/sgx-lkl-virt2phy
 
 builddirs:
 	mkdir -p $(LIB_SGX_LKL_BUILD)/sgx

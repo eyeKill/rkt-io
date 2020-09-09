@@ -306,24 +306,15 @@ static void* timer_thread(void *_timer) {
 
 static inline void io_delay(void)
 {
-    const uint16_t DELAY_PORT = 0x80;
-    outb(0, DELAY_PORT);
-    outb(0, DELAY_PORT);
-    outb(0, DELAY_PORT);
-    outb(0, DELAY_PORT);
-    outb(0, DELAY_PORT);
-    outb(0, DELAY_PORT);
-    outb(0, DELAY_PORT);
-    outb(0, DELAY_PORT);
-    outb(0, DELAY_PORT);
-    outb(0, DELAY_PORT);
+    for (unsigned i = 0; i < 100000; i++) {
+        __asm__("nop ; nop ; nop ; nop; nop; nop; nop; nop; nop; nop; nop; nop; nop; nop;");
+    }
 }
 
 static void *timer_alloc(void (*fn)(void *), void *arg) {
-    int res = 0;
     sgx_lkl_timer *timer = calloc(sizeof(*timer), 1);
     clock_t start, stop, clocks_per_iteration;
-    const unsigned test_iterations = 30000;
+    const unsigned test_iterations = 20000;
     unsigned hz;
     unsigned timer_per_round, i;
 
@@ -340,19 +331,25 @@ static void *timer_alloc(void (*fn)(void *), void *arg) {
     stop = clock();
     clocks_per_iteration = (stop - start) / test_iterations;
 
-    fprintf(stderr, "[lkl] io_delay: %u iterations in %fds\n",
-            test_iterations, ((double)stop - start)/CLOCKS_PER_SEC);
+    fprintf(stderr, "[lkl] io_delay: %u iterations in %lfs (per iteration: %d)\n",
+            test_iterations, ((double)stop - start)/CLOCKS_PER_SEC, clocks_per_iteration);
 
     timer->callback_fn = fn;
     hz = sysconf(_SC_CLK_TCK);
     timer->iterations_per_hz = (CLOCKS_PER_SEC / hz) / clocks_per_iteration;
+    return (void*)timer;
+}
+
+static int timer_start(void *_timer) {
+    int res = 0;
+    sgx_lkl_timer *timer = (sgx_lkl_timer*)_timer;
     timer->should_stop = 0;
     res = lthread_create(&(timer->thread), NULL, &timer_thread, (void*)timer);
     if (res != 0) {
         fprintf(stderr, "Error: pthread_create(timerfn) returned %d\n", res);
         panic();
     }
-    return (void*)timer;
+    return 0;
 }
 
 static void timer_free(void *_timer) {
@@ -398,6 +395,7 @@ struct lkl_host_operations sgxlkl_host_ops = {
     .tls_get = tls_get,
     .time = time_ns,
     .timer_alloc = timer_alloc,
+    .timer_start = timer_start,
     .timer_free = timer_free,
     .print = print,
     .mem_alloc = malloc,
