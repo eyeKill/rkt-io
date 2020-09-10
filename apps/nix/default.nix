@@ -228,9 +228,15 @@ in {
     command = [ "bin/pthread-socket" ];
   };
 
-  network-test = runImage {
+  network-test-sgx-io = runImage {
     pkg = network-test;
     command = [ "bin/network-test" ];
+  };
+
+  network-test-sgx-lkl = runImage {
+    pkg = network-test;
+    command = [ "bin/network-test" ];
+    sgx-lkl-run = "${sgx-lkl}/bin/sgx-lkl-run";
   };
 
   latency-test = runImage {
