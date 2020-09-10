@@ -669,7 +669,7 @@ class LxPs(gdb.Command):
             #define task_thread_info(task)	((struct thread_info *)(task)->stack)
             thread_info = task["stack"].cast(thread_info_type.get_type().pointer())
             # f"{int(t['tid'])}"
-            gdb.write("{address} {pid} {tid:02x} {comm}\n".format(
+            gdb.write("{address} {pid} 0x{tid:02x} {comm}\n".format(
                 address=task,
                 pid=task["pid"],
                 tid=int(thread_info["tid"]),
