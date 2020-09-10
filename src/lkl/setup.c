@@ -1170,7 +1170,7 @@ void lkl_start_init(enclave_config_t* encl) {
     do_sysctl(encl);
 
     // Set interface status/IP/routes
-    if (!sgxlkl_use_host_network)
+    if (!sgxlkl_use_host_network && net_dev_id != -1)
         lkl_poststart_net(encl, net_dev_id);
 
     int rc = sgxlkl_spdk_initialize();

@@ -1898,11 +1898,12 @@ int main(int argc, char *argv[], char *envp[]) {
       register_dma_memory(&encl);
     }
 
-    register_net(&encl, sgxlkl_config_str(SGXLKL_TAP),
-                        sgxlkl_config_str(SGXLKL_IP4),
-                        (int) sgxlkl_config_uint64(SGXLKL_MASK4),
-                        sgxlkl_config_str(SGXLKL_GW4),
-                        sgxlkl_config_str(SGXLKL_HOSTNAME));
+    // this causes blocking syscalls. get rid of it since we have DPDK now.
+    //register_net(&encl, sgxlkl_config_str(SGXLKL_TAP),
+    //                    sgxlkl_config_str(SGXLKL_IP4),
+    //                    (int) sgxlkl_config_uint64(SGXLKL_MASK4),
+    //                    sgxlkl_config_str(SGXLKL_GW4),
+    //                    sgxlkl_config_str(SGXLKL_HOSTNAME));
     register_queues(&encl);
 
 #ifdef SGXLKL_HW
