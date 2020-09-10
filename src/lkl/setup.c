@@ -1038,7 +1038,6 @@ void load_x86_kernel_modules(void) {
         } else {
             SGXLKL_VERBOSE("Successfully loaded kernel module %s\n", kmods[i].name);
         }
-        usleep(100);
     }
 
     const struct kmod_struct xtsproxy = {"xtsproxy.ko",             _binary_lkl_x86mods_xtsproxy_ko_start,         (size_t) (_binary_lkl_x86mods_xtsproxy_ko_end - _binary_lkl_x86mods_xtsproxy_ko_start)};
