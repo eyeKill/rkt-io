@@ -286,57 +286,37 @@ static unsigned long long time_ns(void) {
 typedef struct sgx_lkl_timer {
     void (*callback_fn)();
     pthread_t thread;
-    unsigned iterations_per_hz;
     int should_stop;
 } sgx_lkl_timer;
 
+//#define LKL_DEBUG_TIMER
+
 static void* timer_thread(void *_timer) {
     sgx_lkl_timer *timer = (sgx_lkl_timer*)_timer;
-    int i;
-    int iterations = timer->iterations_per_hz;
+#ifdef LKL_DEBUG_TIMER
+    int i = 0;
+#endif
     while (!timer->should_stop) {
-        for (i = iterations; i > 0; i--) {
+        usleep(1000);
+#ifdef LKL_DEBUG_TIMER
+        i++;
+        if (i % 1000 == 0) {
+            int printf(const char* f,...); printf("\033[31;1m%s() at %s:%d \033[0m\n", __func__, __FILE__, __LINE__);
         }
-        // FIXME: callback causes delay which we need to substract.
+#endif
         timer->callback_fn();
     }
     pthread_exit(NULL);
 }
 
-
-static inline void io_delay(void)
-{
-    for (unsigned i = 0; i < 100000; i++) {
-        __asm__("nop ; nop ; nop ; nop; nop; nop; nop; nop; nop; nop; nop; nop; nop; nop;");
-    }
-}
-
 static void *timer_alloc(void (*fn)(void *), void *arg) {
     sgx_lkl_timer *timer = calloc(sizeof(*timer), 1);
-    clock_t start, stop, clocks_per_iteration;
-    const unsigned test_iterations = 20000;
-    unsigned hz;
-    unsigned timer_per_round, i;
-
     if (timer == NULL) {
         fprintf(stderr, "LKL host op: timer_alloc() failed, OOM\n");
         panic();
     }
-    fprintf(stderr, "[lkl]: If you get a segfault after this, you have not called sgx-lkl-run not through sgx-lkl-ioperm\n");
-
-    start = clock();
-    for (i = 0; i < test_iterations; i++) {
-        io_delay();
-    }
-    stop = clock();
-    clocks_per_iteration = (stop - start) / test_iterations;
-
-    fprintf(stderr, "[lkl] io_delay: %u iterations in %lfs (per iteration: %d)\n",
-            test_iterations, ((double)stop - start)/CLOCKS_PER_SEC, clocks_per_iteration);
 
     timer->callback_fn = fn;
-    hz = sysconf(_SC_CLK_TCK);
-    timer->iterations_per_hz = (CLOCKS_PER_SEC / hz) / clocks_per_iteration;
     return (void*)timer;
 }
 
