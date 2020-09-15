@@ -102,10 +102,10 @@ let
     };
 
     sgx-lkl-musl = fetchFromGitHub {
-      owner = "lsds";
+      owner = "harshanavkis";
       repo = "sgx-lkl-musl";
-      rev = "22c91c211aaf4048a4f034084bb7fa202bd6071c";
-      sha256 = "16x02jv78mhysvl81px48mc1zjszjxjda8zqpzdk1937jy6yrqis";
+      rev = "a8e11447e69120af080d8c9627fbaab3629b45ba";
+      sha256 = "0v5fixwn9pf4p4j65wabna4wqmr5g70zd4qdm5p41qz3pfgkkf8w";
     };
   };
 in
