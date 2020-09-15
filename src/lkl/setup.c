@@ -1011,12 +1011,13 @@ extern char _binary_lkl_x86mods_twofish_avx_x86_64_ko_start[];
 extern char _binary_lkl_x86mods_twofish_avx_x86_64_ko_end[];
 
 void load_x86_kernel_modules(void) {
-    const struct {
+    struct kmod_struct {
             const char *name; const char *addr; size_t size;
-    } kmods[] = {
+    };
+
+    const struct kmod_struct kmods[] = {
       {"aes-x86_64.ko",           _binary_lkl_x86mods_aes_x86_64_ko_start,          (size_t) (_binary_lkl_x86mods_aes_x86_64_ko_end - _binary_lkl_x86mods_aes_x86_64_ko_start)},
       {"aesni-intel.ko",          _binary_lkl_x86mods_aesni_intel_ko_start,         (size_t) (_binary_lkl_x86mods_aesni_intel_ko_end - _binary_lkl_x86mods_aesni_intel_ko_start)},
-      {"xtsproxy.ko",             _binary_lkl_x86mods_xtsproxy_ko_start,         (size_t) (_binary_lkl_x86mods_xtsproxy_ko_end - _binary_lkl_x86mods_xtsproxy_ko_start)},
       //{"chacha20-x86_64.ko",      _binary_lkl_x86mods_chacha20_x86_64_ko_start,     (size_t) (_binary_lkl_x86mods_chacha20_x86_64_ko_end - _binary_lkl_x86mods_chacha20_x86_64_ko_start)},
       //{"poly1305-x86_64.ko",      _binary_lkl_x86mods_poly1305_x86_64_ko_start,     (size_t) (_binary_lkl_x86mods_poly1305_x86_64_ko_end - _binary_lkl_x86mods_poly1305_x86_64_ko_start)},
       //{"salsa20-x86_64.ko",       _binary_lkl_x86mods_salsa20_x86_64_ko_start,      (size_t) (_binary_lkl_x86mods_salsa20_x86_64_ko_end - _binary_lkl_x86mods_salsa20_x86_64_ko_start)},
@@ -1038,6 +1039,16 @@ void load_x86_kernel_modules(void) {
             SGXLKL_VERBOSE("Successfully loaded kernel module %s\n", kmods[i].name);
         }
         usleep(100);
+    }
+
+    const struct kmod_struct xtsproxy = {"xtsproxy.ko",             _binary_lkl_x86mods_xtsproxy_ko_start,         (size_t) (_binary_lkl_x86mods_xtsproxy_ko_end - _binary_lkl_x86mods_xtsproxy_ko_start)};
+
+    if(sgxlkl_xts_proxy) {
+        if (init_module(xtsproxy.addr, xtsproxy.size, "") != 0) {
+            SGXLKL_VERBOSE("Failed to load kernel module %s: %s\n", xtsproxy.name, strerror(errno));
+        } else {
+            SGXLKL_VERBOSE("Successfully loaded kernel module %s\n", xtsproxy.name);
+        }
     }
 }
 #endif /* X86MODULES */
