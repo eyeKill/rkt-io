@@ -75,6 +75,8 @@ class Benchmark:
                     "-p",
                     "redis.port=6379",
                     "-p",
+                    "redis.timeout=600000",
+                    "-p",
                     f"recordcount={self.record_count}",
                     "-p",
                     f"operationcount={self.operation_count}",
@@ -93,6 +95,8 @@ class Benchmark:
                     f"redis.host={self.settings.local_dpdk_ip}",
                     "-p",
                     "redis.port=6379",
+                    "-p",
+                    "redis.timeout=600000",
                     "-p",
                     f"recordcount={self.record_count}",
                     "-p",
@@ -142,7 +146,7 @@ def main() -> None:
     settings = create_settings()
     setup_remote_network(settings)
     record_count = 1000000
-    op_count = 10000000
+    op_count = 10000
 
     benchmark = Benchmark(settings, record_count, op_count)
 

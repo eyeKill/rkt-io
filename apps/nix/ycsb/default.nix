@@ -5,8 +5,8 @@ stdenv.mkDerivation rec {
   version = "0.17.0";
 
   src = fetchurl {
-    url = "https://github.com/brianfrankcooper/YCSB/releases/download/${version}/ycsb-${version}.tar.gz";
-    sha256 = "sha256-2A2LZ8Sx2px9ncDUDN2aZR8MD0TlgK6gD7P4bP+29cw=";
+    url = "https://github.com/harshanavkis/YCSB/releases/download/1/ycsb-0.17.0.tar.gz";
+    sha256 = "1q53icy9qi4qwq62a0lzplkp20kbm64bkyhjig9rkgdykg5xknw5";
   };
 
   buildInputs = [ python2 ];
