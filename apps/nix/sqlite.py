@@ -57,7 +57,7 @@ def benchmark_sqlite(
     finally:
         proc.send_signal(signal.SIGINT)
 
-    expected = 33
+    expected = 4
     if n_rows != expected:
         raise RuntimeError(f"Expected {expected} rows, got: {n_rows} when running benchmark for {system}")
 
@@ -107,7 +107,6 @@ def main() -> None:
     csv = f"sqlite-speedtest-{NOW}.tsv"
     print(csv)
     df = pd.DataFrame(stats)
-    breakpoint()
     df.to_csv(csv, index=False, sep="\t")
     df.to_csv("sqlite-speedtest-latest.tsv", index=False, sep="\t")
 
