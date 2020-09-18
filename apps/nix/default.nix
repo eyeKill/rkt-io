@@ -203,8 +203,8 @@ let
       src = fetchFromGitHub {
         owner="harshanavkis";
         repo="sqlite-speedtest-custom";
-        rev = "d86a6b7564de22d56ee707eeea61122fb5ed9406";
-        sha256 = "1s9japicc4x2ykm48li7y4nys4crvnr04zck3yx3y674sjckfxpf";
+        rev = "591be835b8e73bc79f1e6d7766a78e20b915d94f";
+        sha256 = "08wpy6739hgbcf7jyklq66vjhy28yyyaxmfdlgzgcy1y584zmh3g";
       };
       buildInputs = [ pkgsMusl.tcl ];
       outputs = ["out"];
@@ -521,18 +521,18 @@ in {
   sqlite-native = runImage {
     pkg = sqlite-speedtest;
     native = true;
-    command = [ "bin/speedtest1" "--size" "20" "bench.db" ];
+    command = [ "bin/speedtest1" "--size" "20" "--journal" "delete" "bench.db" ];
   };
 
   sqlite-sgx-io = runImage {
     pkg = sqlite-speedtest;
-    command = [ "bin/speedtest1" "--size" "20" "bench.db" ];
+    command = [ "bin/speedtest1" "--size" "20" "--journal" "delete" "bench.db" ];
   };
 
   sqlite-sgx-lkl = runImage {
     pkg = sqlite-speedtest;
     sgx-lkl-run = "${sgx-lkl}/bin/sgx-lkl-run";
-    command = [ "bin/speedtest1" "--size" "20" "bench.db" ];
+    command = [ "bin/speedtest1" "--size" "20" "--journal" "delete" "bench.db" ];
   };
 
   wrk-bench = pkgsMusl.wrk;

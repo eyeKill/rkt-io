@@ -52,13 +52,15 @@ def benchmark_sqlite(
                 print(line)
                 match = re.match(r"(?: \d+ - |\s+)([^.]+)[.]+\s+([0-9.]+)s", line)
                 if match:
+                    if "TOTAL" in match.group(1):
+                        continue
                     stats[match.group(1)].append(match.group(2))
                     n_rows += 1
     finally:
         proc.send_signal(signal.SIGINT)
 
-    expected = 4
-    if n_rows != expected:
+    expected = 3
+    if n_rows < expected:
         raise RuntimeError(f"Expected {expected} rows, got: {n_rows} when running benchmark for {system}")
 
 
