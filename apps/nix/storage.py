@@ -55,7 +55,10 @@ class Mount:
 
     def extra_env(self) -> Dict[str, str]:
         if self.kind == StorageKind.LKL:
-            return dict(SGXLKL_HDS=f"{self.raw_dev}:/mnt/spdk0")
+            d = dict(SGXLKL_HDS=f"{self.raw_dev}:/mnt/spdk0")
+            if self.hd_key is not None:
+                d['SGXLKL_HD_KEY'] = self.hd_key
+            return d
         elif self.kind == StorageKind.SPDK:
             return dict(SGXLKL_SPDK_SKIP_UNMOUNT="1")
         return {}

@@ -597,7 +597,7 @@ static void register_hds(enclave_config_t *encl, char *root_hd) {
     // Initialize encl->num_disks, will be adjusted by register_hd
     encl->num_disks = 0;
     // Register root disk
-    register_hd(encl, root_hd, "/", sgxlkl_config_bool(SGXLKL_HD_RO), sgxlkl_config_str(SGXLKL_HD_KEY),
+    register_hd(encl, root_hd, "/", sgxlkl_config_bool(SGXLKL_HD_RO), NULL,
                 sgxlkl_config_str(SGXLKL_HD_VERITY), sgxlkl_config_str(SGXLKL_HD_VERITY_OFFSET));
     // Register secondary disks
     while (*hds_str) {
@@ -608,7 +608,7 @@ static void register_hds(enclave_config_t *encl, char *root_hd) {
         char *hd_mnt_end = strchrnul(hd_mnt, ':');
         *hd_mnt_end = '\0';
         int hd_ro = hd_mnt_end[1] == '1' ? 1 : 0;
-        register_hd(encl, hd_path, hd_mnt, hd_ro, NULL, NULL, NULL);
+        register_hd(encl, hd_path, hd_mnt, hd_ro, sgxlkl_config_str(SGXLKL_HD_KEY), NULL, NULL);
 
         hds_str = strchrnul(hd_mnt_end + 1, ',');
         while(*hds_str == ' ' || *hds_str == ',') hds_str++;
