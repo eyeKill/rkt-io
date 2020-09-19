@@ -7,13 +7,12 @@ from plot import plt, sns
 SYSTEM_ALIASES: Dict[str, str] = {}
 ROW_ALIASES = dict(system=SYSTEM_ALIASES)
 COLUMN_ALIASES: Dict[str, str] = {
-    "1000000 INSERTs into table with no index": "insert [s]",
-    "25 SELECTS, numeric BETWEEN, unindexed": "Numeric select [s]",
-    "1000000 UPDATES of individual rows": "update [s]",
+    "sqlite-time [s]": "Transactions per second",
     "lat_avg": "Latency [ms]",
     "req_sec_tot": "Requests/sec",
     "Throughput(ops/sec)": "Throughput",
-    "AverageLatency(ms)": "Latency [ms]"
+    "AverageLatency(ms)": "Latency [ms]",
+    "sqlite-op-type": "Operation",
 }
 
 def catplot(**kwargs) -> Any:
@@ -37,26 +36,33 @@ def df_col_select(res_col:List[str], df_columns: List[str], keyword: str) -> Non
         if keyword in col:
             res_col.append(col)
 
-def sqlite_graph(df: pd.DataFrame, query_kind: str) -> Any:
-    plot_col = ["system"]
+def apply_sqlite_rows(x: int) -> float:
+    return 10000/x
 
-    if query_kind=="insert":
-        df_col_select(plot_col, df.columns, "INSERT")
-    if query_kind=="25-select":
-        df_col_select(plot_col, df.columns, "25 SELECTS")
-    if query_kind=="all-update":
-        df_col_select(plot_col, df.columns, "UPDATES")
+def sqlite_graph(df: pd.DataFrame) -> Any:
+    breakpoint()
+    plot_df = df
+    df = df[df.columns[2]]
+    df = df.map(apply_sqlite_rows)
+    plot_df.update(df)
 
-    plot_df = df[plot_col]
+    plot_df["sqlite-op-type"] = plot_df["sqlite-op-type"].map(
+        {
+            "10000 INSERTs into table with no index": "Insert",
+            "10000 UPDATES of individual rows": "Update",
+            "10000 DELETEs of individual rows": "Delete",
+        }
+    )
     plot_df = apply_aliases(plot_df)
 
     g = catplot(
             data=plot_df,
             x=plot_df.columns[0],
-            y=plot_df.columns[1],
+            y=plot_df.columns[2],
             kind="bar",
             height=2.5,
             aspect=1.2,
+            hue="Operation"
         )
     return g
 
@@ -124,9 +130,7 @@ def main() -> None:
         df = pd.read_csv(arg, delimiter='\t')
 
         if arg.startswith("sqlite"):
-            graphs.append(("SQLITE-INSERT", sqlite_graph(df, "insert")))
-            graphs.append(("SQLITE-25-NUMERIC-SELECT", sqlite_graph(df, "25-select")))
-            graphs.append(("SQLITE-ALL-ROW-UPDATE", sqlite_graph(df, "all-update")))
+            graphs.append(("SQLITE", sqlite_graph(df)))
         if arg.startswith("nginx"):
             graphs.append(("NGINX-LAT", nginx_graph(df, "lat")))
             graphs.append(("NGINX-THRU", nginx_graph(df, "thru")))

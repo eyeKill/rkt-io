@@ -41,7 +41,6 @@ def benchmark_sqlite(
 
     print(f"[Benchmark]:{system}")
 
-    stats["system"].append(system)
     n_rows = 0
     try:
         if proc.stdout is None:
@@ -54,7 +53,9 @@ def benchmark_sqlite(
                 if match:
                     if "TOTAL" in match.group(1):
                         continue
-                    stats[match.group(1)].append(match.group(2))
+                    stats["system"].append(system)
+                    stats["sqlite-op-type"].append(match.group(1))
+                    stats["sqlite-time [s]"].append(match.group(2))
                     n_rows += 1
     finally:
         proc.send_signal(signal.SIGINT)
