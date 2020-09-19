@@ -115,10 +115,10 @@ stdenv.mkDerivation {
 
   # We don't fetch submodules here because downloading the linux repo as git takes too long; tarballs are much faster
   src = fetchFromGitHub {
-    owner = "lsds";
+    owner = "harshanavkis";
     repo = "sgx-lkl";
-    rev = "a4fc0cc6fea39f30d33783e55626afbff3c7a871";
-    sha256 = "1d7dj7gdzyn3rp7achkr8ar29pg0lijh7m7yd1n26gkbvqljrahp";
+    rev = "9a068b198224134e77d590b046acdb16df9ba500";
+    sha256 = "07wyi4bmwkb4cjqjnc8k7jajp3ai75cjq1cfb4kw04i0swyxy8fm";
   };
 
   KBUILD_BUILD_HOST = "nix";
