@@ -265,7 +265,7 @@ uninstall:
 	rm -f $(PREFIX)/bin/sgx-lkl-disk
 
 clean:
-	rm -rf ${BUILD_DIR}
+	+rm -rf "${BUILD_DIR}" "${X86_MODULE_DIR}"
 	+${MAKE} -C ${HOST_MUSL} distclean || true
 	+${MAKE} -C ${SGX_LKL_MUSL} distclean || true
 	+${MAKE} -C ${LKL} clean || true
