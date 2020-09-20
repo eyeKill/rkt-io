@@ -317,6 +317,11 @@ in {
     command = [ "bin/ip" "a" ];
   };
 
+  tc= runImage {
+    pkg = busybox;
+    command = [ "bin/tc" "qdisc" ];
+  };
+
   ping = runImage {
     pkg = busybox;
     command = [ "bin/ping" "10.0.42.1" ];
