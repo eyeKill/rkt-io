@@ -151,6 +151,11 @@ typedef struct enclave_config {
     uint32_t x86_capabilities[X86NCAPINTS];
     uint64_t x86_xfeature_mask;
     int use_x86_acc;
+    int xts_proxy;
+    int gso_offload;
+    int chksum_offload;
+    int dpdk_zerocopy;
+    int spdk_zerocopy;
     int verbose;
     int kernel_verbose;
     char *kernel_cmd;

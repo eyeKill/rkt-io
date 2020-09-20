@@ -1872,6 +1872,11 @@ int main(int argc, char *argv[], char *envp[]) {
                      (!strcmp(mmap_files, "Private") ? ENCLAVE_MMAP_FILES_PRIVATE :
                      ENCLAVE_MMAP_FILES_NONE);
     encl.use_x86_acc = sgxlkl_config_bool(SGXLKL_X86_ACC);
+    encl.xts_proxy = sgxlkl_config_bool(SGXLKL_XTS_PROXY);
+    encl.gso_offload = sgxlkl_config_bool(SGXLKL_GSO_OFFLOAD);
+    encl.chksum_offload = sgxlkl_config_bool(SGXLKL_CHKSUM_OFFLOAD);
+    encl.dpdk_zerocopy = sgxlkl_config_bool(SGXLKL_DPDK_ZEROCOPY);
+    encl.spdk_zerocopy = sgxlkl_config_bool(SGXLKL_SPDK_ZEROCOPY);
     set_sysconf_params(&encl, ntenclave);
     set_clock_res(&encl);
     set_cpu_info(&encl);

@@ -1042,12 +1042,15 @@ void load_x86_kernel_modules(void) {
 
     const struct kmod_struct xtsproxy = {"xtsproxy.ko",             _binary_lkl_x86mods_xtsproxy_ko_start,         (size_t) (_binary_lkl_x86mods_xtsproxy_ko_end - _binary_lkl_x86mods_xtsproxy_ko_start)};
 
-    if(sgxlkl_xts_proxy) {
+    if (sgxlkl_xts_proxy) {
         if (init_module(xtsproxy.addr, xtsproxy.size, "") != 0) {
+            int printf(const char* f,...); printf("%s() at %s:%d\n", __func__, __FILE__, __LINE__); __asm__("int3; nop" ::: "memory");
             SGXLKL_VERBOSE("Failed to load kernel module %s: %s\n", xtsproxy.name, strerror(errno));
         } else {
             SGXLKL_VERBOSE("Successfully loaded kernel module %s\n", xtsproxy.name);
         }
+    } else {
+            SGXLKL_VERBOSE("Skip loading %s\n", xtsproxy.name);
     }
 }
 #endif /* X86MODULES */
@@ -1080,20 +1083,11 @@ void lkl_start_init(enclave_config_t* encl) {
     if (getenv_bool("SGXLKL_TRACE_THREAD", 0))
         sgxlkl_trace_thread = 1;
 
-    if (getenv_bool("SGXLKL_XTS_PROXY", 0))
-	sgxlkl_xts_proxy = 1;
-
-    if (getenv_bool("SGXLKL_GSO_OFFLOAD", 0))
-	sgxlkl_gso_offload = 1;
-
-    if (getenv_bool("SGXLKL_CHKSUM_OFFLOAD", 0))
-	sgxlkl_chksum_offload = 1;
-
-    if (getenv_bool("SGXLKL_DPDK_ZEROCOPY", 0))
-	sgxlkl_dpdk_zerocopy = 1;
-
-    if (getenv_bool("SGXLKL_SPDK_ZEROCOPY", 0))
-	sgxlkl_spdk_zerocopy = 1;
+    sgxlkl_xts_proxy = encl->xts_proxy;
+    sgxlkl_gso_offload = encl->gso_offload;
+    sgxlkl_chksum_offload = encl->chksum_offload;
+    sgxlkl_dpdk_zerocopy = encl->dpdk_zerocopy;
+    sgxlkl_spdk_zerocopy = encl->spdk_zerocopy;
 
     if (encl->hostnet)
         sgxlkl_use_host_network = 1;
