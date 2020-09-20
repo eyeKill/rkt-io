@@ -454,7 +454,7 @@ class LogSyscallTids(gdb.Command):
         for i in range(0, maxsyscalls):
             if int(gdb.execute('p (int)slotlthreads[%d]'%i, to_string=True).split('=')[1].strip()) != 0:
                 tid = int(gdb.execute('p slotlthreads[%d]->tid'%i, to_string=True).split('=')[1].strip())
-                slot_tids[i] = tid
+                slot_tids[i] = hex(tid)
 
         return slot_tids
 
@@ -470,7 +470,7 @@ class LogSyscallTids(gdb.Command):
             slot = int(gdb.execute('p ((int)__%s_queue->buffer[%d & %d].data)'%(queue, i, buffer_mask), to_string=True).split('=')[1].strip())
             if int(gdb.execute('p (int)slotlthreads[%d]'%slot, to_string=True).split('=')[1].strip()) != 0:
                 tid = int(gdb.execute('p slotlthreads[%d]->tid'%slot, to_string=True).split('=')[1].strip())
-                tids.append(tid)
+                tids.append(hex(tid))
             else:
                 gdb.write('\nNo lthread found for queue slot %d in slotlthreads\n'%slot)
 
@@ -482,7 +482,7 @@ class LogSyscallTids(gdb.Command):
         for i in range(0, maxsyscalls):
             if int(gdb.execute('p (int)slotlthreads[%d]'%i, to_string=True).split('=')[1].strip()) != 0:
                 sno = int(gdb.execute('p S[%d].syscallno'%i, to_string=True).split('=')[1].strip())
-                slot_syscallnos[i] = sno
+                slot_syscallnos[i] = hex(sno)
 
         return slot_syscallnos
 
