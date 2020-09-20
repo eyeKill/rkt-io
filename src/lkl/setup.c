@@ -1188,7 +1188,7 @@ void lkl_start_init(enclave_config_t* encl) {
     spdk_context = encl->spdk_context;
 
     // Set up wireguard
-    init_wireguard(encl);
+    //init_wireguard(encl);
 
     // Set hostname (provided through SGXLKL_HOSTNAME)
     sethostname(encl->hostname, strlen(encl->hostname));
