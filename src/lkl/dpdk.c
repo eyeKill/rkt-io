@@ -16,11 +16,26 @@
 #include "lthread_int.h"
 #include "pcap.h"
 #include "sgx_enclave_config.h"
+#include "ping.h"
 
 #include "sgx_hostcalls.h"
 
 unsigned long dpdk_dma_memory_start = 0;
 unsigned long dpdk_dma_memory_end = 0;
+
+int i40_clean_queue(int port_id, int queue_id);
+void i40_print_queue_status(int port_id, int queue_id);
+
+int run_dpdk_bench(struct enclave_dpdk_config *config) {
+    int portid = config->portid;
+    struct rte_mempool *txpool = config->txpool;
+    for (unsigned i = 0; i < 511; i++) {
+        send_ping(portid, txpool);
+        i40_clean_queue(portid, 0);
+        i40_print_queue_status(portid, 0);
+        int printf(const char* f,...); printf("%s() at %s:%d\n", __func__, __FILE__, __LINE__); __asm__("int3; nop" ::: "memory");
+    }
+}
 
 int sgxlkl_register_dpdk_device(struct enclave_dpdk_config *config) {
     struct lkl_ifreq ifr;
@@ -28,6 +43,9 @@ int sgxlkl_register_dpdk_device(struct enclave_dpdk_config *config) {
     struct dpdk_dev dev = {};
     dev.portid = config->portid;
     dev.txpool = config->txpool;
+
+    //run_dpdk_bench(config);
+    //return -1;
 
     fd = lkl_sys_open("/dev/dpdk-control", LKL_O_RDONLY, 0);
 

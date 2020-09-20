@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <sys/sysinfo.h>
 
 #include <rte_ethdev.h>
 #include <rte_log.h>
@@ -21,15 +22,20 @@ int main(int argc, char **argv) {
     int uid = atoi(argv[3]);
     int exitcode = 0;
     char *mtustr = getenv("SGXLKL_DPDK_MTU");
-    char *queues_str = getenv("SGXLKL_DPDK_RX_QUEUES");
+    char *rx_queues_str = getenv("SGXLKL_DPDK_RX_QUEUES");
+    char *ethreads_str = getenv("SGXLKL_ETHREADS");
     int mtu = 1500;
     size_t rx_queues = 1;
+    size_t tx_queues = get_nprocs();
 
     if (mtustr) {
         mtu = atoi(mtustr);
     }
-    if (queues_str) {
-        rx_queues = atoi(queues_str);
+    if (rx_queues_str) {
+        rx_queues = atoi(rx_queues_str);
+    }
+    if (ethreads_str) {
+        tx_queues = atoi(ethreads_str);
     }
 
     // create files with world-writeable permissions (i.e. in /dev/hugepages)
@@ -45,7 +51,7 @@ int main(int argc, char **argv) {
 
     size_t port_num = rte_eth_dev_count_avail();
     for (int portid = 0; portid < port_num; portid++) {
-        int r = setup_iface(portid, mtu, rx_queues);
+        int r = setup_iface(portid, mtu, tx_queues, rx_queues);
         if (r < 0) {
             goto error;
         }

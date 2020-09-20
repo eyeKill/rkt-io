@@ -115,7 +115,7 @@ int enable_symmetric_rxhash(int port_id) {
   return r;
 }
 
-int setup_iface(int portid, size_t mtu, size_t queues) {
+int setup_iface(int portid, size_t mtu, size_t tx_queues, size_t rx_queues) {
   int ret = 0;
   struct rte_eth_link link;
   struct rte_eth_dev_info dev_info;
@@ -148,7 +148,7 @@ int setup_iface(int portid, size_t mtu, size_t queues) {
     return -ENOSYS;
   }
 
-  ret = rte_eth_dev_configure(portid, queues, queues, &port_conf);
+  ret = rte_eth_dev_configure(portid, rx_queues, tx_queues, &port_conf);
   if (ret < 0) {
     fprintf(stderr, "dpdk: failed to configure port: %s\n", rte_strerror(-ret));
     return ret;
@@ -167,9 +167,10 @@ int setup_iface(int portid, size_t mtu, size_t queues) {
   }
 
   dev_info.default_rxconf.offloads = 0;
+  dev_info.default_txconf.tx_rs_thresh = 8;
   dev_info.default_txconf.offloads = 0;
 
-  for (unsigned i = 0; i < queues; i++) {
+  for (unsigned i = 0; i < rx_queues; i++) {
     snprintf(poolname, RTE_MEMZONE_NAMESIZE, "rx-%u-%s", i, ifparams);
     struct rte_mempool *rxpool = rte_mempool_create(poolname,
                                                     DPDK_MBUF_NUM,
@@ -189,7 +190,7 @@ int setup_iface(int portid, size_t mtu, size_t queues) {
     }
   }
 
-  for (unsigned i = 0; i < queues; i++) {
+  for (unsigned i = 0; i < tx_queues; i++) {
     ret = rte_eth_tx_queue_setup(portid, i, DPDK_NUMDESC, 0, &dev_info.default_txconf);
     if (ret < 0) {
       fprintf(stderr, "dpdk: failed to setup tx queue %u: %s\n", i, rte_strerror(-ret));
