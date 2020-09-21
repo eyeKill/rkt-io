@@ -5,7 +5,7 @@ import seaborn as sns # type: ignore
 from typing import Any
 
 mpl.use("Agg")
-mpl.rcParams["text.latex.preamble"] = [r"\usepackage{amsmath}"]
+mpl.rcParams["text.latex.preamble"] = r"\usepackage{amsmath}"
 mpl.rcParams["pdf.fonttype"] = 42
 mpl.rcParams["ps.fonttype"] = 42
 
