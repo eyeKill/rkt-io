@@ -4,6 +4,7 @@ import sys
 import json
 import subprocess
 import time
+import signal
 from typing import Any, Dict, List
 
 import pandas as pd
@@ -107,6 +108,9 @@ class Benchmark():
         local_iperf = nix_build(attr)
 
         self._run(local_iperf, "send", system, stats, extra_env)
+        if system == "sgx-io":  # give sgx-lkl-userpci time to shutdown
+            import time
+            time.sleep(5)
         self._run(local_iperf, "receive", system, stats, extra_env)
 
 
