@@ -189,12 +189,12 @@ def create_settings() -> Settings:
 
     remote_dpdk_ip = os.environ.get("REMOTE_DPDK_IP4", "10.0.42.2")
     if not remote_dpdk_ip:
-        print("REMOTE_DPDK_IP not set", file=sys.stderr)
+        print("REMOTE_DPDK_IP4 not set", file=sys.stderr)
         sys.exit(1)
 
     remote_dpdk_ip6 = os.environ.get("REMOTE_DPDK_IP6", "fdbf:9188:5fbd:a895::1")
     if not remote_dpdk_ip:
-        print("REMOTE_DPDK_IP not set", file=sys.stderr)
+        print("REMOTE_DPDK_IP6 not set", file=sys.stderr)
         sys.exit(1)
 
     nic_pci_id = os.environ.get("NIC_PCI_ID")
