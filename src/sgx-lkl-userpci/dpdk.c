@@ -168,6 +168,7 @@ int setup_iface(int portid, size_t mtu, size_t rx_queues) {
 
     dev_info.default_rxconf.offloads = 0;
     dev_info.default_txconf.offloads = 0;
+    dev_info.default_txconf.tx_rs_thresh = 16;
 
     for (unsigned i = 0; i < rx_queues; i++) {
       snprintf(poolname, RTE_MEMZONE_NAMESIZE, "rx-%u-%s", i, ifparams);
