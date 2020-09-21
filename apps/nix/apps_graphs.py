@@ -15,6 +15,8 @@ COLUMN_ALIASES: Dict[str, str] = {
     "sqlite-op-type": "Operation",
 }
 
+hatch_list = ['', '-', '\\', '+']
+
 def catplot(**kwargs) -> Any:
     g = sns.catplot(**kwargs)
     g.despine(top=False, right=False)
@@ -39,8 +41,12 @@ def df_col_select(res_col:List[str], df_columns: List[str], keyword: str) -> Non
 def apply_sqlite_rows(x: int) -> float:
     return 10000/x
 
+def apply_hatch(groups: int, g: Any) -> None:
+    for i, bar in enumerate(g.ax.patches):
+        hatch = hatch_list[int(i/groups)]
+        bar.set_hatch(hatch)
+
 def sqlite_graph(df: pd.DataFrame) -> Any:
-    breakpoint()
     plot_df = df
     df = df[df.columns[2]]
     df = df.map(apply_sqlite_rows)
@@ -53,6 +59,8 @@ def sqlite_graph(df: pd.DataFrame) -> Any:
             "10000 DELETEs of individual rows": "Delete",
         }
     )
+
+    groups = len(set((list(plot_df["system"].values))))
     plot_df = apply_aliases(plot_df)
 
     g = catplot(
@@ -64,6 +72,9 @@ def sqlite_graph(df: pd.DataFrame) -> Any:
             aspect=1.2,
             hue="Operation"
         )
+
+    apply_hatch(groups, g)
+
     return g
 
 def nginx_graph(df: pd.DataFrame, metric: str) -> Any:
