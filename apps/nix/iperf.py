@@ -92,6 +92,12 @@ class Benchmark():
 
             parallel_iperf = self.parallel_iperf.run("bin/parallel-iperf", ["1", iperf] + iperf_args)
             _postprocess_iperf(json.loads(parallel_iperf.stdout), direction, system, stats)
+            iperf_server.send_signal(signal.SIGINT)
+            try:
+                iperf_server.wait(timeout=3)
+            except subprocess.TimeoutExpired:
+                iperf_server.send_signal(signal.SIGKILL)
+                iperf_server.wait()
 
     def run(self,
             attr: str,
