@@ -89,12 +89,11 @@ let
   };
 
   fio = pkgsMusl.fio.overrideAttrs (old: {
-    #src = ./fio-src;
     src = fetchFromGitHub {
       owner = "Mic92";
       repo = "fio";
-      rev = "80c4216296144a4eb38cbaa0dae441f261a30c92";
-      sha256 = "0843wjaj88kxp4di9j2q2dj7j085bxqhvjn9iw5ab15swc9i7din";
+      rev = "c0dfe40ba805153685e23bfd257d6db7e722088b";
+      sha256 = "0ikjkd1b258lvwv4ay3chksd7qbnnlmp80p15jcaw1czzjg4fzsr";
     };
     patches = (old.patches or []) ++ [
       ./fio-pool-size.patch
