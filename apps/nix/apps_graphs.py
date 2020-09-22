@@ -8,14 +8,14 @@ SYSTEM_ALIASES: Dict[str, str] = {}
 ROW_ALIASES = dict(system=SYSTEM_ALIASES)
 COLUMN_ALIASES: Dict[str, str] = {
     "sqlite-time [s]": "Transactions per second",
-    "lat_avg": "Latency [ms]",
+    "lat_avg(ms)": "Latency [ms]",
     "req_sec_tot": "Requests/sec",
-    "Throughput(ops/sec)": "Throughput",
-    "AverageLatency(ms)": "Latency [ms]",
+    "Throughput(ops/sec)": "Throughput [ops/sec]",
+    "AverageLatency(us)": "Latency [us]",
     "sqlite-op-type": "Operation",
 }
 
-hatch_list = ['', '-', '\\', '+']
+hatch_list = ['', '///', '---', '+']
 
 def catplot(**kwargs) -> Any:
     g = sns.catplot(**kwargs)
@@ -41,10 +41,18 @@ def df_col_select(res_col:List[str], df_columns: List[str], keyword: str) -> Non
 def apply_sqlite_rows(x: int) -> float:
     return 10000/x
 
-def apply_hatch(groups: int, g: Any) -> None:
-    for i, bar in enumerate(g.ax.patches):
-        hatch = hatch_list[int(i/groups)]
-        bar.set_hatch(hatch)
+def apply_hatch(groups: int, g: Any, legend:bool) -> None:
+    if len(g.ax.patches) == groups:
+        for i, bar in enumerate(g.ax.patches):
+            hatch = hatch_list[i]
+            bar.set_hatch(hatch)
+    else:
+        for i, bar in enumerate(g.ax.patches):
+            hatch = hatch_list[int(i/groups)]
+            bar.set_hatch(hatch)
+    if legend:
+        g.ax.legend(loc='best', fontsize='small')
+    #g.ax.set_edgecolor('k')
 
 def sqlite_graph(df: pd.DataFrame) -> Any:
     plot_df = df
@@ -69,11 +77,13 @@ def sqlite_graph(df: pd.DataFrame) -> Any:
             y=plot_df.columns[2],
             kind="bar",
             height=2.5,
-            aspect=1.2,
-            hue="Operation"
+            #aspect=0.8,
+            hue="Operation",
+            legend=False,
+            palette="Greys"
         )
 
-    apply_hatch(groups, g)
+    apply_hatch(groups, g, True)
 
     return g
 
@@ -81,11 +91,12 @@ def nginx_graph(df: pd.DataFrame, metric: str) -> Any:
     plot_col = ["system"]
 
     if metric == "lat":
-        plot_col.append("lat_avg")
+        plot_col.append("lat_avg(ms)")
     elif metric == "thru":
         plot_col.append("req_sec_tot")
 
     plot_df = df[plot_col]
+    groups = len(set((list(plot_df["system"].values))))
     plot_df = apply_aliases(plot_df)
 
     g = catplot(
@@ -94,24 +105,29 @@ def nginx_graph(df: pd.DataFrame, metric: str) -> Any:
             y=plot_df.columns[1],
             kind="bar",
             height=2.5,
-            aspect=1.2,
+            #aspect=1.2,
         )
+    apply_hatch(groups, g, False)
     return g
 
 def redis_graph(df: pd.DataFrame, metric: str) -> Any:
     df_flag = None
     hue = None
     col_name = None
+    legend = False
 
     if metric == "thru":
         df_flag = (df["metric"] == "Throughput(ops/sec)")
         col_name = "Throughput(ops/sec)"
+        legend = False
     elif metric == "lat":
-        df_flag = (df["metric"] == "AverageLatency(ms)")
-        col_name = "AverageLatency(ms)"
+        df_flag = ((df["metric"] == "AverageLatency(us)") & (df["operation"] != "[CLEANUP]"))
+        col_name = "AverageLatency(us)"
         hue = "operation"
+        legend = True
 
     plot_df = df[df_flag]
+    groups = len(set((list(plot_df["system"].values))))
     plot_df = plot_df.drop(["metric"], axis=1)
     plot_df = plot_df.rename(columns={"value":col_name})
     plot_df = apply_aliases(plot_df)
@@ -123,8 +139,11 @@ def redis_graph(df: pd.DataFrame, metric: str) -> Any:
             hue=hue,
             kind="bar",
             height=2.5,
-            aspect=1.2,
+            #aspect=1.2,
+            legend=False,
         )
+
+    apply_hatch(groups, g, legend)
     return g
 
 
