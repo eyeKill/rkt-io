@@ -1,6 +1,8 @@
 { stdenv, fetchFromGitHub
 , enableStatic ? false
 , enableGraphene ? false
+, openssl
+, pkg-config
 }:
 stdenv.mkDerivation {
   name = "iperf-3.7";
@@ -8,13 +10,21 @@ stdenv.mkDerivation {
   src = fetchFromGitHub {
     owner = "Mic92";
     repo = "iperf-3.7";
-    rev = "47cf215e90a6809952b4a618be08852a5c3d4433";
-    sha256 = "1796ldhmfpxrg206c12yhhpbx9p3rpc0sg9igln24w1dgms3yy7i";
+    rev = "3ff810a4ab2939454e5c812b4a7218a1cdda2136";
+    sha256 = "081ppw2swjz75zzar3ddn0hsvh6jdig65jhj18jk5xpnvjx58kqj";
   };
+  buildInputs = [
+    (openssl.override {
+      stdenv = stdenv;
+      static = enableStatic;
+    })
+  ];
+  nativeBuildInputs = [ pkg-config ];
   iperf3_cv_header_tcp_congestion = "no";
   configureFlags = [ "--disable-profiling" ] ++ stdenv.lib.optionals (enableStatic) [
     "--disable-shared"
     "--enable-static"
   ];
-  NIX_CFLAGS_COMPILE = "-pthread";
+ 
+  NIX_CFLAGS_COMPILE = stdenv.lib.optionalString stdenv.cc.isGNU "-pthread";
 }
