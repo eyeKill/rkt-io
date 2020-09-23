@@ -56,7 +56,7 @@ buildImage {
       thread
 
       [file1]
-      size=2G
+      size=40G
       iodepth=16
     '';
     "fio-seq-RW.job" = ''
