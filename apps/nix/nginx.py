@@ -63,7 +63,7 @@ class Benchmark:
 
             wrk_connections = 400
             wrk_proc = self.remote_wrk.run(
-                "bin/wrk", ["-t", "12", "-c", f"{wrk_connections}", "-d", "30s", f"http://{host}:9000"]
+                "bin/wrk", ["-t", "12", "-c", f"{wrk_connections}", "-d", "30s", f"https://{host}:9000"]
             )
             process_wrk_output(wrk_proc.stdout, system, stats, wrk_connections)
 

@@ -188,6 +188,7 @@ let
     configureFlags = [
       "--with-file-aio"
       "--with-threads"
+      "--with-http_ssl_module"
       "--http-log-path=/proc/self/cwd/nginx/access.log"
       "--error-log-path=/proc/self/cwd/nginx/error.log"
       "--pid-path=/proc/self/cwd/nginx/nginx.pid"
