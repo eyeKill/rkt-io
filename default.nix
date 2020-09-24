@@ -152,6 +152,8 @@ in (overrideCC stdenv gcc_nolibc).mkDerivation {
     protobufc
     protobuf
   ];
+  # this might need to adapt to the actual CPU. this works well on i9-9900K CPU @ 3.60GHz
+  OPENSSL_ia32cap = "0x5640020247880000:0x40128";
 
   buildInputs = [
     #(cryptsetup.overrideAttrs (old: {
@@ -181,8 +183,8 @@ in (overrideCC stdenv gcc_nolibc).mkDerivation {
   SGXLKL_KERNEL_VERBOSE = 1;
   SGXLKL_VERBOSE = 1;
   SCONE_HEAP = "1G";
-  SCONE_SSPINS = 10000;
-  SCONE_CONFIG = toString ./apps/nix/scone/sgx-musl.conf;
+  #SCONE_SSPINS = 10000;
+  #SCONE_CONFIG = toString ./apps/nix/scone/sgx-musl.conf;
 
   shellHook = ''
     export DOCKER_HOST=unix://$PWD/.docker/docker.sock
