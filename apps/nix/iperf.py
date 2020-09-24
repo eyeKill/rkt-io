@@ -5,6 +5,7 @@ import json
 import subprocess
 import time
 import signal
+from functools import lru_cache
 from typing import Any, Dict, List
 
 import pandas as pd
@@ -16,7 +17,8 @@ from helpers import (
     create_settings,
     flamegraph_env,
     nix_build,
-    spawn
+    spawn,
+    RemoteCommand
 )
 from network import Network, NetworkKind, setup_remote_network
 
@@ -52,6 +54,12 @@ def _postprocess_iperf(
             stats["direction"].append(direction)
 
 
+@lru_cache(maxsize=1)
+def nc_command(settings: Settings) -> RemoteCommand:
+    path = nix_build("netcat-native")
+    return settings.remote_command(path)
+
+
 class Benchmark():
     def __init__(self, settings: Settings):
         self.settings = settings
@@ -74,21 +82,16 @@ class Benchmark():
         with spawn(local_iperf, extra_env=env) as iperf_server:
             while True:
                 try:
-                    self.iperf_client.run("bin/iperf3", [
-                        "-c",
-                        self.settings.local_dpdk_ip,
-                        "-n",
-                        "1024",
-                        "--connect-timeout",
-                        "3",
-                    ])
+                    nc_command(self.settings).run(
+                        "bin/nc", ["-w1", "-z", "-v", self.settings.local_dpdk_ip, "5201"]
+                    )
                     break
                 except subprocess.CalledProcessError:
-                    status = iperf_server.poll()
-                    time.sleep(1)
-
+                    pass
+                status = iperf_server.poll()
                 if status is not None:
                     raise OSError(f"iperf exiteded with {status}")
+                time.sleep(1)
 
             iperf_args = ["client", "-c", self.settings.local_dpdk_ip, "--json", "-t", "10"]
             if direction == "send":
