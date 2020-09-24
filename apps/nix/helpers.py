@@ -91,8 +91,13 @@ class RemoteCommand:
     def run(
         self, exe: str, args: List[str], extra_env: Dict[str, str] = {}
     ) -> subprocess.CompletedProcess:
-        cmd = ["ssh", self.ssh_host, "--", os.path.join(self.nix_path, exe)] + args
-        return run(cmd, extra_env=extra_env)
+
+        cmd = ["ssh", self.ssh_host, "--", "env"]
+        for k, v in extra_env.items():
+            cmd.append(f"{k}={v}")
+        cmd.append(os.path.join(self.nix_path, exe))
+        cmd += args
+        return run(cmd)
 
 
 @dataclass(frozen=True)

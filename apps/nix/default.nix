@@ -338,12 +338,12 @@ in {
     ];
     installPhase = ''
       install -D -m755 $src $out/bin/parallel-iperf
-      ln -s ${pkgsMusl.iperf}/bin/iperf $out/bin/iperf
+      ln -s ${pkgsMusl.iperf3}/bin/iperf $out/bin/iperf
       patchPythonScript $out/bin/parallel-iperf
     '';
   };
 
-  iperf-client = pkgsMusl.iperf;
+  iperf-client = iperf3;
 
   iproute = runImage {
     pkg = pkgsMusl.iproute;

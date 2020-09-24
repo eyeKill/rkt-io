@@ -15,7 +15,7 @@ let
   image = buildImage {
     inherit pkg extraFiles extraCommands debugSymbols diskSize;
   };
-in writeScript "run-lkl" ''
+in (writeScript "run-lkl" ''
   #!/usr/bin/env bash
 
   set -xeu -o pipefail
@@ -36,4 +36,6 @@ in writeScript "run-lkl" ''
   '' else ""}
 
   exec ${python3.interpreter} ${./run-image.py} ${sgx-lkl-run} ${if native then "NONE" else image} ${toString interpreter} ${image.pkg}/$cmd "$@"
-''
+'').overrideAttrs (old: {
+  passthru.pkg = pkg;
+})

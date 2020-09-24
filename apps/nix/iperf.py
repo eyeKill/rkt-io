@@ -69,6 +69,8 @@ class Benchmark():
         env = extra_env.copy()
         env.update(flamegraph_env(f"iperf-{direction}-{system}-{NOW}"))
         iperf = f"{self.iperf_client.nix_path}/bin/iperf3"
+        fast_ssl = dict(OPENSSL_ia32cap="0x5640020247880000:0x40128")
+        env.update(fast_ssl)
         with spawn(local_iperf, extra_env=env) as iperf_server:
             while True:
                 try:
@@ -84,14 +86,15 @@ class Benchmark():
                 except subprocess.CalledProcessError:
                     status = iperf_server.poll()
                     time.sleep(1)
+
                 if status is not None:
                     raise OSError(f"iperf exiteded with {status}")
 
-            iperf_args = ["-c", self.settings.local_dpdk_ip, "--json", "-t", "10"]
+            iperf_args = ["client", "-c", self.settings.local_dpdk_ip, "--json", "-t", "10"]
             if direction == "send":
                 iperf_args += ["-R"]
 
-            parallel_iperf = self.parallel_iperf.run("bin/parallel-iperf", ["1", iperf] + iperf_args)
+            parallel_iperf = self.parallel_iperf.run("bin/parallel-iperf", ["1", iperf] + iperf_args, extra_env=fast_ssl)
             _postprocess_iperf(json.loads(parallel_iperf.stdout), direction, system, stats)
             iperf_server.send_signal(signal.SIGINT)
             try:
