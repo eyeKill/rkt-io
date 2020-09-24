@@ -46,8 +46,8 @@ let
   redis = pkgsMusl.redis.overrideAttrs (old: {
     name = "redis-6.0.6";
     buildInputs = [ ]; # no lua/systemd
-    nativeBuildInputs = [ pkgsMusl.pkg-config ];
-    makeFlags = [ "MALLOC=libc" "PREFIX=$(out)" ];
+    nativeBuildInputs = [ pkgsMusl.pkg-config openssl ];
+    makeFlags = [ "MALLOC=libc" "PREFIX=$(out)" "BUILD_TLS=yes" ];
     src = pkgsMusl.fetchurl {
       url = "http://download.redis.io/releases/redis-6.0.6.tar.gz";
       sha256 = "151x6qicmrmlxkmiwi2vdq8p50d52b9gglp8csag6pmgcfqlkb8j";
