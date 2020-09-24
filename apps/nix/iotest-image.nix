@@ -116,6 +116,9 @@ buildImage {
       [mysqld]
       user=root
       datadir=${mysqlDatadir}
+      ssl_ca=/proc/self/cwd/ca.crt
+      ssl_cert=/proc/self/cwd/server.cert
+      ssl_key=/proc/self/cwd/server.key
     '';
     "/etc/resolv.conf" = "";
     "/etc/services" = "${iana-etc}/etc/services";

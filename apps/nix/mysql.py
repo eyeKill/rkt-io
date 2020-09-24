@@ -96,6 +96,7 @@ class Benchmark:
                 "--mysql-db=root",
                 "--mysql-user=root",
                 "--mysql-password=root",
+                "--mysql-ssl=on",
                 f"{sysbench.nix_path}/share/sysbench/oltp_read_write.lua",
             ]
 
@@ -148,8 +149,8 @@ def main() -> None:
 
     benchmarks = {
         "native": benchmark_native,
-        "sgx-io": benchmark_sgx_io,
         "sgx-lkl": benchmark_sgx_lkl,
+        "sgx-io": benchmark_sgx_io,
     }
 
     setup_remote_network(settings)
