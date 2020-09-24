@@ -2,6 +2,7 @@
 #include "linux/types.h"
 #include "sgx_enclave_config.h"
 
+#ifdef SGXLKL_HW
 static int check_address(uintptr_t addr) {
     uintptr_t start = get_enclave_parms()->base;
     uintptr_t end = start + get_enclave_parms()->heap_size;
@@ -61,3 +62,6 @@ void lthread_print_backtrace(void) {
     }
     puts("\n");
 }
+#else
+void lthread_print_backtrace(void) {}
+#endif
