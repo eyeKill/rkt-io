@@ -883,6 +883,9 @@ void lkl_start_init(enclave_config_t* encl) {
 
     // Set hostname (provided through SGXLKL_HOSTNAME)
     sethostname(encl->hostname, strlen(encl->hostname));
+
+    extern int sgx_syscalls_always_sync;
+    sgx_syscalls_always_sync = encl->wait_on_all_host_calls;
 }
 
 /* Requires starttime to be higher or equal to endtime */

@@ -23,7 +23,7 @@
 #include "sgx_hostcall_interface.h"
 #include "sgxlkl_util.h"
 
-static int always_sync = 0;
+int sgx_syscalls_always_sync = 0;
 static int exit_on_host_calls = 0;
 
 static syscall_t* S;
@@ -116,7 +116,7 @@ syscall_t *getsyscallslot(Arena **a) {
 }
 
 int hostsyscallclient_init(enclave_config_t *encl) {
-    always_sync = encl->wait_on_all_host_calls;
+    sgx_syscalls_always_sync = encl->wait_on_all_host_calls;
     exit_on_host_calls = encl->exit_on_host_calls;
     S = encl->syscallpage;
     maxsyscalls = encl->maxsyscalls;
@@ -145,7 +145,7 @@ void threadswitch(syscall_t *sc) {
     union {size_t s; void *a;} slot;
     slot.s = sch->current_syscallslot;
     struct lthread *lt = sch->current_lthread;
-    if (!always_sync && lt != NULL && !(lt->attr.state & BIT(LT_ST_PINNED)) ) {
+    if (!sgx_syscalls_always_sync && lt != NULL && !(lt->attr.state & BIT(LT_ST_PINNED)) ) {
         /* avoid race condition -- another worker can pick up this thread while it's running on
            current worker */
         _lthread_yield_cb(lt, submitsc, slot.a);
