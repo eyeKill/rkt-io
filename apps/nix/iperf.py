@@ -79,7 +79,7 @@ class Benchmark():
         iperf = f"{self.iperf_client.nix_path}/bin/iperf3"
         fast_ssl = dict(OPENSSL_ia32cap="0x5640020247880000:0x40128")
         env.update(fast_ssl)
-        with spawn(local_iperf, extra_env=env) as iperf_server:
+        with spawn(local_iperf, "bin/iperf3", "1", extra_env=env) as iperf_server:
             while True:
                 try:
                     nc_command(self.settings).run(

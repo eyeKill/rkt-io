@@ -183,8 +183,8 @@ in (overrideCC stdenv gcc_nolibc).mkDerivation {
   SGXLKL_KERNEL_VERBOSE = 1;
   SGXLKL_VERBOSE = 1;
   SCONE_HEAP = "1G";
-  #SCONE_SSPINS = 10000;
-  #SCONE_CONFIG = toString ./apps/nix/scone/sgx-musl.conf;
+  SCONE_SSPINS = 10000;
+  SCONE_CONFIG = toString ./apps/nix/scone/sgx-musl.conf;
 
   shellHook = ''
     export DOCKER_HOST=unix://$PWD/.docker/docker.sock

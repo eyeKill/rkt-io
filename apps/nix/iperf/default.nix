@@ -10,8 +10,8 @@ stdenv.mkDerivation {
   src = fetchFromGitHub {
     owner = "Mic92";
     repo = "iperf-3.7";
-    rev = "3ff810a4ab2939454e5c812b4a7218a1cdda2136";
-    sha256 = "081ppw2swjz75zzar3ddn0hsvh6jdig65jhj18jk5xpnvjx58kqj";
+    rev = "d99abdfedc4ff70746a81e3eb2e20133a6478f77";
+    sha256 = "1cmfcbc87a3g0lafspqsw0sigw05506zqfq0cdhjckwyr1qx51l0";
   };
   buildInputs = [
     (openssl.override {
@@ -25,6 +25,4 @@ stdenv.mkDerivation {
     "--disable-shared"
     "--enable-static"
   ];
- 
-  NIX_CFLAGS_COMPILE = stdenv.lib.optionalString stdenv.cc.isGNU "-pthread";
 }
