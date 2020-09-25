@@ -36,16 +36,16 @@ class Benchmark:
 
         cmd = [str(simpleio), "bin/udp-send", self.settings.remote_dpdk_ip, "1000000"]
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, text=True, env=env)
-        proc.wait()
         assert proc.stdout is not None
-        result = proc.stdout.read()
-        print(result)
-        for line in result.split("\n"):
+        for line in proc.stdout:
+            print(line)
             if '"time": ' in line:
                 data = json.loads(line)
                 stats["system"].append(system)
                 stats["time"].append(data["time"])
                 return
+        proc.terminate()
+        proc.wait()
 
         raise Exception("no time found in results")
 
