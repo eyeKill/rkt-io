@@ -110,8 +110,8 @@ def main() -> None:
 
     benchmarks = {
         "native": benchmark_nginx_native,
-        "sgx-io": benchmark_nginx_sgx_io,
         "sgx-lkl": benchmark_nginx_sgx_lkl,
+        "sgx-io": benchmark_nginx_sgx_io,
     }
 
     system = set(stats["system"])
