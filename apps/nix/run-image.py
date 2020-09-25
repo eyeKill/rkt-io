@@ -139,7 +139,7 @@ def run(
         shutil.copyfile(image, tmp_fsimage)
         complete_cmd = debugger + [sgx_lkl_run, tmp_fsimage] + cmd
 
-    print(" ".join(complete_cmd))
+    print(" ".join(complete_cmd), file=sys.stderr)
     proc = subprocess.Popen(complete_cmd, env=env)
 
     def stop_proc(signum: Any, frame: Any) -> None:
