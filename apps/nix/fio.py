@@ -78,8 +78,8 @@ def benchmark_fio(
 
 
 def benchmark_native(storage: Storage, stats: Dict[str, List]) -> None:
-    mount = storage.setup(StorageKind.SCONE)
-    with storage.setup(StorageKind.NATIVE) as mnt:
+    mount = storage.setup(StorageKind.NATIVE)
+    with mount as mnt:
         benchmark_fio("native", "fio-native", mnt, stats, extra_env=mount.extra_env())
 
 
