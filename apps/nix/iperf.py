@@ -127,7 +127,7 @@ def benchmark_native(benchmark: Benchmark, stats: Dict[str, List[int]]) -> None:
 
 def benchmark_scone(benchmark: Benchmark, stats: Dict[str, List[int]]) -> None:
     extra_env = benchmark.network.setup(NetworkKind.NATIVE)
-    benchmark.run("iperf-scone", "native", stats, extra_env=extra_env)
+    benchmark.run("iperf-scone", "scone", stats, extra_env=extra_env)
 
 
 def benchmark_sgx_lkl(benchmark: Benchmark, stats: Dict[str, List[int]]) -> None:
