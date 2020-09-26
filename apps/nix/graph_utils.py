@@ -1,13 +1,18 @@
 #!/usr/bin/env python3
-from typing import Dict
+from typing import Dict, List
 import pandas as pd
 
 SYSTEM_ALIASES: Dict[str, str] = {
     "sgx-io": "rkt-io"
 }
-ROW_ALIASES = dict(system=SYSTEM_ALIASES)
+OPERATION_ALIASES: Dict[str, str] = {
+    "read-bw": "read",
+    "write-bw": "write",
+}
+ROW_ALIASES = dict(system=SYSTEM_ALIASES, operation=OPERATION_ALIASES)
 COLUMN_ALIASES: Dict[str, str] = {
     "throughput": "Throughput [GiB/s]",
+    "disk-throughput": "Throughput [MiB/s]",
     "SQL statistics read": "Read",
     "SQL statistics write": "Write",
     "Latency (ms) avg": "Latency [ms]",
@@ -25,18 +30,16 @@ COLUMN_ALIASES: Dict[str, str] = {
 }
 
 
-def sort_systems(df: pd.DataFrame) -> pd.DataFrame:
+def systems_order(df: pd.DataFrame) -> List[str]:
     priorities = {
         "native": 10,
         "sgx-lkl": 20,
         "scone": 30,
         "sgx-io": 40,
+        "rkt-io": 40,
     }
-
-    def apply_priority(col: pd.Series) -> pd.Series:
-        return col.map(lambda v: priorities.get(v, 100))
-
-    return df.sort_values(by='system', key=apply_priority)
+    systems = list(df.system.unique())
+    return sorted(systems, key=lambda v: priorities.get(v, 100))
 
 
 def column_alias(name: str) -> str:

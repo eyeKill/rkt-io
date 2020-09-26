@@ -4,55 +4,25 @@ import os
 
 import pandas as pd
 from typing import Any
-from plot import catplot, sns, plt, apply_hatch
-from graph_utils import apply_aliases, column_alias, sort_systems
+from plot import catplot, plt, apply_hatch
+from graph_utils import apply_aliases, column_alias, systems_order
 
 
-def fio_latency_graph(df: pd.DataFrame) -> Any:
-    g = sns.FacetGrid(
-        apply_aliases(df), row=column_alias("system"), col=column_alias("job")
-    )
-    g.map(plt.scatter, column_alias("clat_nsec"), column_alias("read_count"))
-    g.add_legend()
+def fio_read_write_graph(df: pd.DataFrame) -> Any:
+    df = pd.melt(df,
+                 id_vars=['system', 'job'],
+                 value_vars=['read-bw', 'write-bw'],
+                 var_name="operation",
+                 value_name="disk-throughput")
+    df = df.groupby(["system", "operation"]).sum().reset_index()
 
-    return g
-
-
-def fio_iops_graph(df: pd.DataFrame) -> Any:
-    df["iops"] = df["read-iops"] + df["write-iops"]
+    df["disk-throughput"] /= 1024
     g = catplot(
         data=apply_aliases(df),
         x=column_alias("system"),
-        y=column_alias("iops"),
-        hue=column_alias("job"),
-        kind="bar",
-        height=2.5,
-        aspect=1.2,
-    )
-
-    return g
-
-
-def fio_read_graph(df: pd.DataFrame) -> Any:
-    g = catplot(
-        data=apply_aliases(df),
-        x=column_alias("system"),
-        y=column_alias("read-io_bytes"),
-        hue=column_alias("job"),
-        kind="bar",
-        height=2.5,
-        aspect=1.2,
-    )
-
-    return g
-
-
-def fio_write_graph(df: pd.DataFrame) -> Any:
-    g = catplot(
-        data=apply_aliases(df),
-        x=column_alias("system"),
-        y=column_alias("write-io_bytes"),
-        hue=column_alias("job"),
+        y=column_alias("disk-throughput"),
+        hue=column_alias("operation"),
+        order=systems_order(df),
         kind="bar",
         height=2.5,
         aspect=1.2,
@@ -65,7 +35,6 @@ def iperf_graph(df: pd.DataFrame) -> Any:
     df = df[df["direction"] == "send"]
     df["throughput"] = df["bytes"] / df["seconds"] * 8 / 1e9
 
-    df = sort_systems(df)
     g = catplot(
         data=apply_aliases(df),
         x=column_alias("system"),
@@ -197,9 +166,9 @@ def main() -> None:
         basename = os.path.basename(arg)
 
         if basename.startswith("fio"):
-            graphs.append(("FIO-IOPS", fio_iops_graph(df)))
-            graphs.append(("FIO-READ", fio_read_graph(df)))
-            graphs.append(("FIO-WRITE", fio_write_graph(df)))
+            #graphs.append(("FIO-IOPS", fio_iops_graph(df)))
+            #graphs.append(("FIO-READ", fio_read_graph(df)))
+            graphs.append(("fio-read-write", fio_read_write_graph(df)))
         elif basename.startswith("mysql"):
             graphs.append(("MySQL-Reads", mysql_read_graph(df)))
             graphs.append(("MySQL-Writes", mysql_write_graph(df)))
