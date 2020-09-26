@@ -1,7 +1,7 @@
 # workaround to select Agg as backend consistenly
-import matplotlib as mpl # type: ignore
-import matplotlib.pyplot as plt # type: ignore
-import seaborn as sns # type: ignore
+import matplotlib as mpl  # type: ignore
+import matplotlib.pyplot as plt  # type: ignore
+import seaborn as sns  # type: ignore
 from typing import Any
 
 mpl.use("Agg")
@@ -16,7 +16,8 @@ sns.set_context(font_scale=1.5)
 sns.set_palette(sns.color_palette(palette="gray", n_colors=2))
 
 
-def catplot(**kwargs) -> Any:
+def catplot(**kwargs: Any) -> Any:
+    kwargs.setdefault("palette", "Greys")
     g = sns.catplot(**kwargs)
     g.despine(top=False, right=False)
     plt.autoscale()
@@ -24,7 +25,7 @@ def catplot(**kwargs) -> Any:
     return g
 
 
-def apply_hatch(groups: int, g: Any, legend:bool) -> None:
+def apply_hatch(groups: int, g: Any, legend: bool) -> None:
     hatch_list = ['', '///', '---', '+']
     if len(g.ax.patches) == groups:
         for i, bar in enumerate(g.ax.patches):
@@ -36,7 +37,6 @@ def apply_hatch(groups: int, g: Any, legend:bool) -> None:
             bar.set_hatch(hatch)
     if legend:
         g.ax.legend(loc='best', fontsize='small')
-    #g.ax.set_edgecolor('k')
 
 
 def rescale_barplot_width(ax: Any, factor: float=0.6) -> None:
