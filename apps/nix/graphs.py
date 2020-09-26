@@ -65,6 +65,7 @@ def iperf_graph(df: pd.DataFrame) -> Any:
     df = df[df["direction"] == "send"]
     df["throughput"] = df["bytes"] / df["seconds"] * 8 / 1e9
 
+    df = sort_systems(df)
     g = catplot(
         data=apply_aliases(df),
         x=column_alias("system"),
@@ -73,6 +74,8 @@ def iperf_graph(df: pd.DataFrame) -> Any:
         height=2.5,
         aspect=1.2,
     )
+    groups = len(set((list(df["system"].values))))
+    apply_hatch(groups, g, True)
     return g
 
 
@@ -202,7 +205,7 @@ def main() -> None:
             graphs.append(("MySQL-Writes", mysql_write_graph(df)))
             graphs.append(("MySQL-Latency", mysql_latency_graph(df)))
         elif basename.startswith("iperf"):
-            graphs.append(("Iperf", iperf_graph(df)))
+            graphs.append(("iperf", iperf_graph(df)))
         elif basename.startswith("hdparm"):
             graphs.append(("HDPARM-Cached", hdparm_graph(df, "cached")))
             graphs.append(("HDPARM-Buffered", hdparm_graph(df, "buffered")))
