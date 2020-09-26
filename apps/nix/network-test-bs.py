@@ -69,6 +69,7 @@ class Benchmark:
 
                 try:
                     local_proc.wait()
+                    assert local_proc.stdout
                     for line in local_proc.stdout:
                         data = json.loads(line)
                         stats["system"].append(system)
