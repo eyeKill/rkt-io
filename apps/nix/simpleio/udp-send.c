@@ -11,14 +11,15 @@ struct thread_ctx {
   pthread_t id;
   int socket;
   int packets;
+  int size;
   struct sockaddr_in addr;
 };
-char buf[10];
+char buf[1472];
 
 void *send_thread(void *_args) {
   struct thread_ctx *ctx = (struct thread_ctx*)_args;
   for (unsigned i = 0; i < ctx->packets; i++) {
-    int res = sendto(ctx->socket, buf, sizeof(buf), 0, (struct sockaddr *) &ctx->addr, sizeof(ctx->addr));
+    int res = sendto(ctx->socket, buf, ctx->size, 0, (struct sockaddr *) &ctx->addr, sizeof(ctx->addr));
     if (res == -1) {
       perror("sendto()");
       break;
@@ -58,26 +59,31 @@ int main(int argc, char** argv) {
     }
   }
 
+  unsigned sizes[6] = { 32, 128, 512, 1024, 1472, 0 };
   printf("<results>\n");
-  for (int threads = 1; threads <= PTHREAD_NUM; threads *= 2) {
-    clock_t start = clock();
-    for (unsigned i = 0; i < threads; i++) {
-      struct thread_ctx *ctx = &contexts[i];
-      ctx->packets = packets / threads;
-      pthread_create(&ctx->id, NULL, send_thread, ctx);
-    }
+  for (unsigned *size = sizes; *size; size++) {
+    for (unsigned threads = 1; threads <= PTHREAD_NUM; threads *= 2) {
+      clock_t start = clock();
+      for (unsigned i = 0; i < threads; i++) {
+        struct thread_ctx *ctx = &contexts[i];
+        ctx->packets = packets / threads;
+        ctx->size = *size;
+        pthread_create(&ctx->id, NULL, send_thread, ctx);
+      }
 
-    for (unsigned i = 0; i < threads; i++) {
-      struct thread_ctx *ctx = &contexts[i];
-      pthread_join(ctx->id, NULL);
-    }
+      for (unsigned i = 0; i < threads; i++) {
+        struct thread_ctx *ctx = &contexts[i];
+        pthread_join(ctx->id, NULL);
+      }
 
     double total_time = ((double)clock() - start)/CLOCKS_PER_SEC;
-    printf("{\"total_time\": %lf, \"time_per_syscall\": %lf, \"threads\": %u, \"packets_per_thread\": %u}\n",
+    printf("{\"total_time\": %lf, \"data_size\": %d, \"time_per_syscall\": %lf, \"threads\": %u, \"packets_per_thread\": %u}\n",
            total_time,
+           *size,
            total_time / packets,
            threads,
            packets / threads);
+    }
   }
   printf("</results>\n");
   fflush(stdout);
