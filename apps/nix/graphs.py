@@ -1,35 +1,11 @@
 import csv
 import sys
 import os
-from typing import Any, Dict
 
 import pandas as pd
-from plot import catplot, sns, plt
-
-SYSTEM_ALIASES: Dict[str, str] = {}
-ROW_ALIASES = dict(system=SYSTEM_ALIASES)
-COLUMN_ALIASES: Dict[str, str] = {
-    "throughput": "Throughput [GiB/s]",
-    "SQL statistics read": "Read",
-    "SQL statistics write": "Write",
-    "Latency (ms) avg": "Latency [ms]",
-    "Timing buffer-cache reads": "Cached read [GB/s]",
-    "Timing buffered disk reads": "Buffered read [GB/s]",
-    "memcopy-size": "Copy size [kB]",
-    "memcopy-time": "Latency [ms]"
-}
-
-
-def column_alias(name: str) -> str:
-    return COLUMN_ALIASES.get(name, name)
-
-
-def apply_aliases(df: pd.DataFrame) -> pd.DataFrame:
-    for column in df.columns:
-        aliases = ROW_ALIASES.get(column, None)
-        if aliases is not None:
-            df[column] = df[column].replace(aliases)
-    return df.rename(index=str, columns=COLUMN_ALIASES)
+from typing import Any
+from plot import catplot, sns, plt, apply_hatch
+from graph_utils import apply_aliases, column_alias, sort_systems
 
 
 def fio_latency_graph(df: pd.DataFrame) -> Any:

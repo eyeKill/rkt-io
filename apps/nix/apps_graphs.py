@@ -4,24 +4,7 @@ from typing import Any, Dict, List
 import pandas as pd
 from plot import apply_hatch, catplot
 
-SYSTEM_ALIASES: Dict[str, str] = {}
-ROW_ALIASES = dict(system=SYSTEM_ALIASES)
-COLUMN_ALIASES: Dict[str, str] = {
-    "sqlite-time [s]": "Transactions per second",
-    "lat_avg(ms)": "Latency [ms]",
-    "req_sec_tot": "Requests/sec",
-    "Throughput(ops/sec)": "Throughput [ops/sec]",
-    "AverageLatency(us)": "Latency [us]",
-    "sqlite-op-type": "Operation",
-}
-
-
-def apply_aliases(df: pd.DataFrame) -> pd.DataFrame:
-    for column in df.columns:
-        aliases = ROW_ALIASES.get(column, None)
-        if aliases is not None:
-            df[column] = df[column].replace(aliases)
-    return df.rename(index=str, columns=COLUMN_ALIASES)
+from graph_utils import apply_aliases
 
 
 def df_col_select(res_col: List[str], df_columns: List[str], keyword: str) -> None:
