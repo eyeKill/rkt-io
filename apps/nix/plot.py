@@ -16,6 +16,28 @@ sns.set_context(font_scale=1.5)
 sns.set_palette(sns.color_palette(palette="gray", n_colors=2))
 
 
+def catplot(**kwargs) -> Any:
+    g = sns.catplot(**kwargs)
+    g.despine(top=False, right=False)
+    plt.autoscale()
+    plt.subplots_adjust(top=0.98)
+    return g
+
+
+def apply_hatch(groups: int, g: Any, legend:bool) -> None:
+    if len(g.ax.patches) == groups:
+        for i, bar in enumerate(g.ax.patches):
+            hatch = hatch_list[i]
+            bar.set_hatch(hatch)
+    else:
+        for i, bar in enumerate(g.ax.patches):
+            hatch = hatch_list[int(i/groups)]
+            bar.set_hatch(hatch)
+    if legend:
+        g.ax.legend(loc='best', fontsize='small')
+    #g.ax.set_edgecolor('k')
+
+
 def rescale_barplot_width(ax: Any, factor: float=0.6) -> None:
     for bar in ax.patches:
         x = bar.get_x()

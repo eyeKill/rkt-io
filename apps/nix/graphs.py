@@ -1,9 +1,10 @@
 import csv
 import sys
+import os
 from typing import Any, Dict
 
 import pandas as pd
-from plot import plt, sns
+from plot import catplot, sns, plt
 
 SYSTEM_ALIASES: Dict[str, str] = {}
 ROW_ALIASES = dict(system=SYSTEM_ALIASES)
@@ -21,14 +22,6 @@ COLUMN_ALIASES: Dict[str, str] = {
 
 def column_alias(name: str) -> str:
     return COLUMN_ALIASES.get(name, name)
-
-
-def catplot(**kwargs: Any) -> Any:
-    g = sns.catplot(**kwargs)
-    g.despine(top=False, right=False)
-    plt.autoscale()
-    plt.subplots_adjust(top=0.98)
-    return g
 
 
 def apply_aliases(df: pd.DataFrame) -> pd.DataFrame:
@@ -93,13 +86,13 @@ def fio_write_graph(df: pd.DataFrame) -> Any:
 
 
 def iperf_graph(df: pd.DataFrame) -> Any:
+    df = df[df["direction"] == "send"]
     df["throughput"] = df["bytes"] / df["seconds"] * 8 / 1e9
 
     g = catplot(
         data=apply_aliases(df),
         x=column_alias("system"),
         y=column_alias("throughput"),
-        hue=column_alias("direction"),
         kind="bar",
         height=2.5,
         aspect=1.2,
@@ -145,6 +138,7 @@ def mysql_latency_graph(df: pd.DataFrame) -> Any:
     plt.legend(loc="lower right")
     return g
 
+
 def preprocess_hdparm(df_col: pd.Series) -> Any:
     df_col = list(df_col.values)
     for i in range(len(df_col)):
@@ -157,6 +151,7 @@ def preprocess_hdparm(df_col: pd.Series) -> Any:
             df_col[i] = float(df_col[i])
 
     return pd.Series(df_col)
+
 
 def hdparm_graph(df: pd.DataFrame, metric: str) -> Any:
     plot_col = ["system"]
@@ -186,6 +181,7 @@ def hdparm_graph(df: pd.DataFrame, metric: str) -> Any:
 
     return g
 
+
 def memcpy_graph(df: pd.DataFrame) -> Any:
     g = catplot(
         data=apply_aliases(df),
@@ -199,6 +195,7 @@ def memcpy_graph(df: pd.DataFrame) -> Any:
 
     return g
 
+
 def print_usage() -> None:
     print(f"USAGE: {sys.argv[0]} results.tsv...", file=sys.stderr)
     sys.exit(1)
@@ -210,6 +207,7 @@ def read_shit(path: str) -> None:
         for row in spamreader:
             print(", ".join(row))
 
+
 def main() -> None:
     if len(sys.argv) < 1:
         print_usage()
@@ -217,27 +215,26 @@ def main() -> None:
     graphs = []
     for arg in sys.argv[1:]:
         df = pd.read_csv(arg, delimiter="\t")
+        basename = os.path.basename(arg)
 
-        if arg.startswith("fio-throughput"):
+        if basename.startswith("fio"):
             graphs.append(("FIO-IOPS", fio_iops_graph(df)))
             graphs.append(("FIO-READ", fio_read_graph(df)))
             graphs.append(("FIO-WRITE", fio_write_graph(df)))
-        elif arg.startswith("fio-latency"):
-            graphs.append(("FIO", fio_latency_graph(df)))
-        elif arg.startswith("mysql"):
+        elif basename.startswith("mysql"):
             graphs.append(("MySQL-Reads", mysql_read_graph(df)))
             graphs.append(("MySQL-Writes", mysql_write_graph(df)))
             graphs.append(("MySQL-Latency", mysql_latency_graph(df)))
-        elif arg.startswith("iperf"):
+        elif basename.startswith("iperf"):
             graphs.append(("Iperf", iperf_graph(df)))
-        elif arg.startswith("hdparm"):
+        elif basename.startswith("hdparm"):
             graphs.append(("HDPARM-Cached", hdparm_graph(df, "cached")))
             graphs.append(("HDPARM-Buffered", hdparm_graph(df, "buffered")))
-        elif arg.startswith("memcpy"):
+        elif basename.startswith("memcpy"):
             graphs.append(("MEMCPY", memcpy_graph(df)))
 
     for name, graph in graphs:
-        filename = f"{name}.png"
+        filename = f"{name}.pdf"
         print(f"write {filename}")
         graph.savefig(filename)
 

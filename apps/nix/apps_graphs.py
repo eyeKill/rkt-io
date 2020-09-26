@@ -2,7 +2,7 @@ import sys
 from typing import Any, Dict, List
 
 import pandas as pd
-from plot import plt, sns
+from plot import apply_hatch, catplot
 
 SYSTEM_ALIASES: Dict[str, str] = {}
 ROW_ALIASES = dict(system=SYSTEM_ALIASES)
@@ -17,12 +17,6 @@ COLUMN_ALIASES: Dict[str, str] = {
 
 hatch_list = ['', '///', '---', '+']
 
-def catplot(**kwargs) -> Any:
-    g = sns.catplot(**kwargs)
-    g.despine(top=False, right=False)
-    plt.autoscale()
-    plt.subplots_adjust(top=0.98)
-    return g
 
 def apply_aliases(df: pd.DataFrame) -> pd.DataFrame:
     for column in df.columns:
@@ -31,6 +25,7 @@ def apply_aliases(df: pd.DataFrame) -> pd.DataFrame:
             df[column] = df[column].replace(aliases)
     return df.rename(index=str, columns=COLUMN_ALIASES)
 
+
 def df_col_select(res_col:List[str], df_columns: List[str], keyword: str) -> None:
     for col in df_columns:
         if col in res_col:
@@ -38,21 +33,10 @@ def df_col_select(res_col:List[str], df_columns: List[str], keyword: str) -> Non
         if keyword in col:
             res_col.append(col)
 
+
 def apply_sqlite_rows(x: int) -> float:
     return 10000/x
 
-def apply_hatch(groups: int, g: Any, legend:bool) -> None:
-    if len(g.ax.patches) == groups:
-        for i, bar in enumerate(g.ax.patches):
-            hatch = hatch_list[i]
-            bar.set_hatch(hatch)
-    else:
-        for i, bar in enumerate(g.ax.patches):
-            hatch = hatch_list[int(i/groups)]
-            bar.set_hatch(hatch)
-    if legend:
-        g.ax.legend(loc='best', fontsize='small')
-    #g.ax.set_edgecolor('k')
 
 def sqlite_graph(df: pd.DataFrame) -> Any:
     plot_df = df
@@ -87,6 +71,7 @@ def sqlite_graph(df: pd.DataFrame) -> Any:
 
     return g
 
+
 def nginx_graph(df: pd.DataFrame, metric: str) -> Any:
     plot_col = ["system"]
 
@@ -109,6 +94,7 @@ def nginx_graph(df: pd.DataFrame, metric: str) -> Any:
         )
     apply_hatch(groups, g, False)
     return g
+
 
 def redis_graph(df: pd.DataFrame, metric: str) -> Any:
     df_flag = None
@@ -150,6 +136,7 @@ def redis_graph(df: pd.DataFrame, metric: str) -> Any:
 def print_usage() -> None:
     pass
 
+
 def main() -> None:
     if len(sys.argv) < 1:
         print_usage()
@@ -173,5 +160,6 @@ def main() -> None:
         print(f"write {filename}")
         graph.savefig(filename)
 
+       
 if __name__=="__main__":
     main()
