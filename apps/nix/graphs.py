@@ -75,7 +75,7 @@ def iperf_graph(df: pd.DataFrame) -> Any:
         aspect=1.2,
     )
     groups = len(set((list(df["system"].values))))
-    apply_hatch(groups, g, True)
+    apply_hatch(groups, g, legend=False)
     return g
 
 

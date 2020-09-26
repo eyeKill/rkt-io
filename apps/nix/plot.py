@@ -26,20 +26,20 @@ def catplot(**kwargs: Any) -> Any:
 
 
 def apply_hatch(groups: int, g: Any, legend: bool) -> None:
-    hatch_list = ['', '///', '---', '+']
+    hatch_list = ['', '///', '---', '\\']
     if len(g.ax.patches) == groups:
         for i, bar in enumerate(g.ax.patches):
             hatch = hatch_list[i]
             bar.set_hatch(hatch)
     else:
         for i, bar in enumerate(g.ax.patches):
-            hatch = hatch_list[int(i/groups)]
+            hatch = hatch_list[int(i / groups)]
             bar.set_hatch(hatch)
     if legend:
         g.ax.legend(loc='best', fontsize='small')
 
 
-def rescale_barplot_width(ax: Any, factor: float=0.6) -> None:
+def rescale_barplot_width(ax: Any, factor: float = 0.6) -> None:
     for bar in ax.patches:
         x = bar.get_x()
         new_width = bar.get_width() * factor
