@@ -1,18 +1,16 @@
 import os
 import json
-import json
-from typing import Dict, List, Optional
+from typing import Dict, List
 import subprocess
+import signal
 import pandas as pd
 
 from helpers import (
     NOW,
     create_settings,
-    flamegraph_env,
     nix_build,
     read_stats,
     write_stats,
-    scone_env,
 )
 from network import Network, NetworkKind
 
@@ -31,23 +29,31 @@ class Benchmark:
     ) -> None:
         env = os.environ.copy()
         env.update(extra_env)
-        env.update(SGXLKL_ETHREADS="1")
+        env["SGXLKL_ETHREADS"] = "2" if system == "sync" else "1"
+        #env["SGXLKL_ETHREADS"] = "1" if system == "direct" else "8"
         simpleio = nix_build(attribute)
 
-        cmd = [str(simpleio), "bin/udp-send", self.settings.remote_dpdk_ip, "1000000"]
+        cmd = [str(simpleio), "bin/udp-send", self.settings.remote_dpdk_ip, "2000000"]
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, text=True, env=env)
         assert proc.stdout is not None
+        found_results = False
         for line in proc.stdout:
+            line = line.rstrip()
             print(line)
-            if '"time": ' in line:
+            if found_results:
+                if line == "</results>":
+                    break
                 data = json.loads(line)
                 stats["system"].append(system)
-                stats["time"].append(data["time"])
-                return
-        proc.terminate()
+                for k, v in data.items():
+                    stats[k].append(v)
+            elif line == "<results>":
+                found_results = True
+        proc.send_signal(signal.SIGINT)
         proc.wait()
 
-        raise Exception("no time found in results")
+        if not found_results:
+            raise Exception("no time found in results")
 
 
 def benchmark_native(benchmark: Benchmark, stats: Dict[str, List[int]]) -> None:
@@ -81,8 +87,7 @@ def benchmark_direct(benchmark: Benchmark, stats: Dict[str, List[int]]) -> None:
 BENCHMARKS = {
     "native": benchmark_native,
     "async": benchmark_async,
-    # not working yet
-    #"sync": benchmark_sync,
+    "sync": benchmark_sync,
     "direct": benchmark_direct,
 }
 
