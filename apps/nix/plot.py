@@ -25,6 +25,7 @@ def catplot(**kwargs) -> Any:
 
 
 def apply_hatch(groups: int, g: Any, legend:bool) -> None:
+    hatch_list = ['', '///', '---', '+']
     if len(g.ax.patches) == groups:
         for i, bar in enumerate(g.ax.patches):
             hatch = hatch_list[i]

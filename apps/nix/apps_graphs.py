@@ -15,9 +15,6 @@ COLUMN_ALIASES: Dict[str, str] = {
     "sqlite-op-type": "Operation",
 }
 
-hatch_list = ['', '///', '---', '+']
-
-
 def apply_aliases(df: pd.DataFrame) -> pd.DataFrame:
     for column in df.columns:
         aliases = ROW_ALIASES.get(column, None)
