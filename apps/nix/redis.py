@@ -33,7 +33,8 @@ class Benchmark:
         self.settings = create_settings()
         self.storage = Storage(settings)
         self.network = Network(settings)
-        self.remote_redis = settings.remote_command(nix_build("redis-cli"))
+        #self.remote_redis = settings.remote_command(nix_build("redis-cli"))
+        self.nc_command = settings.remote_command(nix_build("netcat-native"))
         self.remote_ycsb = settings.remote_command(nix_build("ycsb-native"))
         self.record_count = record_count
         self.operation_count = operation_count
@@ -46,14 +47,29 @@ class Benchmark:
         stats: Dict[str, List],
         extra_env: Dict[str, str],
     ) -> None:
-        args = ["bin/redis-server", "--dir", db_dir, "--protected-mode", "no"]
+        args = [
+                    "bin/redis-server",
+                    "--dir", db_dir,
+                    "--tls-port", "6379",
+                    "--port", "0",
+                    "--tls-cert-file", f"{db_dir}/server.cert",
+                    "--tls-key-file", f"{db_dir}/server.key",
+                    "--tls-ca-cert-file", f"{db_dir}/ca.crt",
+                    "--requirepass", "snakeoil",
+                    "--tls-auth-clients", "no"
+               ]
         with spawn(redis_server, *args, extra_env=extra_env) as proc:
             print(f"waiting for redis for {system} benchmark...", end="")
             while True:
                 try:
-                    self.remote_redis.run(
-                        "bin/redis-cli", ["-h", self.settings.local_dpdk_ip, "ping"]
-                    )
+                    #self.remote_redis.run(
+                    #    self.remote_redis.nix_path, ["bin/redis-cli", "--tls",
+                    #                      "--cert", "/proc/self/cwd/server.cert",
+                    #                      "--key", "/proc/self/cwd/server.key",
+                    #                      "--cacert", "/proc/self/cwd/ca.crt",
+                    #                      "-h", self.settings.local_dpdk_ip, "ping"]
+                    #)
+                    nc_proc = self.nc_command.run("bin/nc", ["-z", "-v", self.settings.local_dpdk_ip, "6379"])
                     break
                 except subprocess.CalledProcessError:
                     status = proc.poll()
@@ -80,6 +96,8 @@ class Benchmark:
                     f"recordcount={self.record_count}",
                     "-p",
                     f"operationcount={self.operation_count}",
+                    "-p",
+                    "redis.password=snakeoil",
                 ],
             )
 
@@ -101,6 +119,8 @@ class Benchmark:
                     f"recordcount={self.record_count}",
                     "-p",
                     f"operationcount={self.operation_count}",
+                    "-p",
+                    "redis.password=snakeoil",
                 ],
             )
 
@@ -146,7 +166,7 @@ def main() -> None:
     settings = create_settings()
     setup_remote_network(settings)
     record_count = 1000000
-    op_count = 10000
+    op_count = 10000000
 
     benchmark = Benchmark(settings, record_count, op_count)
 
