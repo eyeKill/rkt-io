@@ -20,6 +20,8 @@ COLUMN_ALIASES: Dict[str, str] = {
     "Timing buffered disk reads": "Buffered read [GB/s]",
     "memcopy-size": "Copy size [kB]",
     "memcopy-time": "Latency [ms]",
+    "total_time": "Time [s]",
+    "threads": "Threads",
 
     "sqlite-time [s]": "Transactions per second",
     "lat_avg(ms)": "Latency [ms]",

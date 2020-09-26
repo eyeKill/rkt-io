@@ -86,6 +86,24 @@ def mysql_latency_graph(df: pd.DataFrame) -> Any:
     plt.legend(loc="lower right")
     return g
 
+def syscall_perf_graph(df: pd.DataFrame) -> Any:
+    plot_df = df[["system", "total_time", "threads"]]
+    groups = len(set((list(plot_df["system"].values))))
+    plot_df = apply_aliases(plot_df)
+
+    g = catplot(
+        data=plot_df,
+        x=plot_df.columns[0],
+        y=plot_df.columns[1],
+        hue=plot_df.columns[2],
+        kind="bar",
+        height=2.5,
+        legend=False,
+    )
+
+    apply_hatch(groups, g, True)
+    return g
+
 
 def preprocess_hdparm(df_col: pd.Series) -> Any:
     df_col = list(df_col.values)
@@ -180,6 +198,8 @@ def main() -> None:
             graphs.append(("HDPARM-Buffered", hdparm_graph(df, "buffered")))
         elif basename.startswith("memcpy"):
             graphs.append(("MEMCPY", memcpy_graph(df)))
+        elif basename.startswith("syscalls-perf"):
+            graphs.append(("SYSCALL-PERF-THREADS", syscall_perf_graph(df)))
 
     for name, graph in graphs:
         filename = f"{name}.pdf"
