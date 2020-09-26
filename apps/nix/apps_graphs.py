@@ -15,6 +15,7 @@ COLUMN_ALIASES: Dict[str, str] = {
     "sqlite-op-type": "Operation",
 }
 
+
 def apply_aliases(df: pd.DataFrame) -> pd.DataFrame:
     for column in df.columns:
         aliases = ROW_ALIASES.get(column, None)
@@ -23,7 +24,7 @@ def apply_aliases(df: pd.DataFrame) -> pd.DataFrame:
     return df.rename(index=str, columns=COLUMN_ALIASES)
 
 
-def df_col_select(res_col:List[str], df_columns: List[str], keyword: str) -> None:
+def df_col_select(res_col: List[str], df_columns: List[str], keyword: str) -> None:
     for col in df_columns:
         if col in res_col:
             continue
@@ -32,7 +33,7 @@ def df_col_select(res_col:List[str], df_columns: List[str], keyword: str) -> Non
 
 
 def apply_sqlite_rows(x: int) -> float:
-    return 10000/x
+    return 10000 / x
 
 
 def sqlite_graph(df: pd.DataFrame) -> Any:
@@ -53,16 +54,16 @@ def sqlite_graph(df: pd.DataFrame) -> Any:
     plot_df = apply_aliases(plot_df)
 
     g = catplot(
-            data=plot_df,
-            x=plot_df.columns[0],
-            y=plot_df.columns[2],
-            kind="bar",
-            height=2.5,
-            #aspect=0.8,
-            hue="Operation",
-            legend=False,
-            palette="Greys"
-        )
+        data=plot_df,
+        x=plot_df.columns[0],
+        y=plot_df.columns[2],
+        kind="bar",
+        height=2.5,
+        # aspect=0.8,
+        hue="Operation",
+        legend=False,
+        palette="Greys",
+    )
 
     apply_hatch(groups, g, True)
 
@@ -82,13 +83,13 @@ def nginx_graph(df: pd.DataFrame, metric: str) -> Any:
     plot_df = apply_aliases(plot_df)
 
     g = catplot(
-            data=plot_df,
-            x=plot_df.columns[0],
-            y=plot_df.columns[1],
-            kind="bar",
-            height=2.5,
-            #aspect=1.2,
-        )
+        data=plot_df,
+        x=plot_df.columns[0],
+        y=plot_df.columns[1],
+        kind="bar",
+        height=2.5,
+        # aspect=1.2,
+    )
     apply_hatch(groups, g, False)
     return g
 
@@ -100,11 +101,13 @@ def redis_graph(df: pd.DataFrame, metric: str) -> Any:
     legend = False
 
     if metric == "thru":
-        df_flag = (df["metric"] == "Throughput(ops/sec)")
+        df_flag = df["metric"] == "Throughput(ops/sec)"
         col_name = "Throughput(ops/sec)"
         legend = False
     elif metric == "lat":
-        df_flag = ((df["metric"] == "AverageLatency(us)") & (df["operation"] != "[CLEANUP]"))
+        df_flag = (df["metric"] == "AverageLatency(us)") & (
+            df["operation"] != "[CLEANUP]"
+        )
         col_name = "AverageLatency(us)"
         hue = "operation"
         legend = True
@@ -112,19 +115,19 @@ def redis_graph(df: pd.DataFrame, metric: str) -> Any:
     plot_df = df[df_flag]
     groups = len(set((list(plot_df["system"].values))))
     plot_df = plot_df.drop(["metric"], axis=1)
-    plot_df = plot_df.rename(columns={"value":col_name})
+    plot_df = plot_df.rename(columns={"value": col_name})
     plot_df = apply_aliases(plot_df)
 
     g = catplot(
-            data=plot_df,
-            x=plot_df.columns[0],
-            y=plot_df.columns[-1],
-            hue=hue,
-            kind="bar",
-            height=2.5,
-            #aspect=1.2,
-            legend=False,
-        )
+        data=plot_df,
+        x=plot_df.columns[0],
+        y=plot_df.columns[-1],
+        hue=hue,
+        kind="bar",
+        height=2.5,
+        # aspect=1.2,
+        legend=False,
+    )
 
     apply_hatch(groups, g, legend)
     return g
@@ -141,7 +144,7 @@ def main() -> None:
 
     graphs = []
     for arg in sys.argv[1:]:
-        df = pd.read_csv(arg, delimiter='\t')
+        df = pd.read_csv(arg, delimiter="\t")
 
         if arg.startswith("sqlite"):
             graphs.append(("SQLITE", sqlite_graph(df)))
@@ -157,6 +160,6 @@ def main() -> None:
         print(f"write {filename}")
         graph.savefig(filename)
 
-       
-if __name__=="__main__":
+
+if __name__ == "__main__":
     main()
