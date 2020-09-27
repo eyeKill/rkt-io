@@ -20,14 +20,13 @@ COLUMN_ALIASES: Dict[str, str] = {
     "Timing buffered disk reads": "Buffered read [GB/s]",
     "memcopy-size": "Copy size [kB]",
     "memcopy-time": "Latency [ms]",
-    "total_time": "Time [s]",
-    "threads": "Threads",
+    "time_per_syscall": "Time [μs]",
 
     "sqlite-time [s]": "Transactions per second",
     "lat_avg(ms)": "Latency [ms]",
     "req_sec_tot": "Requests/sec",
     "Throughput(ops/sec)": "Throughput [ops/sec]",
-    "AverageLatency(us)": "Latency [us]",
+    "AverageLatency(us)": "Latency [μs]",
     "sqlite-op-type": "Operation",
 }
 
@@ -35,10 +34,13 @@ COLUMN_ALIASES: Dict[str, str] = {
 def systems_order(df: pd.DataFrame) -> List[str]:
     priorities = {
         "native": 10,
+        "sync": 15,
         "sgx-lkl": 20,
+        "async": 20,
         "scone": 30,
         "sgx-io": 40,
         "rkt-io": 40,
+        "direct": 40,
     }
     systems = list(df.system.unique())
     return sorted(systems, key=lambda v: priorities.get(v, 100))

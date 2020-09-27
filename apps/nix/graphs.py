@@ -4,7 +4,7 @@ import os
 
 import pandas as pd
 from typing import Any
-from plot import catplot, plt, apply_hatch
+from plot import catplot, plt
 from graph_utils import apply_aliases, column_alias, systems_order
 
 
@@ -23,6 +23,22 @@ def fio_read_write_graph(df: pd.DataFrame) -> Any:
         y=column_alias("disk-throughput"),
         hue=column_alias("operation"),
         order=systems_order(df),
+        kind="bar",
+        height=2.5,
+        aspect=1.2,
+    )
+
+    return g
+
+
+def syscalls_perf_graph(df: pd.DataFrame) -> Any:
+    df2 = df[(df.data_size == 32) & (df.threads == 8)]
+    df2 = df2.assign(time_per_syscall=10e6 * df2.total_time / (df2.packets_per_thread * df2.threads))
+    g = catplot(
+        data=apply_aliases(df2),
+        x=column_alias("system"),
+        y=column_alias("time_per_syscall"),
+        order=systems_order(df2),
         kind="bar",
         height=2.5,
         aspect=1.2,
@@ -82,24 +98,6 @@ def mysql_latency_graph(df: pd.DataFrame) -> Any:
         aspect=1.2,
     )
     plt.legend(loc="lower right")
-    return g
-
-def syscall_perf_graph(df: pd.DataFrame) -> Any:
-    plot_df = df[["system", "total_time", "threads"]]
-    groups = len(set((list(plot_df["system"].values))))
-    plot_df = apply_aliases(plot_df)
-
-    g = catplot(
-        data=plot_df,
-        x=plot_df.columns[0],
-        y=plot_df.columns[1],
-        hue=plot_df.columns[2],
-        kind="bar",
-        height=2.5,
-        legend=False,
-    )
-
-    apply_hatch(groups, g, True)
     return g
 
 
@@ -182,9 +180,9 @@ def main() -> None:
         basename = os.path.basename(arg)
 
         if basename.startswith("fio"):
-            #graphs.append(("FIO-IOPS", fio_iops_graph(df)))
-            #graphs.append(("FIO-READ", fio_read_graph(df)))
             graphs.append(("fio-read-write", fio_read_write_graph(df)))
+        if basename.startswith("syscalls-perf"):
+            graphs.append(("syscalls-perf", syscalls_perf_graph(df)))
         elif basename.startswith("mysql"):
             graphs.append(("MySQL-Reads", mysql_read_graph(df)))
             graphs.append(("MySQL-Writes", mysql_write_graph(df)))
@@ -196,8 +194,6 @@ def main() -> None:
             graphs.append(("HDPARM-Buffered", hdparm_graph(df, "buffered")))
         elif basename.startswith("memcpy"):
             graphs.append(("MEMCPY", memcpy_graph(df)))
-        elif basename.startswith("syscalls-perf"):
-            graphs.append(("SYSCALL-PERF-THREADS", syscall_perf_graph(df)))
 
     for name, graph in graphs:
         filename = f"{name}.pdf"
