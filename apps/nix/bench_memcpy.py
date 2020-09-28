@@ -18,13 +18,13 @@ def bench_memcpy(kind: str, stats: Dict[str, List]) -> None:
     proc = subprocess.Popen([memcpy], stdout=stdout, text=True)
     try:
         if proc.stdout is None:
-            proc.wait
+            proc.wait()
         else:
             for line in proc.stdout:
                 try:
                     data = json.loads(line)
-                    stats["memcpy-kind"].append(f"memcpy-test-{kind}")
                     for i in data:
+                        stats["memcpy-kind"].append(f"memcpy-test-{kind}")
                         stats["memcpy-size"].append(i)
                         stats["memcpy-time"].append(data[i])
                 except Exception as e:

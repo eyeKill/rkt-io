@@ -247,11 +247,13 @@ in {
   memcpy-test-old = runImage {
     pkg = memcpy-test;
     command = [ "bin/memcpy-test" "0"];
+    #native = true;
   };
 
   memcpy-test-new = runImage {
     pkg = memcpy-test;
     command = [ "bin/memcpy-test" "1"];
+    #native = true;
   };
 
   simpleio-sgx-io = runImage {
@@ -356,7 +358,7 @@ in {
     command = [ "bin/ping" "10.0.42.1" ];
   };
 
-  dd = runImage {
+  dd-sgx-io = runImage {
     pkg = busybox;
     command = [ "bin/dd" "if=/dev/spdk0" "of=/dev/null" ];
   };
