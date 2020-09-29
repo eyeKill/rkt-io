@@ -55,6 +55,7 @@ def iperf_graph(df: pd.DataFrame) -> Any:
         data=apply_aliases(df),
         x=column_alias("system"),
         y=column_alias("throughput"),
+        order=systems_order(df),
         kind="bar",
         height=2.5,
         aspect=1.2,
