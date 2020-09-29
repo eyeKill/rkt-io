@@ -11,16 +11,24 @@ from helpers import (
     write_stats,
 )
 
+KINDS = {
+    "avx": "0",
+    "old": "1",
+    "libc": "2",
+}
+
+
 def bench_memcpy(kind: str, stats: Dict[str, List]) -> None:
-    memcpy = nix_build(f"memcpy-test-{kind}")
+    memcpy = nix_build("memcpy-test-sgx-io")
     stdout: Optional[int] = subprocess.PIPE
 
-    proc = subprocess.Popen([memcpy], stdout=stdout, text=True)
+    proc = subprocess.Popen([memcpy, "bin/memcpy-test", KINDS[kind]], stdout=stdout, text=True)
     try:
         if proc.stdout is None:
             proc.wait()
         else:
             for line in proc.stdout:
+                print(line)
                 try:
                     data = json.loads(line)
                     for i in data:
@@ -32,18 +40,26 @@ def bench_memcpy(kind: str, stats: Dict[str, List]) -> None:
     finally:
         pass
 
+
+def bench_avx_memcpy(stats: Dict[str, List]) -> None:
+    bench_memcpy("avx", stats)
+
+
 def bench_old_memcpy(stats: Dict[str, List]) -> None:
     bench_memcpy("old", stats)
 
-def bench_new_memcpy(stats: Dict[str, List]) -> None:
-    bench_memcpy("new", stats)
+
+def bench_libc_memcpy(stats: Dict[str, List]) -> None:
+    bench_memcpy("libc", stats)
+
 
 def main() -> None:
     stats: DefaultDict[str, List] = defaultdict(list)
 
     benchmarks = {
-        "old_memcpy": bench_old_memcpy,
-        "new_memcpy": bench_new_memcpy
+        "avx_memcpy": bench_avx_memcpy,
+        "new_memcpy": bench_old_memcpy,
+        "libc_memcpy": bench_libc_memcpy
     }
 
     for name, benchmark in benchmarks.items():

@@ -245,16 +245,9 @@ in {
     command = [ "bin/latency-test" ];
   };
 
-  memcpy-test-old = runImage {
+  memcpy-test-sgx-io = runImage {
     pkg = memcpy-test;
     command = [ "bin/memcpy-test" "0"];
-    #native = true;
-  };
-
-  memcpy-test-new = runImage {
-    pkg = memcpy-test;
-    command = [ "bin/memcpy-test" "1"];
-    #native = true;
   };
 
   simpleio-sgx-io = runImage {

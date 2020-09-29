@@ -5,6 +5,6 @@ stdenv.mkDerivation {
   src = ./.;
   installPhase = ''
     mkdir -p $out/bin
-    gcc -o $out/bin/memcpy-test main.c memcpy_org.s
+    gcc -o $out/bin/memcpy-test main.c memcpy_org.s memcpy-avx2.S
   '';
 }

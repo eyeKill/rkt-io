@@ -4,18 +4,20 @@
 #include <sys/time.h>
 
 #define NUM_PTS 9
-#define ITERS 100000
+#define ITERS 1000000
 
+void *memcpy_avx(void *dest, const void *src, size_t n);
 void *__memcpy_fwd(void *dest, const void *src, size_t n);
 
-int test_sizes[] = {4, 8, 16, 32, 64, 128, 256, 512, 1024};
+static int test_sizes[] = {4, 8, 16, 32, 64, 128, 256, 512, 1024};
 
-void* (*memcpy_funcs[2])(void *dest, const void *src, size_t n) = {
+static void* (*memcpy_funcs[3])(void *dest, const void *src, size_t n) = {
+  memcpy_avx,
   __memcpy_fwd,
   memcpy,
 };
 
-double get_time() {
+static double get_time() {
   struct timeval tv;
   gettimeofday(&tv, NULL);
   double ret = tv.tv_usec;
@@ -25,7 +27,7 @@ double get_time() {
   return ret;
 }
 
-double bench_memcpy(int mem_size, int no){
+static double bench_memcpy(int mem_size, int no){
   double total_time = 0;
   void *src, *dest;
   src = malloc(mem_size*1024);
