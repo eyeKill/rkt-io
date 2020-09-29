@@ -15,10 +15,22 @@ DPDK_ALIASES: Dict[str, str] = {
     "dpdk-offload": "offload",
     "dpdk-no-offload": "no-offload"
 }
-ROW_ALIASES = dict(system=SYSTEM_ALIASES, operation=OPERATION_ALIASES, feature_dpdk=DPDK_ALIASES)
+SPDK_ALIASES: Dict[str, str] = {
+    "spdk-zerocopy": "zerocopy",
+    "spdk-copy": "copy",
+    "Timing buffer-cache reads": "cache",
+    "Timing buffered disk reads": "buffer"
+
+}
+HDPARM_ALIASES: Dict[str, str] = {
+    "Timing buffer-cache reads": "cache",
+    "Timing buffered disk reads": "buffer"
+}
+ROW_ALIASES = dict(system=SYSTEM_ALIASES, operation=OPERATION_ALIASES, feature_dpdk=DPDK_ALIASES, feature_spdk=SPDK_ALIASES, hdparm_kind=HDPARM_ALIASES)
 COLUMN_ALIASES: Dict[str, str] = {
     "iperf-throughput": "Throughput [GiB/s]",
     "disk-throughput": "Throughput [MiB/s]",
+    "hdparm-throughput": "Throughput [GiB/s]",
     "SQL statistics read": "Read",
     "SQL statistics write": "Write",
     "Latency (ms) avg": "Latency [ms]",
@@ -34,6 +46,7 @@ COLUMN_ALIASES: Dict[str, str] = {
     "Throughput(ops/sec)": "Throughput [ops/sec]",
     "AverageLatency(us)": "Latency [μs]",
     "sqlite-op-type": "Operation",
+    "hdparm_kind": "Read",
 }
 
 

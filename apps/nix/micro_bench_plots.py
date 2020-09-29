@@ -83,8 +83,77 @@ def iperf_offload_plot(dir, graphs):
 
 	graphs.append(g)
 
+def preprocess_hdparm(df_col: pd.Series) -> Any:
+    df_col = list(df_col.values)
+    for i in range(len(df_col)):
+        # import pdb; pdb.set_trace()
+        temp = df_col[i].split(" ")
+        if temp[1] == "kB/s":
+            df_col[i] = float(temp[0])/(1000 ** 2)
+        elif temp[1] == "MB/s":
+            df_col[i] = float(temp[0])/(1000)
+        elif temp[1] == "GB/s":
+            df_col[i] = float(temp[0])
+
+    return pd.Series(df_col)
+
 def hdparm_zerocopy_plot(dir, graphs):
-	pass
+	df_all_on = pd.read_csv(
+			os.path.join(os.path.realpath(dir), "hdparm-all-on.tsv"),
+			sep='\t'
+		)
+
+	df_zcopy_off = pd.read_csv(
+			os.path.join(os.path.realpath(dir), "hdparm-zerocopy-off.tsv"),
+			sep='\t'
+		)
+
+	df_all_on = df_all_on.drop(columns=["system"])
+	df_zcopy_off = df_zcopy_off.drop(columns=["system"])
+
+	df_all_on["Timing buffered disk reads"] = preprocess_hdparm(
+            df_all_on["Timing buffered disk reads"],
+        )
+	df_zcopy_off["Timing buffered disk reads"] = preprocess_hdparm(
+            df_zcopy_off["Timing buffered disk reads"],
+        )
+
+	df_all_on["Timing buffer-cache reads"] = preprocess_hdparm(
+            df_all_on["Timing buffer-cache reads"],
+        )
+
+	df_zcopy_off["Timing buffer-cache reads"] = preprocess_hdparm(
+            df_zcopy_off["Timing buffer-cache reads"],
+        )
+
+	df_all_on = df_all_on.T.reset_index()
+	df_zcopy_off = df_zcopy_off.T.reset_index()
+
+	df_zcopy_off.columns = ["hdparm_kind", "hdparm-throughput"]
+	df_all_on.columns = ["hdparm_kind", "hdparm-throughput"]
+
+	df_all_on["feature_spdk"] = pd.Series(["spdk-zerocopy"]*len(df_all_on.index), index=df_all_on.index)
+	df_zcopy_off["feature_spdk"] = pd.Series(["spdk-copy"]*len(df_zcopy_off.index), index=df_zcopy_off.index)
+
+	plot_df = pd.concat([df_all_on, df_zcopy_off], axis=0)
+	groups = len(set(list(plot_df["feature_spdk"].values)))
+
+	g = catplot(
+			data=apply_aliases(plot_df),
+			x=column_alias("feature_spdk"),
+			y=column_alias("hdparm-throughput"),
+			kind="bar",
+			height=2.5,
+			legend=False,
+			hue=column_alias("hdparm_kind"),
+		)
+
+	apply_hatch(groups, g, True)
+	change_width(g.ax, 0.25)
+	g.ax.set_xlabel('')
+
+	graphs.append(g)
+
 
 
 def main():
