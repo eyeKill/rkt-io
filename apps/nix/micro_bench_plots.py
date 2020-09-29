@@ -38,10 +38,15 @@ def iperf_zerocopy_plot(dir, graphs):
 			height=2.5,
 			legend=False,
 			ci=None,
+			color="black",
+			palette=None
 		)
 
 	change_width(g.ax, 0.25)
 	g.ax.set_xlabel('')
+
+	g.ax.set_xticklabels(g.ax.get_xmajorticklabels(), fontsize=6)
+	g.ax.set_yticklabels(g.ax.get_ymajorticklabels(), fontsize=6)
 
 	graphs.append(g)
 
@@ -76,10 +81,15 @@ def iperf_offload_plot(dir, graphs):
 			height=2.5,
 			legend=False,
 			ci=None,
+			color="black",
+			palette=None
 		)
 
 	change_width(g.ax, 0.25)
 	g.ax.set_xlabel('')
+
+	g.ax.set_xticklabels(g.ax.get_xmajorticklabels(), fontsize=6)
+	g.ax.set_yticklabels(g.ax.get_ymajorticklabels(), fontsize=6)
 
 	graphs.append(g)
 
@@ -152,9 +162,61 @@ def hdparm_zerocopy_plot(dir, graphs):
 	change_width(g.ax, 0.25)
 	g.ax.set_xlabel('')
 
+	g.ax.set_xticklabels(g.ax.get_xmajorticklabels(), fontsize=6)
+	g.ax.set_yticklabels(g.ax.get_ymajorticklabels(), fontsize=6)
+
 	graphs.append(g)
 
+def network_bs_plot(dir, graphs):
+	df = pd.read_csv(
+			os.path.join(os.path.realpath(dir), "network-test-bs-latest.tsv"),
+			sep="\t"
+		)
+	df["network-bs-throughput"] = 1024 / df["time"]
+	# df["batch_size"] = df["batch_size"].apply(lambda x: str(x)+"KiB")
 
+	g = catplot(
+			data=apply_aliases(df),
+			x=column_alias("batch_size"),
+			y=column_alias("network-bs-throughput"),
+			kind="bar",
+			height=2.5,
+			legend=False,
+			color="black",
+			palette=None
+		)
+
+	change_width(g.ax, 0.25)
+	# g.ax.set_xlabel('')
+	g.ax.set_xticklabels(g.ax.get_xmajorticklabels(), fontsize=6)
+	g.ax.set_yticklabels(g.ax.get_ymajorticklabels(), fontsize=6)
+
+	graphs.append(g)
+
+def storage_bs_plot(dir, graphs):
+	df = pd.read_csv(
+			os.path.join(os.path.realpath(dir), "simpleio-unenc.tsv"),
+			sep="\t"
+		)
+	df["storage-bs-throughput"] = (10*1024) / df["time"]
+
+	g = catplot(
+			data=apply_aliases(df),
+			x=column_alias("batch-size"),
+			y=column_alias("storage-bs-throughput"),
+			kind="bar",
+			height=2.5,
+			legend=False,
+			color="black",
+			palette=None
+		)
+
+	change_width(g.ax, 0.25)
+	# g.ax.set_xlabel('')
+	g.ax.set_xticklabels(g.ax.get_xmajorticklabels(), fontsize=6)
+	g.ax.set_yticklabels(g.ax.get_ymajorticklabels(), fontsize=6)
+
+	graphs.append(g)
 
 def main():
 	if len(sys.argv) < 1:
@@ -167,6 +229,8 @@ def main():
 		"dpdk_zerocopy":iperf_zerocopy_plot,
 		"dpdk_offload": iperf_offload_plot,
 		"spdk_zerocopy": hdparm_zerocopy_plot,
+		"network_bs": network_bs_plot,
+		"storage_bs": storage_bs_plot,
 	}
 
 	for name, pf in plot_func.items():

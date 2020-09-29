@@ -47,6 +47,10 @@ COLUMN_ALIASES: Dict[str, str] = {
     "AverageLatency(us)": "Latency [μs]",
     "sqlite-op-type": "Operation",
     "hdparm_kind": "Read",
+    "network-bs-throughput": "Throughput [MiB/s]",
+    "batch_size": "Batch size(KiB)",
+    "batch-size": "Batch size(KiB)",
+    "storage-bs-throughput": "Throughput [MiB/s]"
 }
 
 
