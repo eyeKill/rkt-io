@@ -42,6 +42,7 @@ def sqlite_graph(df: pd.DataFrame) -> Any:
         kind="bar",
         height=2.5,
         # aspect=0.8,
+        order=systems_order(df),
         hue="Operation",
         legend=False,
         palette="Greys",
@@ -70,6 +71,7 @@ def nginx_graph(df: pd.DataFrame, metric: str) -> Any:
         x=plot_df.columns[0],
         y=plot_df.columns[1],
         kind="bar",
+        order=systems_order(df),
         height=2.5,
         # aspect=1.2,
     )
@@ -109,6 +111,7 @@ def redis_graph(df: pd.DataFrame, metric: str) -> Any:
         hue=hue,
         kind="bar",
         height=2.5,
+        order=systems_order(df),
         # aspect=1.2,
         legend=False,
     )

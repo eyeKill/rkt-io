@@ -49,13 +49,13 @@ def syscalls_perf_graph(df: pd.DataFrame) -> Any:
 
 def iperf_graph(df: pd.DataFrame) -> Any:
     df = df[df["direction"] == "send"]
-    df["throughput"] = df["bytes"] / df["seconds"] * 8 / 1e9
+    df["iperf-throughput"] = df["bytes"] / df["seconds"] * 8 / 1e9
 
     g = catplot(
         data=apply_aliases(df),
         x=column_alias("system"),
-        y=column_alias("throughput"),
         order=systems_order(df),
+        y=column_alias("iperf-throughput"),
         kind="bar",
         height=2.5,
         aspect=1.2,

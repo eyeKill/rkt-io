@@ -9,9 +9,15 @@ OPERATION_ALIASES: Dict[str, str] = {
     "read-bw": "read",
     "write-bw": "write",
 }
-ROW_ALIASES = dict(system=SYSTEM_ALIASES, operation=OPERATION_ALIASES)
+DPDK_ALIASES: Dict[str, str] = {
+    "dpdk-zerocopy": "zerocopy",
+    "dpdk-copy": "copy",
+    "dpdk-offload": "offload",
+    "dpdk-no-offload": "no-offload"
+}
+ROW_ALIASES = dict(system=SYSTEM_ALIASES, operation=OPERATION_ALIASES, feature_dpdk=DPDK_ALIASES)
 COLUMN_ALIASES: Dict[str, str] = {
-    "throughput": "Throughput [GiB/s]",
+    "iperf-throughput": "Throughput [GiB/s]",
     "disk-throughput": "Throughput [MiB/s]",
     "SQL statistics read": "Read",
     "SQL statistics write": "Write",
