@@ -71,7 +71,7 @@ int main(int argc, char** argv) {
       total_sent += to_send;
     }
 
-    printf("{\"bytes: %ld\", \"time\": %lf}\n", total_sent, ((double)clock() - start)/CLOCKS_PER_SEC);
+    printf("{\"bytes\": %ld, \"time\": %lf}\n", total_sent, ((double)clock() - start)/CLOCKS_PER_SEC);
     close(fd);
 
     break;

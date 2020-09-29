@@ -231,6 +231,7 @@ in {
   network-test-sgx-io = runImage {
     pkg = network-test;
     command = [ "bin/network-test" ];
+    #native = true;
   };
 
   network-test-sgx-lkl = runImage {
