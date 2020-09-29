@@ -56,3 +56,11 @@ def apply_aliases(df: pd.DataFrame) -> pd.DataFrame:
         if aliases is not None:
             df[column] = df[column].replace(aliases)
     return df.rename(index=str, columns=COLUMN_ALIASES)
+
+def change_width(ax, new_value):
+    for patch in ax.patches:
+        current_width = patch.get_width()
+        diff = current_width - new_value
+        patch.set_width(new_value)
+
+        patch.set_x(patch.get_x() + diff * .5)

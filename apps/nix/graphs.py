@@ -4,8 +4,8 @@ import os
 
 import pandas as pd
 from typing import Any
-from plot import catplot, plt
-from graph_utils import apply_aliases, column_alias, systems_order
+from plot import catplot, plt, apply_hatch
+from graph_utils import apply_aliases, column_alias, systems_order, change_width
 
 
 def fio_read_write_graph(df: pd.DataFrame) -> Any:
@@ -63,6 +63,8 @@ def iperf_graph(df: pd.DataFrame) -> Any:
 
 
 def mysql_read_graph(df: pd.DataFrame) -> Any:
+    groups = len(set((list(df["system"].values))))
+
     g = catplot(
         data=apply_aliases(df),
         x=column_alias("system"),
@@ -71,24 +73,30 @@ def mysql_read_graph(df: pd.DataFrame) -> Any:
         height=2.5,
         aspect=1.2,
     )
-    plt.legend(loc="lower right")
+    apply_hatch(groups, g, False)
+    change_width(g.ax, 0.25)
     return g
 
 
 def mysql_write_graph(df: pd.DataFrame) -> Any:
+    groups = len(set((list(df["system"].values))))
+
     g = catplot(
         data=apply_aliases(df),
         x=column_alias("system"),
         y=column_alias("SQL statistics write"),
         kind="bar",
         height=2.5,
-        aspect=1.2,
+        # aspect=1.2,
     )
-    plt.legend(loc="lower right")
+    apply_hatch(groups, g, False)
+    change_width(g.ax, 0.25)
     return g
 
 
 def mysql_latency_graph(df: pd.DataFrame) -> Any:
+    groups = len(set((list(df["system"].values))))
+
     g = catplot(
         data=apply_aliases(df),
         x=column_alias("system"),
@@ -97,7 +105,8 @@ def mysql_latency_graph(df: pd.DataFrame) -> Any:
         height=2.5,
         aspect=1.2,
     )
-    plt.legend(loc="lower right")
+    apply_hatch(groups, g, False)
+    change_width(g.ax, 0.25)
     return g
 
 

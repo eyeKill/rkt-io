@@ -12,7 +12,9 @@ mpl.rcParams["ps.fonttype"] = 42
 # plt.rc('text', usetex=True)
 plt.figure(figsize=(2.5, 2.5))
 sns.set_style("whitegrid")
-sns.set_context(font_scale=1.5)
+sns.set_style("ticks", {"xtick.major.size": 8, "ytick.major.size": 8})
+# sns.set_context(font_scale=1.5)
+sns.set_context("paper", rc={"font.size":5,"axes.titlesize":5,"axes.labelsize":8})
 sns.set_palette(sns.color_palette(palette="gray", n_colors=2))
 
 

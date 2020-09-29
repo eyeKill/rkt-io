@@ -4,7 +4,7 @@ from typing import Any, Dict, List
 import pandas as pd
 from plot import apply_hatch, catplot
 
-from graph_utils import apply_aliases
+from graph_utils import apply_aliases, change_width
 
 
 def df_col_select(res_col: List[str], df_columns: List[str], keyword: str) -> None:
@@ -13,7 +13,6 @@ def df_col_select(res_col: List[str], df_columns: List[str], keyword: str) -> No
             continue
         if keyword in col:
             res_col.append(col)
-
 
 def apply_sqlite_rows(x: int) -> float:
     return 10000 / x
@@ -49,6 +48,7 @@ def sqlite_graph(df: pd.DataFrame) -> Any:
     )
 
     apply_hatch(groups, g, True)
+    change_width(g.ax, 0.25)
 
     return g
 
@@ -74,6 +74,7 @@ def nginx_graph(df: pd.DataFrame, metric: str) -> Any:
         # aspect=1.2,
     )
     apply_hatch(groups, g, False)
+    change_width(g.ax, 0.25)
     return g
 
 
@@ -113,6 +114,8 @@ def redis_graph(df: pd.DataFrame, metric: str) -> Any:
     )
 
     apply_hatch(groups, g, legend)
+    change_width(g.ax, 0.25)
+
     return g
 
 
@@ -139,7 +142,7 @@ def main() -> None:
             graphs.append(("REDIS-LAT", redis_graph(df, "lat")))
 
     for name, graph in graphs:
-        filename = f"{name}.png"
+        filename = f"{name}.pdf"
         print(f"write {filename}")
         graph.savefig(filename)
 
