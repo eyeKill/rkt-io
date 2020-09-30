@@ -97,5 +97,5 @@ def apply_to_graphs(ax: Any, legend: bool, legend_cols: int):
     ax.set_xlabel("")
 
     if legend:
-        ax.legend(loc="center", bbox_to_anchor=(0.5, 1.05), ncol=legend_cols, frameon=False)
+        ax.legend(loc="best")
 
