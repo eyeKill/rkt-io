@@ -5,7 +5,7 @@ import os
 import pandas as pd
 from typing import Any
 from plot import catplot, plt, apply_hatch
-from graph_utils import apply_aliases, column_alias, systems_order, change_width
+from graph_utils import apply_aliases, column_alias, systems_order, change_width, apply_to_graphs
 
 
 def fio_read_write_graph(df: pd.DataFrame) -> Any:
@@ -25,9 +25,16 @@ def fio_read_write_graph(df: pd.DataFrame) -> Any:
         order=systems_order(df),
         kind="bar",
         height=2.5,
-        aspect=1.2,
+        palette=["grey", "black"],
+        legend=False,
+        # aspect=1.2,
     )
+    # change_width(g.ax, 0.405)
 
+    # g.ax.set_xlabel("")
+    # g.ax.legend(loc="center", bbox_to_anchor=(0.5, 1.05), ncol=2, frameon=False)
+    apply_to_graphs(g.ax, True, 2)
+    # g.ax.grid(which="major")
     return g
 
 
@@ -41,8 +48,18 @@ def syscalls_perf_graph(df: pd.DataFrame) -> Any:
         order=systems_order(df2),
         kind="bar",
         height=2.5,
-        aspect=1.2,
+        # aspect=1.2,
+        color="black",
+        palette=None,
     )
+    # change_width(g.ax, 0.405)
+    # g.ax.set_xlabel("")
+    # g.ax.set_ylabel(g.ax.get_ylabel(), fontsize=8)
+
+    # g.ax.set_xticklabels(g.ax.get_xmajorticklabels(), fontsize=8)
+    # g.ax.set_yticklabels(g.ax.get_ymajorticklabels(), fontsize=8)
+    # g.ax.grid(which="major")
+    apply_to_graphs(g.ax, False, -1)
 
     return g
 
@@ -58,8 +75,17 @@ def iperf_graph(df: pd.DataFrame) -> Any:
         y=column_alias("iperf-throughput"),
         kind="bar",
         height=2.5,
-        aspect=1.2,
+        # aspect=1.2,
+        color="black",
+        palette=None,
     )
+    # change_width(g.ax, 0.405)
+    # g.ax.set_xlabel("")
+
+    apply_to_graphs(g.ax, False, -1)
+
+    # g.ax.grid(which="major")
+
     return g
 
 

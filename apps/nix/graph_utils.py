@@ -91,3 +91,11 @@ def change_width(ax: Any, new_value: int) -> None:
         patch.set_width(new_value)
 
         patch.set_x(patch.get_x() + diff * 0.5)
+
+def apply_to_graphs(ax: Any, legend: bool, legend_cols: int):
+    change_width(ax, 0.405)
+    ax.set_xlabel("")
+
+    if legend:
+        ax.legend(loc="center", bbox_to_anchor=(0.5, 1.05), ncol=legend_cols, frameon=False)
+
