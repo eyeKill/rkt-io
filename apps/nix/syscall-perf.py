@@ -30,7 +30,6 @@ class Benchmark:
         env = os.environ.copy()
         env.update(extra_env)
         env["SGXLKL_ETHREADS"] = "2" if system == "sync" else "1"
-        #env["SGXLKL_ETHREADS"] = "1" if system == "direct" else "8"
         simpleio = nix_build(attribute)
 
         cmd = [str(simpleio), "bin/udp-send", self.settings.remote_dpdk_ip, "2000000"]
