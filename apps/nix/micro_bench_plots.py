@@ -203,9 +203,10 @@ def main() -> None:
     graph_names = []
 
     plot_func = {
-        "spdk_zerocopy": hdparm_zerocopy_plot,
-        "network_bs": network_bs_plot,
-        "storage_bs": storage_bs_plot,
+        # disabled for now
+        #"spdk_zerocopy": hdparm_zerocopy_plot,
+        #"network_bs": network_bs_plot,
+        #"storage_bs": storage_bs_plot,
         "smp": smp_plot,
         "network_optimization": network_optimization_plot
     }
