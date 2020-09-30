@@ -98,10 +98,12 @@ def mysql_read_graph(df: pd.DataFrame) -> Any:
         y=column_alias("SQL statistics read"),
         kind="bar",
         height=2.5,
-        aspect=1.2,
+        # aspect=1.2,
+        color="black",
+        palette=None,
     )
-    apply_hatch(groups, g, False)
-    change_width(g.ax, 0.25)
+    apply_to_graphs(g.ax, False, -1)
+
     return g
 
 
@@ -115,9 +117,10 @@ def mysql_write_graph(df: pd.DataFrame) -> Any:
         kind="bar",
         height=2.5,
         # aspect=1.2,
+        color="black",
+        palette=None,
     )
-    apply_hatch(groups, g, False)
-    change_width(g.ax, 0.25)
+    apply_to_graphs(g.ax, False, -1)
     return g
 
 
@@ -130,10 +133,11 @@ def mysql_latency_graph(df: pd.DataFrame) -> Any:
         y=column_alias("Latency (ms) avg"),
         kind="bar",
         height=2.5,
-        aspect=1.2,
+        # aspect=1.2,
+        color="black",
+        palette=None,
     )
-    apply_hatch(groups, g, False)
-    change_width(g.ax, 0.25)
+    apply_to_graphs(g.ax, False, -1)
     return g
 
 
@@ -174,8 +178,11 @@ def hdparm_graph(df: pd.DataFrame, metric: str) -> Any:
         y=plot_df.columns[1],
         kind="bar",
         height=2.5,
-        aspect=1.2
+        # aspect=1.2,
+        color="black",
+        palette=None,
     )
+    apply_to_graphs(g.ax, False, -1)
 
     return g
 

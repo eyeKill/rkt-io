@@ -5,7 +5,7 @@ import pandas as pd
 from plot import apply_hatch, catplot
 import os
 
-from graph_utils import apply_aliases, change_width, column_alias
+from graph_utils import apply_aliases, change_width, column_alias, apply_to_graphs
 
 
 def preprocess_hdparm(df_col: pd.Series) -> Any:
@@ -74,14 +74,16 @@ def hdparm_zerocopy_plot(dir: str, graphs: List[Any]) -> None:
         height=2.5,
         legend=False,
         hue=column_alias("hdparm_kind"),
+        palette=["grey", "black"],
     )
 
-    apply_hatch(groups, g, True)
-    change_width(g.ax, 0.25)
-    g.ax.set_xlabel("")
+    # apply_hatch(groups, g, True)
+    # change_width(g.ax, 0.25)
+    # g.ax.set_xlabel("")
 
-    g.ax.set_xticklabels(g.ax.get_xmajorticklabels(), fontsize=6)
-    g.ax.set_yticklabels(g.ax.get_ymajorticklabels(), fontsize=6)
+    # g.ax.set_xticklabels(g.ax.get_xmajorticklabels(), fontsize=6)
+    # g.ax.set_yticklabels(g.ax.get_ymajorticklabels(), fontsize=6)
+    apply_to_graphs(g.ax, True, 2)
 
     graphs.append(g)
 
@@ -104,10 +106,11 @@ def network_bs_plot(dir: str, graphs: List[Any]) -> None:
         palette=None,
     )
 
-    change_width(g.ax, 0.25)
-    # g.ax.set_xlabel('')
-    g.ax.set_xticklabels(g.ax.get_xmajorticklabels(), fontsize=6)
-    g.ax.set_yticklabels(g.ax.get_ymajorticklabels(), fontsize=6)
+    # change_width(g.ax, 0.25)
+    # # g.ax.set_xlabel('')
+    # g.ax.set_xticklabels(g.ax.get_xmajorticklabels(), fontsize=6)
+    # g.ax.set_yticklabels(g.ax.get_ymajorticklabels(), fontsize=6)
+    apply_to_graphs(g.ax, False, -1)
 
     graphs.append(g)
 
@@ -129,10 +132,12 @@ def storage_bs_plot(dir: str, graphs: List[Any]) -> None:
         palette=None,
     )
 
-    change_width(g.ax, 0.25)
-    # g.ax.set_xlabel('')
-    g.ax.set_xticklabels(g.ax.get_xmajorticklabels(), fontsize=6)
-    g.ax.set_yticklabels(g.ax.get_ymajorticklabels(), fontsize=6)
+    # change_width(g.ax, 0.25)
+    # # g.ax.set_xlabel('')
+    # g.ax.set_xticklabels(g.ax.get_xmajorticklabels(), fontsize=6)
+    # g.ax.set_yticklabels(g.ax.get_ymajorticklabels(), fontsize=6)
+
+    apply_to_graphs(g.ax, False, -1)
 
     graphs.append(g)
 
@@ -157,13 +162,15 @@ def smp_plot(dir: str, graphs: List[Any]) -> None:
         kind="bar",
         height=2.5,
         legend=False,
+        palette=["grey", "black"],
     )
 
-    change_width(g.ax, 0.25)
-    # g.ax.set_xlabel('')
-    g.ax.set_xticklabels(g.ax.get_xmajorticklabels(), fontsize=6)
-    g.ax.set_yticklabels(g.ax.get_ymajorticklabels(), fontsize=6)
-    g.ax.legend(loc='best', fontsize='small')
+    # change_width(g.ax, 0.25)
+    # # g.ax.set_xlabel('')
+    # g.ax.set_xticklabels(g.ax.get_xmajorticklabels(), fontsize=6)
+    # g.ax.set_yticklabels(g.ax.get_ymajorticklabels(), fontsize=6)
+    # g.ax.legend(loc='best', fontsize='small')
+    apply_to_graphs(g.ax, True, 2)
 
     graphs.append(g)
 
@@ -188,10 +195,12 @@ def network_optimization_plot(dir: str, graphs: List[Any]) -> None:
         y=column_alias("iperf-throughput"),
         kind="bar",
         height=2.5,
-        aspect=1.2,
+        # aspect=1.2,
+        color="black",
+        palette=None,
     )
-    change_width(g.ax, 0.25)
-    g.ax.set_xlabel('')
+    apply_to_graphs(g.ax, False, -1)
+    
     graphs.append(g)
 
 
