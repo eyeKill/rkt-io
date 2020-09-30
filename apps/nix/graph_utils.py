@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-from typing import Dict, List
+from typing import Dict, List, Any
 import pandas as pd
 
 SYSTEM_ALIASES: Dict[str, str] = {"sgx-io": "rkt-io"}
@@ -53,6 +53,7 @@ COLUMN_ALIASES: Dict[str, str] = {
     "batch_size": "Batch size(KiB)",
     "batch-size": "Batch size(KiB)",
     "storage-bs-throughput": "Throughput [MiB/s]",
+    "cores": "Cores",
 }
 
 
@@ -83,7 +84,7 @@ def apply_aliases(df: pd.DataFrame) -> pd.DataFrame:
     return df.rename(index=str, columns=COLUMN_ALIASES)
 
 
-def change_width(ax, new_value):
+def change_width(ax: Any, new_value: int) -> None:
     for patch in ax.patches:
         current_width = patch.get_width()
         diff = current_width - new_value

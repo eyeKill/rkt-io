@@ -253,23 +253,22 @@ def smp_plot(dir: str, graphs: List[Any]) -> None:
         kind="bar",
         height=2.5,
         legend=False,
-        color="black",
-        palette=None,
     )
 
     change_width(g.ax, 0.25)
     # g.ax.set_xlabel('')
     g.ax.set_xticklabels(g.ax.get_xmajorticklabels(), fontsize=6)
     g.ax.set_yticklabels(g.ax.get_ymajorticklabels(), fontsize=6)
+    g.ax.legend(loc='best', fontsize='small')
 
     graphs.append(g)
 
 
-def main():
+def main() -> None:
     if len(sys.argv) < 1:
         sys.exit(1)
 
-    graphs = []
+    graphs: List[Any] = []
     graph_names = []
 
     plot_func = {
