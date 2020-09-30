@@ -19,7 +19,7 @@
 #define BUF_SIZE (getpagesize() * 128U)
 
 int main(int argc, char** argv) {
-  clock_t start, last_print;
+  clock_t start, end, last_print;
   size_t bytes;
   size_t total_written = 0, written_since_print = 0;
   int direct_io = 0;
@@ -135,11 +135,12 @@ int main(int argc, char** argv) {
   } else {
     free(buf);
   }
+  end = clock();
 
   fprintf(stderr, "Throughput: %lf MiB / s\n",
-         (total_written / 1024 / 1024) / (((double) (clock() - start)) / CLOCKS_PER_SEC));
+         (total_written / 1024 / 1024) / (((double) (end - start)) / CLOCKS_PER_SEC));
   printf("<result>\n");
-  printf("{\"bytes\": %ld, \"time\": %lf}\n", total_written, ((double)clock() - start)/CLOCKS_PER_SEC);
+  printf("{\"bytes\": %ld, \"time\": %lf}\n", total_written, ((double)(end - start))/CLOCKS_PER_SEC);
   printf("</result>\n");
   fflush(stdout);
   return 0;
