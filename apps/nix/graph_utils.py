@@ -2,9 +2,7 @@
 from typing import Dict, List
 import pandas as pd
 
-SYSTEM_ALIASES: Dict[str, str] = {
-    "sgx-io": "rkt-io"
-}
+SYSTEM_ALIASES: Dict[str, str] = {"sgx-io": "rkt-io"}
 OPERATION_ALIASES: Dict[str, str] = {
     "read-bw": "read",
     "write-bw": "write",
@@ -13,20 +11,25 @@ DPDK_ALIASES: Dict[str, str] = {
     "dpdk-zerocopy": "zerocopy",
     "dpdk-copy": "copy",
     "dpdk-offload": "offload",
-    "dpdk-no-offload": "no-offload"
+    "dpdk-no-offload": "no offload",
 }
 SPDK_ALIASES: Dict[str, str] = {
     "spdk-zerocopy": "zerocopy",
     "spdk-copy": "copy",
     "Timing buffer-cache reads": "cache",
-    "Timing buffered disk reads": "buffer"
-
+    "Timing buffered disk reads": "buffer",
 }
 HDPARM_ALIASES: Dict[str, str] = {
     "Timing buffer-cache reads": "cache",
-    "Timing buffered disk reads": "buffer"
+    "Timing buffered disk reads": "buffer",
 }
-ROW_ALIASES = dict(system=SYSTEM_ALIASES, operation=OPERATION_ALIASES, feature_dpdk=DPDK_ALIASES, feature_spdk=SPDK_ALIASES, hdparm_kind=HDPARM_ALIASES)
+ROW_ALIASES = dict(
+    system=SYSTEM_ALIASES,
+    operation=OPERATION_ALIASES,
+    feature_dpdk=DPDK_ALIASES,
+    feature_spdk=SPDK_ALIASES,
+    hdparm_kind=HDPARM_ALIASES,
+)
 COLUMN_ALIASES: Dict[str, str] = {
     "iperf-throughput": "Throughput [GiB/s]",
     "disk-throughput": "Throughput [MiB/s]",
@@ -39,7 +42,6 @@ COLUMN_ALIASES: Dict[str, str] = {
     "memcopy-size": "Copy size [kB]",
     "memcopy-time": "Latency [ms]",
     "time_per_syscall": "Time [μs]",
-
     "sqlite-time [s]": "Transactions per second",
     "lat_avg(ms)": "Latency [ms]",
     "req_sec_tot": "Requests/sec",
@@ -50,7 +52,7 @@ COLUMN_ALIASES: Dict[str, str] = {
     "network-bs-throughput": "Throughput [MiB/s]",
     "batch_size": "Batch size(KiB)",
     "batch-size": "Batch size(KiB)",
-    "storage-bs-throughput": "Throughput [MiB/s]"
+    "storage-bs-throughput": "Throughput [MiB/s]",
 }
 
 
@@ -80,10 +82,11 @@ def apply_aliases(df: pd.DataFrame) -> pd.DataFrame:
             df[column] = df[column].replace(aliases)
     return df.rename(index=str, columns=COLUMN_ALIASES)
 
+
 def change_width(ax, new_value):
     for patch in ax.patches:
         current_width = patch.get_width()
         diff = current_width - new_value
         patch.set_width(new_value)
 
-        patch.set_x(patch.get_x() + diff * .5)
+        patch.set_x(patch.get_x() + diff * 0.5)
