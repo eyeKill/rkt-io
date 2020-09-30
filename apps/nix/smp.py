@@ -94,7 +94,7 @@ def main() -> None:
         benchmark_sgx_io(storage, stats, cores)
         write_stats("smp.json", stats)
 
-    csv = f"throughput-{NOW}.tsv"
+    csv = f"smp-{NOW}.tsv"
     print(csv)
     throughput_df = pd.DataFrame(stats)
     throughput_df.to_csv(csv, index=False, sep="\t")
