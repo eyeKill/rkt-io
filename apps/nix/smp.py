@@ -40,7 +40,7 @@ def benchmark_fio(
     if os.environ.get("SGXLKL_ENABLE_GDB", "0") == "1":
         stdout = None
 
-    cmd = [str(fio), "bin/fio", "--output-format=json", "--eta=always", "fio-rand-RW-smp-${cores}.job"]
+    cmd = [str(fio), "bin/fio", "--output-format=json", "--eta=always", f"fio-rand-RW-smp-{cores}.job"]
     proc = subprocess.Popen(cmd, stdout=stdout, text=True, env=env)
     data = ""
     in_json = False
