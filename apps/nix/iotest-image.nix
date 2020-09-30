@@ -15,6 +15,97 @@ buildImage {
       yes "a" | head -c ${toString (3 * 1024 * 1024)} > $out || true
     '';
 
+    "fio-rand-RW-smp-1.job" = ''
+      [global]
+      name=fio-rand-RW
+      filename=fio-rand-RW
+      rw=randrw
+      rwmixread=60
+      rwmixwrite=40
+      bs=4K
+      direct=0
+      numjobs=1
+      time_based=1
+      runtime=50
+      thread
+
+      [file1]
+      size=1G
+      iodepth=16
+    '';
+    "fio-rand-RW-smp-2.job" = ''
+      [global]
+      name=fio-rand-RW
+      filename=fio-rand-RW
+      rw=randrw
+      rwmixread=60
+      rwmixwrite=40
+      bs=4K
+      direct=0
+      numjobs=2
+      time_based=1
+      runtime=50
+      thread
+
+      [file1]
+      size=1G
+      iodepth=16
+    '';
+    "fio-rand-RW-smp-4.job" = ''
+      [global]
+      name=fio-rand-RW
+      filename=fio-rand-RW
+      rw=randrw
+      rwmixread=60
+      rwmixwrite=40
+      bs=4K
+      direct=0
+      numjobs=4
+      time_based=1
+      runtime=50
+      thread
+
+      [file1]
+      size=1G
+      iodepth=16
+    '';
+    "fio-rand-RW-smp-6.job" = ''
+      [global]
+      name=fio-rand-RW
+      filename=fio-rand-RW
+      rw=randrw
+      rwmixread=60
+      rwmixwrite=40
+      bs=4K
+      direct=0
+      numjobs=6
+      time_based=1
+      runtime=50
+      thread
+
+      [file1]
+      size=1G
+      iodepth=16
+    '';
+    "fio-rand-RW-smp-8.job" = ''
+      [global]
+      name=fio-rand-RW
+      filename=fio-rand-RW
+      rw=randrw
+      rwmixread=60
+      rwmixwrite=40
+      bs=4K
+      direct=0
+      numjobs=8
+      time_based=1
+      runtime=50
+      thread
+
+      [file1]
+      size=1G
+      iodepth=16
+    '';
+
     "nginx/proxy/.keep" = "";
     "nginx/scgi/.keep" = "";
     "nginx/uwsgi/.keep" = "";
