@@ -8,7 +8,7 @@ import os
 from graph_utils import apply_aliases, change_width, column_alias
 
 
-def iperf_zerocopy_plot(dir, graphs):
+def iperf_zerocopy_plot(dir: str, graphs: List[Any]) -> None:
     df_all_on = pd.read_csv(
         os.path.join(os.path.realpath(dir), "iperf-all-on.tsv"), sep="\t"
     )
@@ -56,7 +56,7 @@ def iperf_zerocopy_plot(dir, graphs):
     graphs.append(g)
 
 
-def iperf_offload_plot(dir, graphs):
+def iperf_offload_plot(dir: str, graphs: List[Any]) -> None:
     df_all_on = pd.read_csv(
         os.path.join(os.path.realpath(dir), "iperf-all-on.tsv"), sep="\t"
     )
@@ -119,7 +119,7 @@ def preprocess_hdparm(df_col: pd.Series) -> Any:
     return pd.Series(df_col)
 
 
-def hdparm_zerocopy_plot(dir, graphs):
+def hdparm_zerocopy_plot(dir: str, graphs: List[Any]) -> None:
     df_all_on = pd.read_csv(
         os.path.join(os.path.realpath(dir), "hdparm-all-on.tsv"), sep="\t"
     )
@@ -182,7 +182,7 @@ def hdparm_zerocopy_plot(dir, graphs):
     graphs.append(g)
 
 
-def network_bs_plot(dir, graphs):
+def network_bs_plot(dir: str, graphs: List[Any]) -> None:
     df = pd.read_csv(
         os.path.join(os.path.realpath(dir), "network-test-bs-latest.tsv"), sep="\t"
     )
@@ -208,7 +208,7 @@ def network_bs_plot(dir, graphs):
     graphs.append(g)
 
 
-def storage_bs_plot(dir, graphs):
+def storage_bs_plot(dir: str, graphs: List[Any]) -> None:
     df = pd.read_csv(
         os.path.join(os.path.realpath(dir), "simpleio-unenc.tsv"), sep="\t"
     )
@@ -218,6 +218,38 @@ def storage_bs_plot(dir, graphs):
         data=apply_aliases(df),
         x=column_alias("batch-size"),
         y=column_alias("storage-bs-throughput"),
+        kind="bar",
+        height=2.5,
+        legend=False,
+        color="black",
+        palette=None,
+    )
+
+    change_width(g.ax, 0.25)
+    # g.ax.set_xlabel('')
+    g.ax.set_xticklabels(g.ax.get_xmajorticklabels(), fontsize=6)
+    g.ax.set_yticklabels(g.ax.get_ymajorticklabels(), fontsize=6)
+
+    graphs.append(g)
+
+
+def smp_plot(dir: str, graphs: List[Any]) -> None:
+    df = pd.read_csv(
+        os.path.join(os.path.realpath(dir), "smp-latest.tsv"), sep="\t"
+    )
+    df = pd.melt(df,
+                 id_vars=['cores', 'job'],
+                 value_vars=['read-bw', 'write-bw'],
+                 var_name="operation",
+                 value_name="disk-throughput")
+    df = df.groupby(["cores", "operation"]).sum().reset_index()
+
+    df["disk-throughput"] /= 1024
+    g = catplot(
+        data=apply_aliases(df),
+        x=column_alias("cores"),
+        y=column_alias("disk-throughput"),
+        hue=column_alias("operation"),
         kind="bar",
         height=2.5,
         legend=False,
@@ -246,6 +278,7 @@ def main():
         "spdk_zerocopy": hdparm_zerocopy_plot,
         "network_bs": network_bs_plot,
         "storage_bs": storage_bs_plot,
+        "smp": smp_plot,
     }
 
     for name, pf in plot_func.items():
@@ -253,7 +286,9 @@ def main():
         graph_names.append(name)
 
     for i in range(len(graphs)):
-        graphs[i].savefig(f"{graph_names[i]}.pdf")
+        name = f"{graph_names[i]}.pdf"
+        print(name)
+        graphs[i].savefig(name)
 
 
 if __name__ == "__main__":
