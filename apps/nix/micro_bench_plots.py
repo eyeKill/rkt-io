@@ -204,6 +204,42 @@ def network_optimization_plot(dir: str, graphs: List[Any]) -> None:
     graphs.append(g)
 
 
+def aesni_plot(dir: str, graphs: List[Any]) -> None:
+    df = pd.read_csv(
+        os.path.join(os.path.realpath(dir), "aesni-latest.tsv"), sep="\t"
+    )
+    df = df.assign(aesnithroughput=df.bytes / df.time / 1024 / 1024)
+    g = catplot(
+        data=apply_aliases(df),
+        x=column_alias("type"),
+        y=column_alias("aesnithroughput"),
+        kind="bar",
+        height=2.5,
+        aspect=1.2,
+    )
+    change_width(g.ax, 0.25)
+    g.ax.set_xlabel('')
+    graphs.append(g)
+
+
+def spdk_zerocopy_plot(dir: str, graphs: List[Any]) -> None:
+    df = pd.read_csv(
+        os.path.join(os.path.realpath(dir), "spdk-zerocopy-latest.tsv"), sep="\t"
+    )
+    df = df.assign(aesnithroughput=df.bytes / df.time / 1024 / 1024)
+    g = catplot(
+        data=apply_aliases(df),
+        x=column_alias("type"),
+        y=column_alias("aesnithroughput"),
+        kind="bar",
+        height=2.5,
+        aspect=1.2,
+    )
+    change_width(g.ax, 0.25)
+    g.ax.set_xlabel('')
+    graphs.append(g)
+
+
 def main() -> None:
     if len(sys.argv) < 1:
         sys.exit(1)
@@ -213,10 +249,11 @@ def main() -> None:
 
     plot_func = {
         # disabled for now
-        #"spdk_zerocopy": hdparm_zerocopy_plot,
         #"network_bs": network_bs_plot,
         #"storage_bs": storage_bs_plot,
+        "spdk_zerocopy": spdk_zerocopy_plot,
         "smp": smp_plot,
+        "aesni": aesni_plot,
         "network_optimization": network_optimization_plot
     }
 
