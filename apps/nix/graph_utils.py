@@ -6,6 +6,8 @@ SYSTEM_ALIASES: Dict[str, str] = {"sgx-io": "rkt-io"}
 OPERATION_ALIASES: Dict[str, str] = {
     "read-bw": "read",
     "write-bw": "write",
+    "[READ]": "read",
+    "[UPDATE]": "update",
 }
 DPDK_ALIASES: Dict[str, str] = {
     "dpdk-zerocopy": "zerocopy",
@@ -100,6 +102,7 @@ def change_width(ax: Any, new_value: Union[int, float]) -> None:
 
 def apply_to_graphs(ax: Any, legend: bool, legend_cols: int):
     change_width(ax, 0.405)
+    # change_width(ax, 0.25)
     ax.set_xlabel("")
 
     if legend:
