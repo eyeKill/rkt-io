@@ -61,7 +61,7 @@ COLUMN_ALIASES: Dict[str, str] = {
     "batch-size": "Batch size(KiB)",
     "storage-bs-throughput": "Throughput [MiB/s]",
     "aesnithroughput": "Throughput [MiB/s]",
-    "cores": "Cores",
+    "cores": "Jobs",
 }
 
 
