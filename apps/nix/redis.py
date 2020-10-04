@@ -62,14 +62,7 @@ class Benchmark:
             print(f"waiting for redis for {system} benchmark...", end="")
             while True:
                 try:
-                    #self.remote_redis.run(
-                    #    self.remote_redis.nix_path, ["bin/redis-cli", "--tls",
-                    #                      "--cert", "/proc/self/cwd/server.cert",
-                    #                      "--key", "/proc/self/cwd/server.key",
-                    #                      "--cacert", "/proc/self/cwd/ca.crt",
-                    #                      "-h", self.settings.local_dpdk_ip, "ping"]
-                    #)
-                    nc_proc = self.nc_command.run("bin/nc", ["-z", "-v", self.settings.local_dpdk_ip, "6379"])
+                    self.nc_command.run("bin/nc", ["-z", "-v", self.settings.local_dpdk_ip, "6379"])
                     break
                 except subprocess.CalledProcessError:
                     status = proc.poll()
