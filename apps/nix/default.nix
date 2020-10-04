@@ -54,8 +54,22 @@ let
     };
   });
 
-  mysql = (pkgsMusl.callPackage ./mysql-5.5.x.nix {}).overrideAttrs (old: {
-    patches = [ ./mysql.patch ];
+  redis-scone = (redis.override ({
+    stdenv = sconeStdenv;
+  })).overrideAttrs (old: {
+    buildInputs = [
+      (openssl.override {
+        stdenv = sconeStdenv;
+        static = true;
+      })
+    ];
+  });
+
+  mysql = pkgsMusl.callPackage ./mysql-5.5.x.nix {};
+
+  mysqlScone =  mysql.override({
+    stdenv = sconeStdenv;
+    enableStatic = true;
   });
 
   mysql-image = { sgx-lkl-run ? "sgx-lkl-run" }: runImage {
@@ -86,6 +100,10 @@ let
       FLUSH PRIVILEGES;
       EOF
    '';
+  };
+
+  mysql-image-scone = mysql-image.override {
+    pkg = mysqlScone;
   };
 
   fio = pkgsMusl.fio.overrideAttrs (old: {
@@ -199,22 +217,49 @@ let
       "--http-scgi-temp-path=/proc/self/cwd/nginx/scgi"
     ];
   });
+  nginx-scone = (nginx.override {
+    stdenv = sconeStdenv;
+  }).overrideAttrs (old: {
+    buildInputs = [
+      ((pcre.override {
+        stdenv = sconeStdenv;
+      }).overrideAttrs (old: {
+        doCheck = false;
+        dontDisableStatic = true;
+        configureFlags = old.configureFlags ++ [ "--disable-shared" ];
+      }))
+      (openssl.override {
+        stdenv = sconeStdenv;
+        static = true;
+      })
+      ((zlib.override {
+        static = true;
+        shared = false;
+        splitStaticOutput = false;
+      }).overrideAttrs (old: {
+        stdenv = sconeStdenv;
+      }))
+    ];
+  });
   sqlite-speedtest = (pkgsMusl.sqlite.overrideAttrs (old: {
-      src = fetchFromGitHub {
-        owner="harshanavkis";
-        repo="sqlite-speedtest-custom";
-        rev = "591be835b8e73bc79f1e6d7766a78e20b915d94f";
-        sha256 = "08wpy6739hgbcf7jyklq66vjhy28yyyaxmfdlgzgcy1y584zmh3g";
-      };
-      buildInputs = [ pkgsMusl.tcl ];
-      outputs = ["out"];
-      makeFlags = ["speedtest1"];
-      installPhase = ''
+    src = fetchFromGitHub {
+      owner="harshanavkis";
+      repo="sqlite-speedtest-custom";
+      rev = "591be835b8e73bc79f1e6d7766a78e20b915d94f";
+      sha256 = "08wpy6739hgbcf7jyklq66vjhy28yyyaxmfdlgzgcy1y584zmh3g";
+    };
+    buildInputs = [ pkgsMusl.tcl ];
+    outputs = ["out"];
+    makeFlags = ["speedtest1"];
+    installPhase = ''
         mkdir -p $out/bin
         cp speedtest1 $out/bin
       '';
-    })
-    );
+  }));
+
+  sqlite-speedtest-scone = sqlite-speedtest.override {
+    stdenv = sconeStdenv;
+  };
 in {
   musl = pkgs.musl;
 
@@ -257,7 +302,7 @@ in {
 
   simpleio-sgx-lkl = runImage {
     pkg = simpleio-musl;
-    #sgx-lkl-run = toString ../../../sgx-lkl-org/build/sgx-lkl-run;
+    #sgx-lkl-run = toString ../../../sgx-lkl-master/build/sgx-lkl-run;
     sgx-lkl-run = "${sgx-lkl}/bin/sgx-lkl-run";
     command = [ "bin/simpleio" ];
   };
@@ -379,8 +424,8 @@ in {
 
   fio-sgx-lkl = runImage {
     pkg = fio;
-    #sgx-lkl-run = "${sgx-lkl}/bin/sgx-lkl-run";
-    sgx-lkl-run = toString ../../../sgx-lkl-org/build/sgx-lkl-run;
+    sgx-lkl-run = "${sgx-lkl}/bin/sgx-lkl-run";
+    #sgx-lkl-run = toString ../../../sgx-lkl-org/build/sgx-lkl-run;
     command = [ "bin/fio" ];
   };
 
@@ -439,12 +484,24 @@ in {
     command = [ "bin/redis-server" "--protected-mode" "no" ];
   };
 
+  redis-scone = runImage {
+    pkg = redis-scone;
+    command = [ "bin/redis-server" "--protected-mode" "no" ];
+    native = true;
+  };
+
   mysql-sgx-io = mysql-image {};
   mysql-sgx-lkl = mysql-image {
     sgx-lkl-run = "${sgx-lkl}/bin/sgx-lkl-run";
   };
   mysql-native = runImage {
     pkg = mysql;
+    native = true;
+    command = [ "bin/mysqld" ];
+  };
+
+  mysql-scone = runImage {
+    pkg = mysqlScone;
     native = true;
     command = [ "bin/mysqld" ];
   };
@@ -514,6 +571,12 @@ in {
     command = [ "bin/nginx" "-c" "/etc/nginx.conf" ];
   };
 
+  nginx-scone = runImage {
+    pkg = nginx-scone;
+    command = [ "bin/nginx" "-c" "/etc/nginx.conf" ];
+    native = true;
+  };
+
   sqlite-native = runImage {
     pkg = sqlite-speedtest;
     native = true;
@@ -528,6 +591,12 @@ in {
   sqlite-sgx-lkl = runImage {
     pkg = sqlite-speedtest;
     sgx-lkl-run = "${sgx-lkl}/bin/sgx-lkl-run";
+    command = [ "bin/speedtest1" "--size" "20" "--journal" "delete" "bench.db" ];
+  };
+
+  sqlite-scone = runImage {
+    pkg = sqlite-speedtest-scone;
+    native = true;
     command = [ "bin/speedtest1" "--size" "20" "--journal" "delete" "bench.db" ];
   };
 
