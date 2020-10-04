@@ -197,29 +197,31 @@ let
   simpleio-scone = simpleio-musl.override {
     stdenv = sconeStdenv;
   };
+  nginxConfigureFlags = dir: [
+    "--with-file-aio"
+    "--with-threads"
+    "--with-http_ssl_module"
+    "--http-log-path=${dir}/nginx/access.log"
+    "--error-log-path=${dir}/nginx/error.log"
+    "--pid-path=${dir}/nginx/nginx.pid"
+    "--http-client-body-temp-path=${dir}/nginx/client_body"
+    "--http-proxy-temp-path=${dir}/nginx/proxy"
+    "--http-fastcgi-temp-path=${dir}/nginx/fastcgi"
+    "--http-uwsgi-temp-path=${dir}/nginx/uwsgi"
+    "--http-scgi-temp-path=${dir}/nginx/scgi"
+  ];
   nginx = (pkgsMusl.nginx.override {
     gd = null;
     geoip = null;
     libxslt = null;
     withStream = false;
   }).overrideAttrs (old: {
-    configureFlags = [
-      "--with-file-aio"
-      "--with-threads"
-      "--with-http_ssl_module"
-      "--http-log-path=/proc/self/cwd/nginx/access.log"
-      "--error-log-path=/proc/self/cwd/nginx/error.log"
-      "--pid-path=/proc/self/cwd/nginx/nginx.pid"
-      "--http-client-body-temp-path=/proc/self/cwd/nginx/client_body"
-      "--http-proxy-temp-path=/proc/self/cwd/nginx/proxy"
-      "--http-fastcgi-temp-path=/proc/self/cwd/nginx/fastcgi"
-      "--http-uwsgi-temp-path=/proc/self/cwd/nginx/uwsgi"
-      "--http-scgi-temp-path=/proc/self/cwd/nginx/scgi"
-    ];
+    configureFlags = nginxConfigureFlags "/proc/self/cwd";
   });
   nginx-scone = (nginx.override {
     stdenv = sconeStdenv;
   }).overrideAttrs (old: {
+    configureFlags = nginxConfigureFlags "${toString ./.}/iotest-mnt";
     buildInputs = [
       ((pcre.override {
         stdenv = sconeStdenv;
