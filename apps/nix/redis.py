@@ -161,6 +161,18 @@ def benchmark_redis_sgx_io(
         benchmark.run("sgx-io", redis_server, mnt, stats, extra_env=extra_env)
 
 
+def benchmark_redis_scone(
+    benchmark: Benchmark, stats: DefaultDict[str, List[str]]
+) -> None:
+    extra_env = benchmark.network.setup(NetworkKind.NATIVE)
+    redis_server = nix_build("redis-scone")
+    mount = benchmark.storage.setup(StorageKind.SCONE)
+    extra_env.update(mount.extra_env())
+
+    with mount as mnt:
+        benchmark.run("scone", redis_server, mnt, stats, extra_env=extra_env)
+
+
 def main() -> None:
     stats = read_stats("redis.json")
     settings = create_settings()
@@ -174,6 +186,7 @@ def main() -> None:
         "native": benchmark_redis_native,
         "sgx-lkl": benchmark_redis_sgx_lkl,
         "sgx-io": benchmark_redis_sgx_io,
+        "scone": benchmark_redis_scone,
     }
 
     system = set(stats["system"])
