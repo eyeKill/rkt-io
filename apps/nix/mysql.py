@@ -14,6 +14,7 @@ from helpers import (
     flamegraph_env,
     read_stats,
     write_stats,
+    scone_env
 )
 from network import Network, NetworkKind, setup_remote_network
 from storage import Storage, StorageKind
@@ -142,11 +143,12 @@ def benchmark_sgx_io(benchmark: Benchmark, stats: Dict[str, List]) -> None:
 
 
 def benchmark_scone(benchmark: Benchmark, stats: Dict[str, List]) -> None:
-    extra_env = benchmark.network.setup(NetworkKind.NATIVE)
     mount = benchmark.storage.setup(StorageKind.SCONE)
-    extra_env.update(mount.extra_env())
 
     with mount as mnt:
+        extra_env = scone_env(mnt)
+        extra_env.update(benchmark.network.setup(NetworkKind.NATIVE))
+        extra_env.update(mount.extra_env())
         benchmark.run("mysql-scone", "scone", mnt, stats, extra_env=extra_env)
 
 

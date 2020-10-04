@@ -12,6 +12,7 @@ from helpers import (
     read_stats,
     write_stats,
     spawn,
+    scone_env
 )
 from storage import Storage, StorageKind
 from network import Network, NetworkKind, setup_remote_network
@@ -104,11 +105,12 @@ def benchmark_nginx_sgx_io(
 def benchmark_nginx_scone(
     benchmark: Benchmark, stats: Dict[str, List]
 ) -> None:
-    extra_env = benchmark.network.setup(NetworkKind.NATIVE)
     mount = benchmark.storage.setup(StorageKind.SCONE)
-    extra_env.update(mount.extra_env())
 
     with mount as mnt:
+        extra_env = scone_env(mnt)
+        extra_env.update(benchmark.network.setup(NetworkKind.NATIVE))
+        extra_env.update(mount.extra_env())
         benchmark.run("nginx-scone", "scone", mnt, stats, extra_env=extra_env)
 
 
