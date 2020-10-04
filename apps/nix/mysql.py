@@ -141,6 +141,15 @@ def benchmark_sgx_io(benchmark: Benchmark, stats: Dict[str, List]) -> None:
         benchmark.run("mysql-sgx-io", "sgx-io", mnt, stats, extra_env=extra_env)
 
 
+def benchmark_scone(benchmark: Benchmark, stats: Dict[str, List]) -> None:
+    extra_env = benchmark.network.setup(NetworkKind.NATIVE)
+    mount = benchmark.storage.setup(StorageKind.SCONE)
+    extra_env.update(mount.extra_env())
+
+    with mount as mnt:
+        benchmark.run("mysql-scone", "scone", mnt, stats, extra_env=extra_env)
+
+
 def main() -> None:
     stats = read_stats("mysql.json")
 
@@ -151,6 +160,7 @@ def main() -> None:
         "native": benchmark_native,
         "sgx-lkl": benchmark_sgx_lkl,
         "sgx-io": benchmark_sgx_io,
+        "scone": benchmark_scone,
     }
 
     setup_remote_network(settings)
