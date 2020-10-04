@@ -377,5 +377,8 @@ buildImage {
     CREATE DATABASE root;
     FLUSH PRIVILEGES;
     EOF
-  '';
+  '' + (stdenv.lib.optionalString (sconeEncryptedDir != null) ''
+    sed -i -e 's!/proc/self/cwd!${sconeEncryptedDir}!' root/nginx/nginx.conf
+    cat root/nginx/nginx.conf
+  '');
 }
