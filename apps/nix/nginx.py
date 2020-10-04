@@ -101,6 +101,17 @@ def benchmark_nginx_sgx_io(
         benchmark.run("nginx-sgx-io", "sgx-io", mnt, stats, extra_env=extra_env)
 
 
+def benchmark_nginx_scone(
+    benchmark: Benchmark, stats: Dict[str, List]
+) -> None:
+    extra_env = benchmark.network.setup(NetworkKind.NATIVE)
+    mount = benchmark.storage.setup(StorageKind.SCONE)
+    extra_env.update(mount.extra_env())
+
+    with mount as mnt:
+        benchmark.run("nginx-scone", "scone", mnt, stats, extra_env=extra_env)
+
+
 def main() -> None:
     stats = read_stats("nginx.json")
     settings = create_settings()
@@ -112,6 +123,7 @@ def main() -> None:
         "native": benchmark_nginx_native,
         "sgx-lkl": benchmark_nginx_sgx_lkl,
         "sgx-io": benchmark_nginx_sgx_io,
+        "scone": benchmark_nginx_scone,
     }
 
     system = set(stats["system"])
