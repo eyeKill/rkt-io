@@ -1,7 +1,6 @@
 import subprocess
 import time
 import pandas as pd
-from io import StringIO
 from typing import Dict, List, DefaultDict
 
 from helpers import (
@@ -12,6 +11,7 @@ from helpers import (
     read_stats,
     write_stats,
     NOW,
+    scone_env
 )
 from storage import Storage, StorageKind
 from network import Network, NetworkKind, setup_remote_network
@@ -48,16 +48,16 @@ class Benchmark:
         extra_env: Dict[str, str],
     ) -> None:
         args = [
-                    "bin/redis-server",
-                    "--dir", db_dir,
-                    "--tls-port", "6379",
-                    "--port", "0",
-                    "--tls-cert-file", f"{db_dir}/server.cert",
-                    "--tls-key-file", f"{db_dir}/server.key",
-                    "--tls-ca-cert-file", f"{db_dir}/ca.crt",
-                    "--requirepass", "snakeoil",
-                    "--tls-auth-clients", "no"
-               ]
+            "bin/redis-server",
+            "--dir", db_dir,
+            "--tls-port", "6379",
+            "--port", "0",
+            "--tls-cert-file", f"{db_dir}/server.cert",
+            "--tls-key-file", f"{db_dir}/server.key",
+            "--tls-ca-cert-file", f"{db_dir}/ca.crt",
+            "--requirepass", "snakeoil",
+            "--tls-auth-clients", "no"
+        ]
         with spawn(redis_server, *args, extra_env=extra_env) as proc:
             print(f"waiting for redis for {system} benchmark...", end="")
             while True:
@@ -164,12 +164,14 @@ def benchmark_redis_sgx_io(
 def benchmark_redis_scone(
     benchmark: Benchmark, stats: DefaultDict[str, List[str]]
 ) -> None:
-    extra_env = benchmark.network.setup(NetworkKind.NATIVE)
-    redis_server = nix_build("redis-scone")
     mount = benchmark.storage.setup(StorageKind.SCONE)
-    extra_env.update(mount.extra_env())
+    redis_server = nix_build("redis-scone")
 
     with mount as mnt:
+        extra_env = scone_env(mnt)
+        extra_env.update(benchmark.network.setup(NetworkKind.NATIVE))
+        extra_env.update(mount.extra_env())
+
         benchmark.run("scone", redis_server, mnt, stats, extra_env=extra_env)
 
 
