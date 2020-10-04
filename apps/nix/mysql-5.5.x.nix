@@ -1,5 +1,7 @@
 { stdenv, fetchpatch, fetchurl, cmake, bison, ncurses
-, readline, zlib, perl }:
+, readline, zlib, perl, lib
+, enableStatic ? false
+}:
 
 # Note: zlib is not required; MySQL can use an internal zlib.
 
@@ -12,7 +14,9 @@ stdenv.mkDerivation rec {
     sha256 = "1mwrzwk9ap09s430fpdkyhvx5j2syd3xj2hyfzvanjphq4xqbrxi";
   };
 
-  patches =
+  patches = [
+    ./mysql.patch
+  ] ++
     # Minor type error that is a build failure as of clang 6.
     stdenv.lib.optional stdenv.cc.isClang (fetchpatch {
       url = "https://svn.freebsd.org/ports/head/databases/mysql55-server/files/patch-sql_sql_partition.cc?rev=469888";
@@ -20,12 +24,30 @@ stdenv.mkDerivation rec {
       sha256 = "09sya27z3ir3xy5mrv3x68hm274594y381n0i6r5s627x71jyszf";
     });
 
-  buildInputs = [ ncurses readline zlib ];
+  buildInputs = [
+    ((ncurses.override {
+      inherit enableStatic;
+    }).overrideAttrs (old: {
+      inherit stdenv;
+    }))
+    (readline.overrideAttrs (old: {
+      inherit stdenv;
+    }))
+
+    ((zlib.override {
+      static = enableStatic;
+      shared = !enableStatic;
+      splitStaticOutput = enableStatic;
+    }).overrideAttrs (old: {
+      inherit stdenv;
+    }))
+  ];
   nativeBuildInputs = [ cmake bison ];
 
   enableParallelBuilding = true;
 
   cmakeFlags = [
+    "-DBUILD_SHARED_LIBRARIES=OFF"
     "-DWITH_SSL=yes"
     "-DWITH_READLINE=yes"
     "-DWITH_EMBEDDED_SERVER=yes"
@@ -52,7 +74,7 @@ stdenv.mkDerivation rec {
     stdenv.lib.optionals stdenv.cc.isGNU [ "-fpermissive" ] # since gcc-7
     ++ stdenv.lib.optionals stdenv.cc.isClang [ "-Wno-c++11-narrowing" ]; # since clang 6
 
-  NIX_LDFLAGS = stdenv.lib.optionalString stdenv.isLinux "-lgcc_s";
+  NIX_LDFLAGS = stdenv.lib.optionalString (stdenv.isLinux && !enableStatic) "-lgcc_s";
 
   prePatch = ''
     sed -i -e "s|/usr/bin/libtool|libtool|" cmake/libutils.cmake
