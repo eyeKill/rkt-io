@@ -157,9 +157,8 @@ def nix_build(attr: str) -> str:
 
 def scone_env(mountpoint: Optional[str]) -> Dict[str, str]:
     env = dict(
-        SCONE_SSPINS=str(10000),
         SCONE_CONFIG=str(ROOT.joinpath("scone/sgx-musl.conf")),
-        SCONE_HEAP="2G",
+        SCONE_HEAP="4G",
     )
     if mountpoint:
         keytag = Path(mountpoint).joinpath(".scone-keytag")

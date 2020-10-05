@@ -92,7 +92,9 @@ def benchmark_sqlite_sgx_io(storage: Storage, stats: Dict[str, List[Any]]) -> No
 def benchmark_sqlite_scone(storage: Storage, stats: Dict[str, List[Any]]) -> None:
     mount = storage.setup(StorageKind.SCONE)
     with mount as mnt:
-        benchmark_sqlite(storage, "scone", "sqlite-scone", mnt, stats, extra_env=mount.extra_env())
+        extra_env = scone_env(mnt)
+        extra_env.update(mount.extra_env())
+        benchmark_sqlite(storage, "scone", "sqlite-scone", mnt, stats, extra_env=extra_env)
 
 
 def main() -> None:
@@ -101,10 +103,10 @@ def main() -> None:
     storage = Storage(settings)
 
     benchmarks = {
+        "scone": benchmark_sqlite_scone,
         "native": benchmark_sqlite_native,
         "sgx-lkl": benchmark_sqlite_sgx_lkl,
         "sgx-io": benchmark_sqlite_sgx_io,
-        "scone": benchmark_sqlite_scone,
     }
     system = set(stats["system"])
     for name, benchmark in benchmarks.items():
