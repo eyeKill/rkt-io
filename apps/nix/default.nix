@@ -198,7 +198,6 @@ let
     stdenv = sconeStdenv;
   };
   nginxConfigureFlags = dir: [
-    "--with-file-aio"
     "--with-threads"
     "--with-http_ssl_module"
     "--http-log-path=${dir}/nginx/access.log"
