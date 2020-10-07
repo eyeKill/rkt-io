@@ -37,6 +37,7 @@ def parse_sysbench(output: str) -> Dict[str, str]:
     section = ""
     data = {}
     for line in output.split("\n"):
+        print(line)
         if line.startswith("SQL statistics"):
             stats_found = True
         if stats_found:
@@ -98,6 +99,7 @@ class Benchmark:
                 "--mysql-user=root",
                 "--mysql-password=root",
                 "--mysql-ssl=on",
+                "--table-size=500000",
                 f"{sysbench.nix_path}/share/sysbench/oltp_read_write.lua",
             ]
 
