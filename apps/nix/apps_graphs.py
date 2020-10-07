@@ -1,4 +1,5 @@
 import sys
+import os
 from typing import Any, Dict, List
 
 import pandas as pd
@@ -169,13 +170,14 @@ def main() -> None:
     graphs = []
     for arg in sys.argv[1:]:
         df = pd.read_csv(arg, delimiter="\t")
+        base = os.path.basename(arg)
 
-        if arg.startswith("sqlite"):
+        if base.startswith("sqlite"):
             graphs.append(("SQLITE", sqlite_graph(df)))
-        if arg.startswith("nginx"):
+        if base.startswith("nginx"):
             graphs.append(("NGINX-LAT", nginx_graph(df, "lat")))
             graphs.append(("NGINX-THRU", nginx_graph(df, "thru")))
-        if arg.startswith("redis"):
+        if base.startswith("redis"):
             graphs.append(("REDIS-THRU", redis_graph(df, "thru")))
             graphs.append(("REDIS-LAT", redis_graph(df, "lat")))
 
