@@ -62,7 +62,7 @@ class Benchmark:
             "--tls-auth-clients", "no"
         ]
         env = extra_env.copy()
-        env.update(flamegraph_env(f"{os.getcwd()}/nginx-{system}"))
+        env.update(flamegraph_env(f"{os.getcwd()}/redis-{system}"))
         with spawn(redis_server, *args, extra_env=env) as proc:
             print(f"waiting for redis for {system} benchmark...", end="")
             while True:
