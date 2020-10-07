@@ -25,6 +25,10 @@ def enable_tracecmd() -> bool:
     return os.environ.get("SGXLKL_ENABLE_TRACECMD", None) is not None
 
 
+def enable_perf_hw_counters() -> bool:
+    return os.environ.get("SGXLKL_ENABLE_PERF_HW_COUNTER", None) is not None
+
+
 def traceshark_cmd(perf_data: str) -> List[str]:
     events = [
         "power:cpu_frequency",
@@ -56,6 +60,9 @@ def traceshark_cmd(perf_data: str) -> List[str]:
     return cmd
 
 
+
+
+
 def get_debugger(perf_data: str) -> List[str]:
     if os.environ.get("SGXLKL_ENABLE_GDB", None) is not None:
         return ["sgx-lkl-gdb", "-ex", "run", "--args"]
@@ -63,7 +70,7 @@ def get_debugger(perf_data: str) -> List[str]:
         return ["strace"]
     elif enable_traceshark():
         return traceshark_cmd(perf_data)
-    elif os.environ.get("SGXLKL_ENABLE_PERF_HW_COUNTER", None) is not None:
+    elif enable_perf_hw_counters():
         events = [
             "cycles",
             "instructions",
@@ -126,7 +133,7 @@ def post_process_perf(perf_data: str, flamegraph: str) -> None:
 @contextmanager
 def debug_mount_env(image: str) -> Iterator[Dict[str, str]]:
     env = os.environ.copy()
-    if image == "NONE" or not (enable_flamegraph() or enable_traceshark()):
+    if image == "NONE" or not (enable_flamegraph() or enable_traceshark() or enable_perf_hw_counters()):
         yield env
         return
 
@@ -183,7 +190,7 @@ def main(args: List[str]) -> None:
             try:
                 run(sgx_lkl_run, image, debugger, cmd, env, tmpdirname)
             finally:
-                if not enable_flamegraph() and not enable_traceshark():
+                if not enable_flamegraph() and not enable_traceshark() and not enable_perf_hw_counters():
                     return
 
                 flamegraph = os.environ.get("FLAMEGRAPH_FILENAME", None)
