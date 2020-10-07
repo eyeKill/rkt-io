@@ -26,9 +26,9 @@ def sqlite_graph(df: pd.DataFrame) -> Any:
 
     plot_df["sqlite-op-type"] = plot_df["sqlite-op-type"].map(
         {
-            "10000 INSERTs into table with no index": "Insert",
-            "10000 UPDATES of individual rows": "Update",
-            "10000 DELETEs of individual rows": "Delete",
+            "5000 INSERTs into table with no index": "Insert",
+            "5000 UPDATES of individual rows": "Update",
+            "5000 DELETEs of individual rows": "Delete",
         }
     )
 
@@ -45,7 +45,7 @@ def sqlite_graph(df: pd.DataFrame) -> Any:
         order=systems_order(plot_df),
         hue="Operation",
         legend=False,
-        palette="Greys",
+        palette=["darkgrey", "gray", "black"],
     )
 
     apply_to_graphs(g.ax, True, 3, 0.285)
