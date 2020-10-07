@@ -581,24 +581,24 @@ in {
   sqlite-native = runImage {
     pkg = sqlite-speedtest;
     native = true;
-    command = [ "bin/speedtest1" "--size" "20" "--journal" "delete" "bench.db" ];
+    command = [ "bin/speedtest1" "--size" "10" "--journal" "delete" "bench.db" ];
   };
 
   sqlite-sgx-io = runImage {
     pkg = sqlite-speedtest;
-    command = [ "bin/speedtest1" "--size" "20" "--journal" "delete" "bench.db" ];
+    command = [ "bin/speedtest1" "--size" "10" "--journal" "delete" "bench.db" ];
   };
 
   sqlite-sgx-lkl = runImage {
     pkg = sqlite-speedtest;
     sgx-lkl-run = "${sgx-lkl}/bin/sgx-lkl-run";
-    command = [ "bin/speedtest1" "--size" "20" "--journal" "delete" "bench.db" ];
+    command = [ "bin/speedtest1" "--size" "10" "--journal" "delete" "bench.db" ];
   };
 
   sqlite-scone = runImage {
     pkg = sqlite-speedtest-scone;
     native = true;
-    command = [ "bin/speedtest1" "--size" "20" "--journal" "delete" "bench.db" ];
+    command = [ "bin/speedtest1" "--size" "10" "--journal" "delete" "bench.db" ];
   };
 
   wrk-bench = pkgsMusl.wrk;

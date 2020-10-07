@@ -11,6 +11,7 @@ from helpers import (
     nix_build,
     read_stats,
     write_stats,
+    scone_env
 )
 from storage import Storage, StorageKind
 
@@ -30,8 +31,6 @@ def benchmark_sqlite(
 
     enable_sgxio = "1" if system == "sgx-io" else "0"
     env.update(SGXLKL_ENABLE_SGXIO=enable_sgxio)
-    threads = "8" if system == "sgx-io" else "2"
-    env.update(SGXLKL_ETHREADS=threads)
     env.update(extra_env)
 
     sqlite = nix_build(attr)
