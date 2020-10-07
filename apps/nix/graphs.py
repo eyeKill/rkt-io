@@ -140,6 +140,25 @@ def mysql_latency_graph(df: pd.DataFrame) -> Any:
     apply_to_graphs(g.ax, False, -1, 0.285)
     return g
 
+def mysql_throughput_graph(df: pd.DataFrame) -> Any:
+    df = df[['system', "SQL statistics transactions", "General statistics total time"]]
+    df["General statistics total time"] = df["General statistics total time"].apply(lambda x: float(x.replace('s', '')))
+    df["mysql-throughput"] = df["SQL statistics transactions"]/df["General statistics total time"]
+
+    g = catplot(
+        data=apply_aliases(df),
+        x=column_alias("system"),
+        y=column_alias("mysql-throughput"),
+        kind="bar",
+        height=2.5,
+        # aspect=1.2,
+        color="black",
+        palette=None,
+    )
+
+    apply_to_graphs(g.ax, False, -1, 0.285)
+    return g
+
 
 def preprocess_hdparm(df_col: pd.Series) -> Any:
     df_col = list(df_col.values)
@@ -230,6 +249,7 @@ def main() -> None:
             graphs.append(("MySQL-Reads", mysql_read_graph(df)))
             graphs.append(("MySQL-Writes", mysql_write_graph(df)))
             graphs.append(("MySQL-Latency", mysql_latency_graph(df)))
+            graphs.append(("MySQL-Thru", mysql_throughput_graph(df)))
         elif basename.startswith("iperf"):
             graphs.append(("iperf", iperf_graph(df)))
         elif basename.startswith("hdparm"):

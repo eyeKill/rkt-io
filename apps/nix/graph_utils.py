@@ -63,6 +63,7 @@ COLUMN_ALIASES: Dict[str, str] = {
     "storage-bs-throughput": "Throughput [MiB/s]",
     "aesnithroughput": "Throughput [MiB/s]",
     "cores": "Jobs",
+    "mysql-throughput": "Throughput [eps/sec]"
 }
 
 
