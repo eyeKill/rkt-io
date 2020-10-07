@@ -1,6 +1,7 @@
 import subprocess
 import time
 import pandas as pd
+import os
 from typing import Dict, List, DefaultDict
 
 from helpers import (
@@ -11,7 +12,8 @@ from helpers import (
     read_stats,
     write_stats,
     NOW,
-    scone_env
+    scone_env,
+    flamegraph_env
 )
 from storage import Storage, StorageKind
 from network import Network, NetworkKind, setup_remote_network
@@ -19,6 +21,7 @@ from network import Network, NetworkKind, setup_remote_network
 
 def process_ycsb_out(ycsb_out: str, system: str, results: Dict[str, List]) -> None:
     for line in ycsb_out.split("\n"):
+        print(line)
         if line == "":
             break
         operation, metric, value = line.split(",")
@@ -58,7 +61,9 @@ class Benchmark:
             "--requirepass", "snakeoil",
             "--tls-auth-clients", "no"
         ]
-        with spawn(redis_server, *args, extra_env=extra_env) as proc:
+        env = extra_env.copy()
+        env.update(flamegraph_env(f"{os.getcwd()}/nginx-{system}"))
+        with spawn(redis_server, *args, extra_env=env) as proc:
             print(f"waiting for redis for {system} benchmark...", end="")
             while True:
                 try:
@@ -102,6 +107,7 @@ class Benchmark:
                     "-s",
                     "-P",
                     f"{self.remote_ycsb.nix_path}/share/ycsb/workloads/workloada",
+                    "-threads", "16",
                     "-p",
                     f"redis.host={self.settings.local_dpdk_ip}",
                     "-p",
@@ -172,8 +178,8 @@ def main() -> None:
     stats = read_stats("redis.json")
     settings = create_settings()
     setup_remote_network(settings)
-    record_count = 1000000
-    op_count = 10000000
+    record_count = 100000
+    op_count = 10000
 
     benchmark = Benchmark(settings, record_count, op_count)
 
