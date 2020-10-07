@@ -11,7 +11,8 @@ mpl.rcParams["pdf.fonttype"] = 42
 mpl.rcParams["ps.fonttype"] = 42
 
 # plt.rc('text', usetex=True)
-plt.figure(figsize=(2.5, 2.5))
+# plt.figure(figsize=(2.5, 2.5))
+sns.set(rc={'figure.figsize':(5,5)})
 sns.set_style("whitegrid")
 sns.set_style("ticks", {"xtick.major.size": 8, "ytick.major.size": 8})
 # sns.set_context(font_scale=1.5)

@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 from typing import Dict, List, Any, Union
 import pandas as pd
+from plot import ticker
 
 SYSTEM_ALIASES: Dict[str, str] = {"sgx-io": "rkt-io"}
 OPERATION_ALIASES: Dict[str, str] = {
     "read-bw": "read",
     "write-bw": "write",
-    "[READ]": "read",
-    "[UPDATE]": "update",
+    "[READ]": "Read",
+    "[UPDATE]": "Update",
 }
 DPDK_ALIASES: Dict[str, str] = {
     "dpdk-zerocopy": "zerocopy",
@@ -100,10 +101,27 @@ def change_width(ax: Any, new_value: Union[int, float]) -> None:
 
         patch.set_x(patch.get_x() + diff * 0.5)
 
-def apply_to_graphs(ax: Any, legend: bool, legend_cols: int):
-    change_width(ax, 0.405)
-    # change_width(ax, 0.25)
+def set_size(w:int, h:int, ax: Any):
+    """ w, h: width, height in inches """
+    if not ax: ax=plt.gca()
+    l = ax.figure.subplotpars.left
+    r = ax.figure.subplotpars.right
+    t = ax.figure.subplotpars.top
+    b = ax.figure.subplotpars.bottom
+    figw = float(w)/(r-l)
+    figh = float(h)/(t-b)
+    ax.figure.set_size_inches(figw, figh)
+
+def apply_to_graphs(ax: Any, legend: bool, legend_cols: int, width: int):
+    # change_width(ax, 0.405)
+    change_width(ax, width)
+
     ax.set_xlabel("")
+    ax.set_ylabel(ax.get_ylabel(), size=7)
+    ax.set_xticklabels(ax.get_xticklabels(), size=7)
+    ax.set_yticklabels(ax.get_yticklabels(), size=7)
+
+    # set_size(2.4, 2.4, ax)
 
     if legend:
         ax.legend(loc="best")

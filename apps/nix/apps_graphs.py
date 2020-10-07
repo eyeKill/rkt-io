@@ -2,7 +2,7 @@ import sys
 from typing import Any, Dict, List
 
 import pandas as pd
-from plot import apply_hatch, catplot
+from plot import apply_hatch, catplot, plt
 
 from graph_utils import apply_aliases, change_width, apply_to_graphs, systems_order
 
@@ -48,7 +48,8 @@ def sqlite_graph(df: pd.DataFrame) -> Any:
         palette="Greys",
     )
 
-    apply_to_graphs(g.ax, True, 3)
+    apply_to_graphs(g.ax, True, 3, 0.285)
+    g.ax.legend(frameon=False)
 
     return g
 
@@ -56,11 +57,14 @@ def sqlite_graph(df: pd.DataFrame) -> Any:
 def nginx_graph(df: pd.DataFrame, metric: str) -> Any:
     plot_col = ["system"]
     thru_ylabel = None
+    width = None
 
     if metric == "lat":
         plot_col.append("lat_avg(ms)")
+        width = 0.25
     elif metric == "thru":
         plot_col.append("req_sec_tot")
+        width = 0.3
 
     plot_df = df[plot_col]
 
@@ -79,7 +83,7 @@ def nginx_graph(df: pd.DataFrame, metric: str) -> Any:
         color="black"
         # aspect=1.2,
     )
-    apply_to_graphs(g.ax, False, -1)
+    apply_to_graphs(g.ax, False, -1, width)
     if metric == "thru":
         thru_ylabel = g.ax.get_yticklabels()
         thru_ylabel = [str(int(int(x.get_text())/1000))+"k" for x in thru_ylabel]
@@ -97,10 +101,12 @@ def redis_graph(df: pd.DataFrame, metric: str) -> Any:
     palette=None
     n_cols=None
     thru_ylabel = None
+    width = None
 
     if metric == "thru":
         df_flag = df["metric"] == "Throughput(ops/sec)"
         col_name = "Throughput(ops/sec)"
+        width = 0.285
         legend = False
     elif metric == "lat":
         df_flag = (df["metric"] == "AverageLatency(us)") & (
@@ -109,6 +115,7 @@ def redis_graph(df: pd.DataFrame, metric: str) -> Any:
         col_name = "AverageLatency(us)"
         hue = "operation"
         legend = True
+        width = 0.285
 
     plot_df = df[df_flag]
     groups = len(set((list(plot_df["system"].values))))
@@ -137,7 +144,8 @@ def redis_graph(df: pd.DataFrame, metric: str) -> Any:
         color=color
     )
 
-    apply_to_graphs(g.ax, legend, n_cols)
+    apply_to_graphs(g.ax, legend, n_cols, width)
+    g.ax.legend(ncol=2, loc='upper center', bbox_to_anchor=(0.5, 1.05), frameon=False)
 
     if metric == "thru":
         thru_ylabel = g.ax.get_yticklabels()

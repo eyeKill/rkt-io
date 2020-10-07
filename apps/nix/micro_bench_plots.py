@@ -170,7 +170,7 @@ def smp_plot(dir: str, graphs: List[Any]) -> None:
     # g.ax.set_xticklabels(g.ax.get_xmajorticklabels(), fontsize=6)
     # g.ax.set_yticklabels(g.ax.get_ymajorticklabels(), fontsize=6)
     # g.ax.legend(loc='best', fontsize='small')
-    apply_to_graphs(g.ax, True, 2)
+    apply_to_graphs(g.ax, True, 2, 0.285)
 
     graphs.append(g)
 
@@ -199,7 +199,7 @@ def network_optimization_plot(dir: str, graphs: List[Any]) -> None:
         color="black",
         palette=None,
     )
-    apply_to_graphs(g.ax, False, -1)
+    apply_to_graphs(g.ax, False, -1, 0.18)
     
     graphs.append(g)
 
@@ -216,9 +216,13 @@ def aesni_plot(dir: str, graphs: List[Any]) -> None:
         kind="bar",
         height=2.5,
         aspect=1.2,
+        color="black",
+        palette=None
     )
-    change_width(g.ax, 0.25)
-    g.ax.set_xlabel('')
+    apply_to_graphs(g.ax, False, -1, 0.1)
+    g.ax.set_ylabel(g.ax.get_ylabel(), size=8)
+    g.ax.set_xticklabels(g.ax.get_xticklabels(), size=8)
+    g.ax.set_yticklabels(g.ax.get_yticklabels(), size=8)
     graphs.append(g)
 
 
@@ -251,7 +255,7 @@ def main() -> None:
         # disabled for now
         #"network_bs": network_bs_plot,
         #"storage_bs": storage_bs_plot,
-        "spdk_zerocopy": spdk_zerocopy_plot,
+        # "spdk_zerocopy": spdk_zerocopy_plot,
         "smp": smp_plot,
         "aesni": aesni_plot,
         "network_optimization": network_optimization_plot

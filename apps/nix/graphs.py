@@ -33,7 +33,7 @@ def fio_read_write_graph(df: pd.DataFrame) -> Any:
 
     # g.ax.set_xlabel("")
     # g.ax.legend(loc="center", bbox_to_anchor=(0.5, 1.05), ncol=2, frameon=False)
-    apply_to_graphs(g.ax, True, 2)
+    apply_to_graphs(g.ax, True, 2, 0.285)
     # g.ax.grid(which="major")
     return g
 
@@ -59,7 +59,7 @@ def syscalls_perf_graph(df: pd.DataFrame) -> Any:
     # g.ax.set_xticklabels(g.ax.get_xmajorticklabels(), fontsize=8)
     # g.ax.set_yticklabels(g.ax.get_ymajorticklabels(), fontsize=8)
     # g.ax.grid(which="major")
-    apply_to_graphs(g.ax, False, -1)
+    apply_to_graphs(g.ax, False, -1, 0.28)
 
     return g
 
@@ -82,7 +82,7 @@ def iperf_graph(df: pd.DataFrame) -> Any:
     # change_width(g.ax, 0.405)
     # g.ax.set_xlabel("")
 
-    apply_to_graphs(g.ax, False, -1)
+    apply_to_graphs(g.ax, False, -1, 0.285)
 
     # g.ax.grid(which="major")
 
@@ -102,7 +102,7 @@ def mysql_read_graph(df: pd.DataFrame) -> Any:
         color="black",
         palette=None,
     )
-    apply_to_graphs(g.ax, False, -1)
+    apply_to_graphs(g.ax, False, -1, 0.285)
 
     return g
 
@@ -120,7 +120,7 @@ def mysql_write_graph(df: pd.DataFrame) -> Any:
         color="black",
         palette=None,
     )
-    apply_to_graphs(g.ax, False, -1)
+    apply_to_graphs(g.ax, False, -1, 0.285)
     return g
 
 
@@ -137,7 +137,7 @@ def mysql_latency_graph(df: pd.DataFrame) -> Any:
         color="black",
         palette=None,
     )
-    apply_to_graphs(g.ax, False, -1)
+    apply_to_graphs(g.ax, False, -1, 0.285)
     return g
 
 
