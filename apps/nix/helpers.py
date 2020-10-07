@@ -7,11 +7,25 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Iterator, List, Optional, Text, DefaultDict, Any
+from typing import Dict, Iterator, List, Optional, Text, DefaultDict, Any, IO, Callable
 from collections import defaultdict
 
 ROOT = Path(__file__).parent.resolve()
 NOW = datetime.now().strftime("%Y%m%d-%H%M%S")
+HAS_TTY = sys.stderr.isatty()
+
+
+def color_text(code: int, file: IO[Any] = sys.stdout) -> Callable[[str], None]:
+    def wrapper(text: str) -> None:
+        if HAS_TTY:
+            print(f"\x1b[{code}m{text}\x1b[0m", file=file)
+        else:
+            print(text, file=file)
+
+    return wrapper
+
+
+info = color_text(31, file=sys.stderr)
 
 
 def run(
@@ -176,11 +190,13 @@ def flamegraph_env(name: str) -> Dict[str, str]:
         return {}
 
     flamegraph = f"{name}.svg"
-    perf = f"{name}.perf.data"
-    print(flamegraph)
+    perf_data = f"{name}.perf.data"
+    perf_script = f"{name}.perf.script"
+    info(f"{flamegraph} {perf_data} {perf_script}")
     return dict(
         FLAMEGRAPH_FILENAME=flamegraph,
-        PERF_FILENAME=perf,
+        PERF_FILENAME=perf_data,
+        PERF_SCRIPT_FILENAME=perf_script,
         SGXLKL_ENABLE_FLAMEGRAPH="1",
     )
 

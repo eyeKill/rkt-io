@@ -11,7 +11,8 @@ from helpers import (
     nix_build,
     read_stats,
     write_stats,
-    scone_env
+    scone_env,
+    flamegraph_env
 )
 from storage import Storage, StorageKind
 
@@ -29,8 +30,7 @@ def benchmark_sqlite(
     env.update(dict(SGXLKL_CWD=directory))
     env.update(extra_env)
 
-    enable_sgxio = "1" if system == "sgx-io" else "0"
-    env.update(SGXLKL_ENABLE_SGXIO=enable_sgxio)
+    env.update(flamegraph_env(f"{os.getcwd()}/sqlite-{system}"))
     env.update(extra_env)
 
     sqlite = nix_build(attr)
