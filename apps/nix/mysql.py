@@ -1,4 +1,5 @@
 import re
+import os
 import subprocess
 from functools import lru_cache
 from typing import Dict, List
@@ -81,7 +82,7 @@ class Benchmark:
         extra_env: Dict[str, str] = {},
     ) -> None:
         env = dict(SGXLKL_CWD=mnt)
-        env.update(flamegraph_env(f"mysql-{system}-{NOW}"))
+        env.update(flamegraph_env(f"{os.getcwd()}/mysql-{system}"))
         env.update(extra_env)
         mysql = nix_build(attr)
         sysbench = sysbench_command(self.storage.settings)
