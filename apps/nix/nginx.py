@@ -1,6 +1,7 @@
 import time
 import subprocess
 from typing import Dict, List
+import os
 
 import pandas as pd
 
@@ -8,6 +9,7 @@ from helpers import (
     NOW,
     Settings,
     create_settings,
+    flamegraph_env,
     nix_build,
     read_stats,
     write_stats,
@@ -44,6 +46,7 @@ class Benchmark:
         extra_env: Dict[str, str] = {},
     ) -> None:
         env = extra_env.copy()
+        env.update(flamegraph_env(f"{os.getcwd()}/nginx-{system}"))
         env.update(dict(SGXLKL_CWD=mnt))
 
         nginx_server = nix_build(attr)
@@ -122,9 +125,9 @@ def main() -> None:
     benchmark = Benchmark(settings)
 
     benchmarks = {
+        "sgx-io": benchmark_nginx_sgx_io,
         "native": benchmark_nginx_native,
         "sgx-lkl": benchmark_nginx_sgx_lkl,
-        "sgx-io": benchmark_nginx_sgx_io,
         "scone": benchmark_nginx_scone,
     }
 
