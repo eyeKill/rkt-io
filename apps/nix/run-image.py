@@ -63,6 +63,24 @@ def get_debugger(perf_data: str) -> List[str]:
         return ["strace"]
     elif enable_traceshark():
         return traceshark_cmd(perf_data)
+    elif os.environ.get("SGXLKL_ENABLE_PERF_HW_COUNTER", None) is not None:
+        events = [
+            "cycles",
+            "instructions",
+            "cache-references",
+            "cache-misses",
+            "bus-cycles",
+            "L1-dcache-loads",
+            "L1-dcache-load-misses",
+            "L1-dcache-stores",
+            "dTLB-loads",
+            "dTLB-load-misses",
+            "iTLB-load-misses",
+            "LLC-loads",
+            "LLC-load-misses",
+            "LLC-stores"
+        ]
+        return ["perf", "record", "-e", ",".join(events), "-o", perf_data, "-a", "-g", "-F99", "--"]
     elif enable_flamegraph():
         return ["perf", "record", "-o", perf_data, "-a", "-g", "-F999", "--"]
     elif enable_tracecmd():

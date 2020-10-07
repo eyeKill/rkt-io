@@ -186,19 +186,20 @@ def scone_env(mountpoint: Optional[str]) -> Dict[str, str]:
 
 
 def flamegraph_env(name: str) -> Dict[str, str]:
-    if os.environ.get("PROFILING", None) is None:
+    profiling = os.environ.get("PROFILING", None)
+    if profiling is None:
         return {}
 
-    flamegraph = f"{name}.svg"
-    perf_data = f"{name}.perf.data"
-    perf_script = f"{name}.perf.script"
-    info(f"{flamegraph} {perf_data} {perf_script}")
-    return dict(
-        FLAMEGRAPH_FILENAME=flamegraph,
-        PERF_FILENAME=perf_data,
-        PERF_SCRIPT_FILENAME=perf_script,
-        SGXLKL_ENABLE_FLAMEGRAPH="1",
-    )
+    if os.environ.get("SGXLKL_ENABLE_PERF_HW_COUNTER", None) is None:
+        flamegraph = f"{name}.svg"
+        perf_data = f"{name}.perf.data"
+        perf_script = f"{name}.perf.script"
+        info(f"{flamegraph} {perf_data} {perf_script}")
+        return dict(PERF_FILENAME=perf_data, SGXLKL_ENABLE_FLAMEGRAPH="1", FLAMEGRAPH_FILENAME=flamegraph, PERF_SCRIPT_FILENAME=perf_script)
+    else:
+        perf_data = f"{name}-hw-counters.perf.data"
+        info(perf_data)
+        return dict(PERF_FILENAME=perf_data)
 
 
 def create_settings() -> Settings:
