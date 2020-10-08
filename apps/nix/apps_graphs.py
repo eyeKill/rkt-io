@@ -87,7 +87,7 @@ def nginx_graph(df: pd.DataFrame, metric: str) -> Any:
     apply_to_graphs(g.ax, False, -1, width)
     if metric == "thru":
         thru_ylabel = g.ax.get_yticklabels()
-        thru_ylabel = [str(int(int(x.get_text())/1000))+"k" for x in thru_ylabel]
+        thru_ylabel = [str(int(int(x.get_text()))) for x in thru_ylabel]
         thru_ylabel[0] = "0"
         g.ax.set_yticklabels(thru_ylabel)
     return g
