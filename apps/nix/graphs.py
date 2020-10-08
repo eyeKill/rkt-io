@@ -101,6 +101,7 @@ def mysql_read_graph(df: pd.DataFrame) -> Any:
         # aspect=1.2,
         color="black",
         palette=None,
+        order=systems_order(df)
     )
     apply_to_graphs(g.ax, False, -1, 0.285)
 
@@ -119,6 +120,7 @@ def mysql_write_graph(df: pd.DataFrame) -> Any:
         # aspect=1.2,
         color="black",
         palette=None,
+        order=systems_order(df)
     )
     apply_to_graphs(g.ax, False, -1, 0.285)
     return g
@@ -136,6 +138,7 @@ def mysql_latency_graph(df: pd.DataFrame) -> Any:
         # aspect=1.2,
         color="black",
         palette=None,
+        order=systems_order(df)
     )
     apply_to_graphs(g.ax, False, -1, 0.285)
     return g
@@ -145,8 +148,10 @@ def mysql_throughput_graph(df: pd.DataFrame) -> Any:
     df["General statistics total time"] = df["General statistics total time"].apply(lambda x: float(x.replace('s', '')))
     df["mysql-throughput"] = df["SQL statistics transactions"]/df["General statistics total time"]
 
+    df = apply_aliases(df)
+
     g = catplot(
-        data=apply_aliases(df),
+        data=df,
         x=column_alias("system"),
         y=column_alias("mysql-throughput"),
         kind="bar",
@@ -154,6 +159,7 @@ def mysql_throughput_graph(df: pd.DataFrame) -> Any:
         # aspect=1.2,
         color="black",
         palette=None,
+        order=systems_order(df)
     )
 
     apply_to_graphs(g.ax, False, -1, 0.285)
