@@ -11,8 +11,8 @@ buildImage {
   pkg = callPackage ./dummy.nix {};
   inherit sconeEncryptedDir;
   extraFiles = {
-    "file-3mb".path = runCommand "file-3mb" {} ''
-      yes "a" | head -c ${toString (3 * 1024 * 1024)} > $out || true
+    "file".path = runCommand "file" {} ''
+      yes "a" | head -c ${toString 3145728} > $out || true
     '';
 
     "fio-rand-RW-smp-1.job" = ''

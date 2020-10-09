@@ -65,9 +65,9 @@ class Benchmark:
                     time.sleep(1)
                 pass
 
-            wrk_connections = 400
+            wrk_connections = 100
             wrk_proc = self.remote_wrk.run(
-                "bin/wrk", ["-t", "12", "-c", f"{wrk_connections}", "-d", "30s", f"https://{host}:9000"]
+                "bin/wrk", ["-t", "16", "-c", f"{wrk_connections}", "-d", "30s", f"https://{host}:9000/test/file"]
             )
             process_wrk_output(wrk_proc.stdout, system, stats, wrk_connections)
 
@@ -125,9 +125,9 @@ def main() -> None:
     benchmark = Benchmark(settings)
 
     benchmarks = {
+        "sgx-lkl": benchmark_nginx_sgx_lkl,
         "sgx-io": benchmark_nginx_sgx_io,
         "native": benchmark_nginx_native,
-        "sgx-lkl": benchmark_nginx_sgx_lkl,
         "scone": benchmark_nginx_scone,
     }
 
