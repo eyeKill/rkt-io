@@ -110,12 +110,7 @@ in (overrideCC stdenv gcc_nolibc).mkDerivation {
 
   nativeBuildInputs = [
     git
-    (bear.overrideAttrs (old: {
-      patches = old.patches ++ [ (fetchpatch {
-        url = "https://github.com/Mic92/Bear/commit/fb4520bcf085eb4b1772c145dbe0ad7808f402ee.patch";
-        sha256 = "12s1akg5rp2hz72xa091v5p563ln7c36gv09kgqmvq36f6wxavw4";
-      })];
-    }))
+    bear
     dockerctl
     cryptsetup
     tapctl
