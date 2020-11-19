@@ -115,8 +115,6 @@ in (overrideCC stdenv gcc_nolibc).mkDerivation {
     cryptsetup
     tapctl
     docker
-    jdk
-    maven
     automake
     autoconf
     libtool
