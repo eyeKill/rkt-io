@@ -4,6 +4,7 @@ include config.mak
 	dpdk compdb
 
 PREFIX=/usr/local
+SUDO = sudo
 
 # Boot memory reserved for LKL/kernel (in MB)
 BOOT_MEM=32 # Default in LKL is 64

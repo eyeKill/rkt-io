@@ -121,11 +121,14 @@ in (overrideCC stdenv gcc_nolibc).mkDerivation {
     automake
     autoconf
     libtool
+    hostname
     pkgconfig
     flex
     bison
     bc
+    perl
     gettext
+    (lib.getBin glibc)
     openssl
     python3.pkgs.pandas
     python3.pkgs.ipdb

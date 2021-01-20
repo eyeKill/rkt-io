@@ -114,14 +114,14 @@ $(LIB_SGX_LKL_BUILD)/sgx-lkl-userpci-pre: $(SGX_LKL_USERPCI_OBJS)
 	$(CC) $(SPDK_NATIVE_LDFLAGS) -pthread -ldl -lrt $^ -o $@
 
 $(LIB_SGX_LKL_BUILD)/sgx-lkl-userpci: $(LIB_SGX_LKL_BUILD)/sgx-lkl-userpci-pre
-	sudo install -m4755 $^ $@
+	${SUDO} install -m4755 $^ $@
 
 # sgx-lkl-virt2phy ----
 $(LIB_SGX_LKL_BUILD)/sgx-lkl-virt2phy-pre: sgx-lkl-virt2phy/main.c
 	$(CC) $^ -o $@
 
 $(LIB_SGX_LKL_BUILD)/sgx-lkl-virt2phy: $(LIB_SGX_LKL_BUILD)/sgx-lkl-virt2phy-pre
-	sudo install -m4755 $^ $@
+	${SUDO} install -m4755 $^ $@
 
 # sgx-lkl-ctl ----
 CTL_SRCS = $(wildcard attestation/*.c) $(wildcard ctl/*.c) wireguard/wireguard.c shared/sgxlkl_util.c  main/messages.pb-c.c sgx/sgxlkl_ctl.pb-c.c
