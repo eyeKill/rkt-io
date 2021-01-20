@@ -60,7 +60,8 @@ class Mount:
                 d['SGXLKL_HD_KEY'] = self.hd_key
             return d
         elif self.kind == StorageKind.SPDK:
-            return dict(SGXLKL_SPDK_SKIP_UNMOUNT="1")
+            #return dict(SGXLKL_SPDK_SKIP_UNMOUNT="1")
+            return dict()
         return {}
 
     def mount(self) -> None:
