@@ -146,12 +146,26 @@ buildImage {
       numjobs=8
       time_based=1
       runtime=300
+    "fio-rand-RW-2.job" = ''
+      [global]
+      name=fio-rand-RW
+      filename=fio-rand-RW
+      rw=randrw
+      rwmixread=60
+      rwmixwrite=40
+      bs=4K
+      direct=1
+      numjobs=8
+      time_based=1
+      runtime=50
       thread
 
       [file1]
-      size=40G
+      size=1G
       iodepth=16
     '';
+
+
     "fio-seq-RW.job" = ''
       [global]
       name=fio-seq-RW
