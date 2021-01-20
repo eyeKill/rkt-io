@@ -1,4 +1,7 @@
-with import <nixpkgs> {};
+with import (builtins.fetchTarball {
+  url = "https://github.com/NixOS/nixpkgs/archive/92c884dfd7140a6c3e6c717cf8990f7a78524331.tar.gz";
+  sha256 = "sha256:0wk2jg2q5q31wcynknrp9v4wc4pj3iz3k7qlxvfh7gkpd8vq33aa";
+}) {};
 let
   tapctl = pkgs.writeScriptBin "tapctl" ''
     #!${pkgs.runtimeShell}
