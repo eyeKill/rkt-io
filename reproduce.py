@@ -4,6 +4,7 @@ import sys
 if sys.version_info < (3, 7, 0):
     print("This script assumes at least python3.7", file=sys.stderr)
 
+import socket
 import os
 import shutil
 from typing import IO, Any, Callable, List, Dict, Optional, Text
@@ -58,6 +59,46 @@ def checkout_submodules(nix_shell: str) -> None:
     run([nix_shell, "--command", "git submodule update --init"])
 
 
+def load_default_env() -> Dict[str, str]:
+    sysctl = [
+        "net.core.rmem_max=56623104",
+        "net.core.wmem_max=56623104",
+        "net.core.rmem_default=56623104",
+        "net.core.wmem_default=56623104",
+        "net.core.optmem_max=40960",
+        "net.ipv4.tcp_rmem=4096 87380 56623104",
+        "net.ipv4.tcp_wmem=4096 65536 56623104"
+    ]
+    default = {
+        "SGXLKL_SPDK_HD_KEY": "snakeoil",
+        "SGXLKL_KEY" : f"{ROOT}/build/config/enclave_debug.key",
+        "SGXLKL_DPDK_RX_QUEUES" : "1",
+        "SGXLKL_KERNEL_VERBOSE": "1",
+        "SGXLKL_VERBOSE": "1",
+        "SGXLKL_HEAP": "1G",
+        "SGXLKL_X86_ACC": "1",
+        "SGXLKL_ETHREADS": "2",
+        "SGXLKL_SYSCTL": ";".join(sysctl)
+    }
+    local_defaults = ROOT.joinpath(socket.gethostname() + ".env")
+    if not local_defaults.exists():
+        print(f"cannot load machine specific environment variables from {local_defaults}",
+              file=sys.stderr)
+        sys.exit(1)
+    with open(local_defaults) as f:
+        for line in f:
+            k, v = line.split("=", 1)
+            default[k] = v.rstrip("\n")
+    info("Apply the following defaults: ")
+    for k, v in default.items():
+        print(f" - {k} = {v}")
+    return default
+
+
+def syscall_perf() -> None:
+    "python ./syscall-perf.py"
+
+
 def main() -> None:
     nix_shell = shutil.which("nix-shell", mode=os.F_OK | os.X_OK)
     if nix_shell is None:
@@ -67,6 +108,7 @@ def main() -> None:
     if sudo is None:
         warn("During the build phase we need the 'sudo' command set setsuid executables")
         sys.exit(1)
+    default_env = load_default_env()
     checkout_submodules(nix_shell)
     build(nix_shell, sudo)
 
