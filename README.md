@@ -32,9 +32,34 @@ the old [README](README.old.md).
   NVME drive.
 - Intel CPU with SGX support: Most new consumer CPUs have SGX support. Some
   server xeon processors don't
+- A second machine acting as a client. This one needs a similar capable NIC (i.e. same bandwith).
+  The other machine does not need to have an NVME drive.
 
 ### Software
 
 - [Nix](https://nixos.org/download.html): For reproducibility we use the nix
 package manager to download all build dependencies. We locked the package
 versions to ensure reproducibility so that.
+- Python 3.7 or newer: We wrapped the reproduction script in a python script.
+
+### Run evaluation
+
+- Figure 1. Micro-benchmarks to showcase the performance of syscalls, storage and network stacks across different systems
+  a) System call latency with sendto()
+  b) Storage stack performance with fio
+  c) Network stack performance with iPerf
+  
+- Figure 5. Micro-benchmarks to showcase the effectiveness of various design choices in rkt-io Effectiveness of the SMP design w/ fio with increasing number of threads
+  a) Effectiveness of the SMP design w/ fio with increasing number of threads
+  b) iPerf throughput w/ different optimizations
+  c) Effectiveness of hardware-accelerated crypto routines
+  
+- Figure 7. The above plots compare the performance of four real-world
+  applications (SQlite, Ngnix, Redis, and MySQL) while running atop native linux
+  a) SQLite throughput w/ Speedtest (no security) and three secure systems: Scone, SGX-LKL and rkt-io
+  b) Nginx latency w/ wrk
+  c) Nginx throughput w/ wrk
+  d) Redis throughput w/ YCSB (A)
+  e) Redis latency w/ YCSB (A)
+  f) MySQL OLTP throughput w/ sys-bench
+
