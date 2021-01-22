@@ -186,5 +186,6 @@ in (overrideCC stdenv gcc_nolibc).mkDerivation {
 
   shellHook = ''
     export DOCKER_HOST=unix://$PWD/.docker/docker.sock
+    export PATH=$PATH:$(realpath build)
   '';
 }
