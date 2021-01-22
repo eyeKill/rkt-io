@@ -79,20 +79,20 @@ $ python reproduce.py
 ```
 
 - Figure 1. Micro-benchmarks to showcase the performance of syscalls, storage and network stacks across different systems
-  a) System call latency with sendto()
-  b) Storage stack performance with fio
-  c) Network stack performance with iPerf
+  - a) System call latency with sendto()
+  - b) Storage stack performance with fio
+  - c) Network stack performance with iPerf
   
 - Figure 5. Micro-benchmarks to showcase the effectiveness of various design choices in rkt-io Effectiveness of the SMP design w/ fio with increasing number of threads
-  a) Effectiveness of the SMP design w/ fio with increasing number of threads
-  b) iPerf throughput w/ different optimizations
-  c) Effectiveness of hardware-accelerated crypto routines
+  - a) Effectiveness of the SMP design w/ fio with increasing number of threads
+  - b) iPerf throughput w/ different optimizations
+  - c) Effectiveness of hardware-accelerated crypto routines
   
 - Figure 7. The above plots compare the performance of four real-world
   applications (SQlite, Ngnix, Redis, and MySQL) while running atop native linux
-  a) SQLite throughput w/ Speedtest (no security) and three secure systems: Scone, SGX-LKL and rkt-io
-  b) Nginx latency w/ wrk
-  c) Nginx throughput w/ wrk
-  d) Redis throughput w/ YCSB (A)
-  e) Redis latency w/ YCSB (A)
-  f) MySQL OLTP throughput w/ sys-bench
+  - a) SQLite throughput w/ Speedtest (no security) and three secure systems: Scone, SGX-LKL and rkt-io
+  - b) Nginx latency w/ wrk
+  - c) Nginx throughput w/ wrk
+  - d) Redis throughput w/ YCSB (A)
+  - e) Redis latency w/ YCSB (A)
+  - f) MySQL OLTP throughput w/ sys-bench
