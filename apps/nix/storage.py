@@ -83,10 +83,10 @@ class Mount:
         for i in range(3):
             try:
                 run(["sudo", "umount", str(MOUNTPOINT)])
+                break
             except subprocess.CalledProcessError:
                 print(f"unmount {MOUNTPOINT} failed; retry in 1s")
                 time.sleep(1)
-            break
 
         if self.raw_dev != self.dev and self.kind != StorageKind.SCONE:
             cryptsetup_luks_close(self.cryptsetup_name)
@@ -115,7 +115,14 @@ def set_hugepages(num: int) -> None:
 def setup_hugepages(kind: StorageKind) -> None:
     num = 0
     # remount to free up space
-    run(["sudo", "umount", "/dev/hugepages"])
+    for i in range(3):
+        try:
+            run(["sudo", "umount", "/dev/hugepages"])
+            break
+        except subprocess.CalledProcessError as e:
+            print(f"unmount {MOUNTPOINT} failed; retry in 1s")
+            time.sleep(1)
+
     run(["sudo", "mount", "-t", "hugetlbfs", "hugetlbfs", "/dev/hugepages"])
     set_hugepages(0)
 
