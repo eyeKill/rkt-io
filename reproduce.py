@@ -45,14 +45,14 @@ def run(
     for k, v in extra_env.items():
         env_string.append(f"{k}={v}")
     info(f"$ {' '.join(env_string)} {' '.join(cmd)}")
-    return subprocess.run(cmd, cwd=cwd, check=check, env=env, text=True, input=input, timeout=60 * 60)
+    return subprocess.run(
+        cmd, cwd=cwd, check=check, env=env, text=True, input=input, timeout=60 * 60
+    )
 
 
 def build(nix_shell: str, sudo: str) -> None:
     info("Build the project")
-    run(
-        [nix_shell, "--run", f"make DEBUG=opt SUDO={sudo}"], extra_env=dict(PATH="")
-    )
+    run([nix_shell, "--run", f"make DEBUG=opt SUDO={sudo}"], extra_env=dict(PATH=""))
     info("Done building")
 
 
@@ -145,9 +145,7 @@ def aesni(default_env: Dict[str, str]) -> None:
 def sqlite(default_env: Dict[str, str]) -> None:
     env = default_env.copy()
     env["SGXLKL_HEAP"] = "2G"
-    run(
-        ["nix-shell", "--run", f"cd {APPS_PATH} && python sqlite.py"], extra_env=env
-    )
+    run(["nix-shell", "--run", f"cd {APPS_PATH} && python sqlite.py"], extra_env=env)
 
 
 def nginx(default_env: Dict[str, str]) -> None:
@@ -180,7 +178,7 @@ def evaluation(default_env: Dict[str, str]) -> None:
         "Figure 7 a) SQLite throughput w/ Speedtest (no security) and three secure systems: Scone, SGX-LKL and rkt-io": sqlite,
         "Figure 7 b) Nginx latency w/ wrk and c) Nginx throughput w/ wrk": nginx,
         "Figure 7 d) Redis throughput w/ YCSB (A) and e) Redis latency w/ YCSB (A)": redis,
-        "Figure 7 f) MySQL OLTP throughput w/ sys-bench": mysql
+        "Figure 7 f) MySQL OLTP throughput w/ sys-bench": mysql,
     }
     for figure, function in experiments.items():
         info(figure)
