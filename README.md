@@ -15,10 +15,20 @@ attacks.
 
 ## Usage
 
-rkt-io is a fork of [sgx-lkl](https://github.com/lsds/sgx-lkl). For usage see
-the old [README](README.old.md).
+rkt-io is a fork of [sgx-lkl](https://github.com/lsds/sgx-lkl). For normal usage
+see the old [README](README.old.md). For reducing the paper results read the
+next headline.
 
 ## Reproduce paper results 
+
+### For Eurosys evaluation testers
+
+Due its special hardware requirments we provide ssh access to our evaluation
+machines. Please contact the paper author email address to obtain ssh keys. The
+machines will have the correct hardware and also software installed to run the
+experiments. If you run into problems you can write join the IRC channel
+#rkt-io on freenode fro a live chat (there is also a webchat version at
+https://webchat.freenode.net/) or write an email for further questions.
 
 ### Hardware
 
@@ -36,13 +46,37 @@ the old [README](README.old.md).
   The other machine does not need to have an NVME drive.
 
 ### Software
-
+- Linux
 - [Nix](https://nixos.org/download.html): For reproducibility we use the nix
 package manager to download all build dependencies. We locked the package
-versions to ensure reproducibility so that.
+versions to ensure reproducibility so that. On our evaluations machines we 
 - Python 3.7 or newer: We wrapped the reproduction script in a python script.
 
 ### Run evaluation
+
+The first step is to get the source code for rkt-io:
+
+```console
+$ git clone https://github.com/Mic92/sgx-lkl
+```
+
+For convience we created an evaluation script (reproduce.py) that will first build rkt-io and
+than run all evaluation experiments from the paper.
+This script only depends on Python and Nix as referenced above. 
+All other dependencies will be loaded through nix.
+If the script fails at any point it can be restarted and it will
+only not yet done builds or experiments.
+Each command it runs will be printed to during evaluation along with 
+environment variable set. 
+In addition to some default settings also machine specific settings are
+required. The script read those from a file containing the hostname of the
+machine + `.env`. An example configuration file is provided in the repo
+(martha.env - @eurosys testers - you don't need to change anything).
+
+To run the evaluation script use the following command:
+```console
+$ python reproduce.py 
+```
 
 - Figure 1. Micro-benchmarks to showcase the performance of syscalls, storage and network stacks across different systems
   a) System call latency with sendto()
@@ -62,4 +96,3 @@ versions to ensure reproducibility so that.
   d) Redis throughput w/ YCSB (A)
   e) Redis latency w/ YCSB (A)
   f) MySQL OLTP throughput w/ sys-bench
-
