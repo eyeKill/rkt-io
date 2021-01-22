@@ -4,6 +4,7 @@ from enum import Enum
 from typing import List, Dict
 
 from helpers import ROOT, Settings, nix_build, run
+from storage import setup_hugepages, StorageKind
 
 
 class NetworkKind(Enum):
@@ -72,7 +73,10 @@ class Network:
     def setup(self, kind: NetworkKind) -> Dict[str, str]:
         self.bind_driver(kind)
 
-        if kind != NetworkKind.DPDK:
+        if kind == NetworkKind.DPDK:
+            setup_hugepages(StorageKind.SPDK)
+        else:
+            setup_hugepages(StorageKind.NATIVE)
             ip(["addr", "flush", "dev", self.settings.native_nic_ifname])
 
         try:
