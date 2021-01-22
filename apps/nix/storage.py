@@ -201,7 +201,7 @@ class Storage:
             time.sleep(1)
 
         # TRIM for optimal performance
-        run(["sudo", "blkdiscard", raw_dev])
+        run(["sudo", "blkdiscard", "-f", raw_dev])
         if self.settings.spdk_hd_key and kind != StorageKind.SCONE:
             dev = setup_luks(raw_dev, spdk_device, self.settings.spdk_hd_key)
         else:
