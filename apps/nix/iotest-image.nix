@@ -146,6 +146,12 @@ buildImage {
       numjobs=8
       time_based=1
       runtime=300
+
+      [file1]
+      size=40G
+      iodepth=16
+    '';
+
     "fio-rand-RW-2.job" = ''
       [global]
       name=fio-rand-RW
@@ -164,7 +170,6 @@ buildImage {
       size=1G
       iodepth=16
     '';
-
 
     "fio-seq-RW.job" = ''
       [global]
