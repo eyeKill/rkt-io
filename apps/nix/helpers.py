@@ -91,7 +91,12 @@ def spawn(*args: str, extra_env: Dict[str, str] = {}) -> Iterator[subprocess.Pop
     finally:
         print(f"terminate {args[0]}")
         proc.send_signal(signal.SIGINT)
-        proc.wait()
+        try:
+            print("wait for process to finish...")
+            proc.wait(timeout=3)
+        except subprocess.TimeoutExpired:
+            proc.send_signal(signal.SIGKILL)
+            proc.wait()
 
 
 @dataclass

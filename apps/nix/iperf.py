@@ -101,6 +101,7 @@ class Benchmark():
             _postprocess_iperf(json.loads(parallel_iperf.stdout), direction, system, stats)
             iperf_server.send_signal(signal.SIGINT)
             try:
+                print("wait for iperf to finish...")
                 iperf_server.wait(timeout=3)
             except subprocess.TimeoutExpired:
                 iperf_server.send_signal(signal.SIGKILL)
