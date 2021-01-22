@@ -115,7 +115,7 @@ def set_hugepages(num: int) -> None:
 def setup_hugepages(kind: StorageKind) -> None:
     num = 0
     # remount to free up space
-    for i in range(3):
+    while os.path.ismount("/dev/hugepages"):
         try:
             run(["sudo", "umount", "/dev/hugepages"])
             break
