@@ -80,7 +80,7 @@ class Benchmark():
         fast_ssl = dict(OPENSSL_ia32cap="0x5640020247880000:0x40128")
         env.update(fast_ssl)
         with spawn(local_iperf, "bin/iperf3", "1", extra_env=env) as iperf_server:
-            while True:
+            for i in range(60):
                 try:
                     nc_command(self.settings).run(
                         "bin/nc", ["-w1", "-z", "-v", self.settings.local_dpdk_ip, "5201"]
@@ -92,6 +92,8 @@ class Benchmark():
                 if status is not None:
                     raise OSError(f"iperf exiteded with {status}")
                 time.sleep(1)
+                if i == 59:
+                    raise OSError(f"Could not connect to iperf after 1 min")
 
             iperf_args = ["client", "-c", self.settings.local_dpdk_ip, "--json", "-t", "10"]
             if direction == "send":
