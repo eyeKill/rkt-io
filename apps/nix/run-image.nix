@@ -18,7 +18,7 @@ let
 in (writeScript "run-lkl" ''
   #!/usr/bin/env bash
 
-  set -xeu -o pipefail
+  set -eu -o pipefail
 
   export TMPDIR=/tmp
   export PATH=${lib.makeBinPath [ flamegraph ]}:$PATH
@@ -35,6 +35,7 @@ in (writeScript "run-lkl" ''
     fi
   '' else ""}
 
+  set -x
   exec ${python3.interpreter} ${./run-image.py} ${sgx-lkl-run} ${if native then "NONE" else image} ${toString interpreter} ${image.pkg}/$cmd "$@"
 '').overrideAttrs (old: {
   passthru.pkg = pkg;
