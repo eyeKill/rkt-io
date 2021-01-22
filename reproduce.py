@@ -51,7 +51,7 @@ def run(
 def build(nix_shell: str, sudo: str) -> None:
     info("Build the project")
     run(
-        [nix_shell, "--command", f"make DEBUG=opt SUDO={sudo}"], extra_env=dict(PATH="")
+        [nix_shell, "--run", f"make DEBUG=opt SUDO={sudo}"], extra_env=dict(PATH="")
     )
     info("Done building")
 
@@ -103,7 +103,7 @@ def load_default_env() -> Dict[str, str]:
 def syscall_perf(default_env: Dict[str, str]) -> None:
     info("  Figure 1 a) System call latency with sendto()")
     run(
-        ["nix-shell", "--command", f"cd {APPS_PATH} && python syscall-perf.py"],
+        ["nix-shell", "--run", f"cd {APPS_PATH} && python syscall-perf.py"],
         extra_env=default_env,
     )
 
@@ -111,7 +111,7 @@ def syscall_perf(default_env: Dict[str, str]) -> None:
 def fio(default_env: Dict[str, str]) -> None:
     info("  Figure 1 b) Storage stack performance with fio")
     run(
-        ["nix-shell", "--command", f"cd {APPS_PATH} && python fio.py"],
+        ["nix-shell", "--run", f"cd {APPS_PATH} && python fio.py"],
         extra_env=default_env,
     )
 
@@ -119,7 +119,7 @@ def fio(default_env: Dict[str, str]) -> None:
 def iperf(default_env: Dict[str, str]) -> None:
     info("  Figure 1 c) Network stack performance with iPerf")
     run(
-        ["nix-shell", "--command", f"cd {APPS_PATH} && python iperf.py"],
+        ["nix-shell", "--run", f"cd {APPS_PATH} && python iperf.py"],
         extra_env=default_env,
     )
 
@@ -129,7 +129,7 @@ def smp(default_env: Dict[str, str]) -> None:
         "  Figure 5 a) Effectiveness of the SMP design w/ fio with increasing number of threads"
     )
     run(
-        ["nix-shell", "--command", f"cd {APPS_PATH} && python smp.py"],
+        ["nix-shell", "--run", f"cd {APPS_PATH} && python smp.py"],
         extra_env=default_env,
     )
 
@@ -137,7 +137,7 @@ def smp(default_env: Dict[str, str]) -> None:
 def iperf_opt(default_env: Dict[str, str]) -> None:
     info("  Figure 5 b) iPerf throughput w/ different optimizations")
     run(
-        ["nix-shell", "--command", f"cd {APPS_PATH} && python iperf-optimizations.py"],
+        ["nix-shell", "--run", f"cd {APPS_PATH} && python iperf-optimizations.py"],
         extra_env=default_env,
     )
 
@@ -145,7 +145,7 @@ def iperf_opt(default_env: Dict[str, str]) -> None:
 def aesni(default_env: Dict[str, str]) -> None:
     info("  Figure 5 c) Effectiveness of hardware-accelerated crypto routines")
     run(
-        ["nix-shell", "--command", f"cd {APPS_PATH} && python aesni.py"],
+        ["nix-shell", "--run", f"cd {APPS_PATH} && python aesni.py"],
         extra_env=default_env,
     )
 
@@ -157,7 +157,7 @@ def sqlite(default_env: Dict[str, str]) -> None:
     env = default_env.copy()
     env["SGXLKL_HEAP"] = "2G"
     run(
-        ["nix-shell", "--command", f"cd {APPS_PATH} && python sqlite.py"], extra_env=env
+        ["nix-shell", "--run", f"cd {APPS_PATH} && python sqlite.py"], extra_env=env
     )
 
 
@@ -165,21 +165,21 @@ def nginx(default_env: Dict[str, str]) -> None:
     info("  Figure 7 b) Nginx latency w/ wrk and c) Nginx throughput w/ wrk")
     env = default_env.copy()
     env["SGXLKL_HEAP"] = "2G"
-    run(["nix-shell", "--command", f"cd {APPS_PATH} && python nginx.py"], extra_env=env)
+    run(["nix-shell", "--run", f"cd {APPS_PATH} && python nginx.py"], extra_env=env)
 
 
 def redis(default_env: Dict[str, str]) -> None:
     info("  Figure 7 d) Redis throughput w/ YCSB (A) and e) Redis latency w/ YCSB (A)")
     env = default_env.copy()
     env["SGXLKL_HEAP"] = "2G"
-    run(["nix-shell", "--command", f"cd {APPS_PATH} && python redis.py"], extra_env=env)
+    run(["nix-shell", "--run", f"cd {APPS_PATH} && python redis.py"], extra_env=env)
 
 
 def mysql(default_env: Dict[str, str]) -> None:
     info("  Figure 7 f) MySQL OLTP throughput w/ sys-bench")
     env = default_env.copy()
     env["SGXLKL_HEAP"] = "2G"
-    run(["nix-shell", "--command", f"cd {APPS_PATH} && python redis.py"], extra_env=env)
+    run(["nix-shell", "--run", f"cd {APPS_PATH} && python redis.py"], extra_env=env)
 
 
 def evaluation(default_env: Dict[str, str]) -> None:
