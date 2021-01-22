@@ -59,8 +59,13 @@ def benchmark_fio(
                 if line == "}\n":
                     break
     finally:
-        proc.send_signal(signal.SIGINT)
-        proc.wait()
+        try:
+            print("stop fio...")
+            proc.send_signal(signal.SIGINT)
+            proc.wait(timeout=3)
+        except subprocess.TimeoutExpired:
+            proc.send_signal(signal.SIGKILL)
+            proc.wait()
     if data == "":
         raise RuntimeError(f"Did not get a result when running benchmark for {system}")
     jsondata = json.loads(data)
