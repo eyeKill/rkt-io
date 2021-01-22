@@ -56,6 +56,8 @@ def benchmark_sqlite(
                     stats["sqlite-op-type"].append(match.group(1))
                     stats["sqlite-time [s]"].append(match.group(2))
                     n_rows += 1
+                    if n_rows == 3:
+                        break
     finally:
         proc.send_signal(signal.SIGINT)
 
