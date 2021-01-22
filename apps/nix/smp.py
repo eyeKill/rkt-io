@@ -90,7 +90,11 @@ def main() -> None:
 
     storage = Storage(settings)
 
+    done_cores = set(stats["cores"])
     for cores in [1, 2, 4, 6, 8]:
+        if cores in done_cores:
+            print(f"skip {cores} cores")
+            continue
         benchmark_sgx_io(storage, stats, cores)
         write_stats("smp.json", stats)
 
