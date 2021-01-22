@@ -45,7 +45,7 @@ def run(
     for k, v in extra_env.items():
         env_string.append(f"{k}={v}")
     info(f"$ {' '.join(env_string)} {' '.join(cmd)}")
-    return subprocess.run(cmd, cwd=cwd, check=check, env=env, text=True, input=input)
+    return subprocess.run(cmd, cwd=cwd, check=check, env=env, text=True, input=input, timeout=60 * 60)
 
 
 def build(nix_shell: str, sudo: str) -> None:
@@ -101,7 +101,6 @@ def load_default_env() -> Dict[str, str]:
 
 
 def syscall_perf(default_env: Dict[str, str]) -> None:
-    info("  Figure 1 a) System call latency with sendto()")
     run(
         ["nix-shell", "--run", f"cd {APPS_PATH} && python syscall-perf.py"],
         extra_env=default_env,
@@ -109,7 +108,6 @@ def syscall_perf(default_env: Dict[str, str]) -> None:
 
 
 def fio(default_env: Dict[str, str]) -> None:
-    info("  Figure 1 b) Storage stack performance with fio")
     run(
         ["nix-shell", "--run", f"cd {APPS_PATH} && python fio.py"],
         extra_env=default_env,
@@ -117,7 +115,6 @@ def fio(default_env: Dict[str, str]) -> None:
 
 
 def iperf(default_env: Dict[str, str]) -> None:
-    info("  Figure 1 c) Network stack performance with iPerf")
     run(
         ["nix-shell", "--run", f"cd {APPS_PATH} && python iperf.py"],
         extra_env=default_env,
@@ -125,9 +122,6 @@ def iperf(default_env: Dict[str, str]) -> None:
 
 
 def smp(default_env: Dict[str, str]) -> None:
-    info(
-        "  Figure 5 a) Effectiveness of the SMP design w/ fio with increasing number of threads"
-    )
     run(
         ["nix-shell", "--run", f"cd {APPS_PATH} && python smp.py"],
         extra_env=default_env,
@@ -135,7 +129,6 @@ def smp(default_env: Dict[str, str]) -> None:
 
 
 def iperf_opt(default_env: Dict[str, str]) -> None:
-    info("  Figure 5 b) iPerf throughput w/ different optimizations")
     run(
         ["nix-shell", "--run", f"cd {APPS_PATH} && python iperf-optimizations.py"],
         extra_env=default_env,
@@ -143,7 +136,6 @@ def iperf_opt(default_env: Dict[str, str]) -> None:
 
 
 def aesni(default_env: Dict[str, str]) -> None:
-    info("  Figure 5 c) Effectiveness of hardware-accelerated crypto routines")
     run(
         ["nix-shell", "--run", f"cd {APPS_PATH} && python aesni.py"],
         extra_env=default_env,
@@ -151,9 +143,6 @@ def aesni(default_env: Dict[str, str]) -> None:
 
 
 def sqlite(default_env: Dict[str, str]) -> None:
-    info(
-        "  Figure 7 a) SQLite throughput w/ Speedtest (no security) and three secure systems: Scone, SGX-LKL and rkt-io"
-    )
     env = default_env.copy()
     env["SGXLKL_HEAP"] = "2G"
     run(
@@ -162,38 +151,47 @@ def sqlite(default_env: Dict[str, str]) -> None:
 
 
 def nginx(default_env: Dict[str, str]) -> None:
-    info("  Figure 7 b) Nginx latency w/ wrk and c) Nginx throughput w/ wrk")
     env = default_env.copy()
     env["SGXLKL_HEAP"] = "2G"
     run(["nix-shell", "--run", f"cd {APPS_PATH} && python nginx.py"], extra_env=env)
 
 
 def redis(default_env: Dict[str, str]) -> None:
-    info("  Figure 7 d) Redis throughput w/ YCSB (A) and e) Redis latency w/ YCSB (A)")
     env = default_env.copy()
     env["SGXLKL_HEAP"] = "2G"
     run(["nix-shell", "--run", f"cd {APPS_PATH} && python redis.py"], extra_env=env)
 
 
 def mysql(default_env: Dict[str, str]) -> None:
-    info("  Figure 7 f) MySQL OLTP throughput w/ sys-bench")
     env = default_env.copy()
     env["SGXLKL_HEAP"] = "2G"
-    run(["nix-shell", "--run", f"cd {APPS_PATH} && python redis.py"], extra_env=env)
+    run(["nix-shell", "--run", f"cd {APPS_PATH} && python mysql.py"], extra_env=env)
 
 
 def evaluation(default_env: Dict[str, str]) -> None:
     info("Run evaluations")
-    syscall_perf(default_env)
-    fio(default_env)
-    iperf(default_env)
-    smp(default_env)
-    iperf_opt(default_env)
-    aesni(default_env)
-    sqlite(default_env)
-    nginx(default_env)
-    redis(default_env)
-    mysql(default_env)
+    experiments = {
+        "Figure 1 a) System call latency with sendto()": syscall_perf,
+        "Figure 1 b) Storage stack performance with fio": fio,
+        "Figure 1 c) Network stack performance with iPerf": iperf,
+        "Figure 5 a) Effectiveness of the SMP design w/ fio with increasing number of threads": smp,
+        "Figure 5 b) iPerf throughput w/ different optimizations": iperf_opt,
+        "Figure 5 c) Effectiveness of hardware-accelerated crypto routines": aesni,
+        "Figure 7 a) SQLite throughput w/ Speedtest (no security) and three secure systems: Scone, SGX-LKL and rkt-io": sqlite,
+        "Figure 7 b) Nginx latency w/ wrk and c) Nginx throughput w/ wrk": nginx,
+        "Figure 7 d) Redis throughput w/ YCSB (A) and e) Redis latency w/ YCSB (A)": redis,
+        "Figure 7 f) MySQL OLTP throughput w/ sys-bench": mysql
+    }
+    for figure, function in experiments.items():
+        info(figure)
+        for i in range(3):
+            try:
+                function(default_env)
+                break
+            except subprocess.TimeoutExpired:
+                warn(f"'{figure}' took too long to run: retry ({i}/3)!")
+            except subprocess.CalledProcessError:
+                warn(f"'{figure}' failed to run: retry ({i}/3)!")
 
 
 def main() -> None:
