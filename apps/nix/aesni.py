@@ -89,8 +89,14 @@ def main() -> None:
     stats = read_stats("aesni.json")
     storage = Storage(create_settings())
 
-    benchmark_sgx_io(storage, stats, x86_acc=True)
-    benchmark_sgx_io(storage, stats, x86_acc=False)
+    if "x86_acc" not in stats["type"]:
+        benchmark_sgx_io(storage, stats, x86_acc=True)
+    else:
+        print("skip x86_acc")
+    if "no_x86_acc" not in stats["type"]:
+        benchmark_sgx_io(storage, stats, x86_acc=False)
+    else:
+        print("skip no_x86_acc")
     write_stats("aesni.json", stats)
 
     csv = f"aesni-{NOW}.tsv"
