@@ -3,7 +3,8 @@
 import sys
 
 if sys.version_info < (3, 7, 0):
-    print("This script assumes at least python3.7", file=sys.stderr)
+    print("This script assumes at least python3.7")
+    sys.exit(1)
 
 import socket
 import os
