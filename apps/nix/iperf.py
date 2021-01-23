@@ -71,11 +71,10 @@ def stop_process(proc: subprocess.Popen) -> None:
     proc.send_signal(signal.SIGINT)
     try:
         print("wait for iperf to finish...")
-        proc.wait(timeout=3)
+        proc.wait(timeout=5)
     except subprocess.TimeoutExpired:
         proc.send_signal(signal.SIGKILL)
         proc.wait()
-
 
 class Benchmark():
     def __init__(self, settings: Settings):
