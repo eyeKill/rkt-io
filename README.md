@@ -43,13 +43,14 @@ https://webchat.freenode.net/) or write an email for further questions.
 - Intel CPU with SGX support: Most new consumer CPUs have SGX support. Some
   server xeon processors don't
 - A second machine acting as a client. This one needs a similar capable NIC (i.e. same bandwith).
-  The other machine does not need to have an NVME drive.
+  The other machine does not need to have an NVME drive. The second machine must be reachable
+  via ssh.
 
 ### Software
 - Linux
 - [Nix](https://nixos.org/download.html): For reproducibility we use the nix
 package manager to download all build dependencies. We locked the package
-versions to ensure reproducibility so that. On our evaluations machines we 
+versions to ensure reproducibility so that. On our evaluations machines we have nix pre-installed
 - Python 3.7 or newer: We wrapped the reproduction script in a python script.
 
 ### Run evaluation
