@@ -57,7 +57,7 @@ versions to ensure reproducibility so that. On our evaluations machines we
 The first step is to get the source code for rkt-io:
 
 ```console
-$ git clone https://github.com/Mic92/sgx-lkl
+$ git clone https://github.com/Mic92/rkt-io
 ```
 
 For convience we created an evaluation script (reproduce.py) that will first build rkt-io and
@@ -75,6 +75,7 @@ machine + `.env`. An example configuration file is provided in the repo
 
 To run the evaluation script use the following command:
 ```console
+$ cd rkt-io
 $ python reproduce.py 
 ```
 
