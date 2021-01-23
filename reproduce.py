@@ -219,10 +219,13 @@ def generate_graphs() -> None:
         if not result.exists():
             warn(f"tsv file {result} does not exists! It should have been created during evaluation")
         shutil.copyfile(result, results.joinpath(f))
+    graphs = APPS_PATH.joinpath("graphs.py")
+    apps_graphs = APPS_PATH.joinpath("apps_graphs.py")
+    micro_bench_plots = APPS_PATH.joinpath("micro_bench_plots.py")
 
-    run(["nix-shell", "--run", f"cd {APPS_PATH} && python graphs.py {results}/*.tsv"])
-    run(["nix-shell", "--run", f"cd {APPS_PATH} && python apps_graphs.py {results}/*.tsv"])
-    run(["nix-shell", "--run", f"cd {APPS_PATH} && python micro_bench_plots.py {results}"])
+    run(["nix-shell", "--run", f"cd {results} && python {graphs} syscall-perf-latest.tsv iperf-latest.tsv fio-throughput-latest.tsv"])
+    run(["nix-shell", "--run", f"cd {results} && python {apps_graphs} sqlite-speedtest-latest.tsv mysql-latest.tsv nginx-latest.tsv redis-latest.tsv"])
+    run(["nix-shell", "--run", f"cd {results} && python {micro_bench_plots} ."])
     info(f"Result and graphs data have been written to {results}")
     
 
