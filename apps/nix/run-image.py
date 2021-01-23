@@ -169,8 +169,13 @@ def run(
 
     def stop_proc(signum: Any, frame: Any) -> None:
         proc.terminate()
+        try:
+            proc.wait(timeout=1)
+        except subprocess.TimeoutExpired:
+            proc.send_signal(signal.SIGKILL)
 
     signal.signal(signal.SIGINT, stop_proc)
+    signal.signal(signal.SIGTERM, stop_proc)
     proc.wait()
 
 
