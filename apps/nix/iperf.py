@@ -59,6 +59,23 @@ def nc_command(settings: Settings) -> RemoteCommand:
     path = nix_build("netcat-native")
     return settings.remote_command(path)
 
+def check_port(nc: RemoteCommand, settings: Settings) -> bool:
+    try:
+        nc(settings).run( "bin/nc", ["-w1", "-z", "-v", settings.local_dpdk_ip, "5201"])
+        return True
+    except subprocess.CalledProcessError:
+        return False
+
+
+def stop_process(proc: subprocess.Popen) -> None:
+    proc.send_signal(signal.SIGINT)
+    try:
+        print("wait for iperf to finish...")
+        proc.wait(timeout=3)
+    except subprocess.TimeoutExpired:
+        proc.send_signal(signal.SIGKILL)
+        proc.wait()
+
 
 class Benchmark():
     def __init__(self, settings: Settings):
@@ -79,20 +96,19 @@ class Benchmark():
         iperf = f"{self.iperf_client.nix_path}/bin/iperf3"
         fast_ssl = dict(OPENSSL_ia32cap="0x5640020247880000:0x40128")
         env.update(fast_ssl)
+        if check_port(nc_command, self.settings):
+            print("There is already an iperf instance running", file=sys.stderr)
+            sys.exit(1)
         with spawn(local_iperf, "bin/iperf3", "1", extra_env=env) as iperf_server:
             for i in range(60):
-                try:
-                    nc_command(self.settings).run(
-                        "bin/nc", ["-w1", "-z", "-v", self.settings.local_dpdk_ip, "5201"]
-                    )
+                if check_port(nc_command, self.settings):
                     break
-                except subprocess.CalledProcessError:
-                    pass
                 status = iperf_server.poll()
                 if status is not None:
                     raise OSError(f"iperf exiteded with {status}")
                 time.sleep(1)
                 if i == 59:
+                    stop_process(iperf_server)
                     raise OSError(f"Could not connect to iperf after 1 min")
 
             iperf_args = ["client", "-c", self.settings.local_dpdk_ip, "--json", "-t", "10"]
@@ -101,13 +117,7 @@ class Benchmark():
 
             parallel_iperf = self.parallel_iperf.run("bin/parallel-iperf", ["1", iperf] + iperf_args, extra_env=fast_ssl)
             _postprocess_iperf(json.loads(parallel_iperf.stdout), direction, system, stats)
-            iperf_server.send_signal(signal.SIGINT)
-            try:
-                print("wait for iperf to finish...")
-                iperf_server.wait(timeout=3)
-            except subprocess.TimeoutExpired:
-                iperf_server.send_signal(signal.SIGKILL)
-                iperf_server.wait()
+            stop_process(iperf_server)
 
     def run(self,
             attr: str,
