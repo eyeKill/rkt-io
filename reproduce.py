@@ -190,8 +190,13 @@ def evaluation(default_env: Dict[str, str]) -> None:
                 break
             except subprocess.TimeoutExpired:
                 warn(f"'{figure}' took too long to run: retry ({i + 1}/3)!")
+                if i == 2:
+                    sys.exit(1)
             except subprocess.CalledProcessError:
                 warn(f"'{figure}' failed to run: retry ({i + 1}/3)!")
+                if i == 2:
+                    sys.exit(1)
+
 
 
 def generate_graphs() -> None:
