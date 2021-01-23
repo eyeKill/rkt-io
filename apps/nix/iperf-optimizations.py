@@ -31,13 +31,12 @@ def run_variant(name: str, benchmark: Benchmark, extra_env: Dict[str, str]) -> N
     system = set(stats["system"])
     if "sgx-io" in system:
         print(f"skip {name} benchmark")
-        return
     else:
         extra_env.update(benchmark.network.setup(NetworkKind.DPDK))
         benchmark.run("iperf-sgx-io", "sgx-io", stats, extra_env=extra_env)
         write_stats(stats_file, stats)
 
-    csv = f"iperf-{name}.tsv"
+    csv = f"iperf-{name}-latest.tsv"
     print(csv)
     pd.DataFrame(stats).to_csv(csv, index=False, sep="\t")
 

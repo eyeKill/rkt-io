@@ -25,11 +25,11 @@ def preprocess_hdparm(df_col: pd.Series) -> Any:
 
 def hdparm_zerocopy_plot(dir: str, graphs: List[Any]) -> None:
     df_all_on = pd.read_csv(
-        os.path.join(os.path.realpath(dir), "hdparm-all-on.tsv"), sep="\t"
+        os.path.join(os.path.realpath(dir), "hdparm-all-on-latest.tsv"), sep="\t"
     )
 
     df_zcopy_off = pd.read_csv(
-        os.path.join(os.path.realpath(dir), "hdparm-zerocopy-off.tsv"), sep="\t"
+        os.path.join(os.path.realpath(dir), "hdparm-zerocopy-off-latest.tsv"), sep="\t"
     )
 
     df_all_on = df_all_on.drop(columns=["system"])
@@ -183,11 +183,11 @@ def read_iperf(path: str, type: str) -> pd.DataFrame:
 
 
 def network_optimization_plot(dir: str, graphs: List[Any]) -> None:
-    df_all = read_iperf(os.path.join(os.path.realpath(dir), "iperf-all-on.tsv"), "offloads+\nzerocopy")
+    df_all = read_iperf(os.path.join(os.path.realpath(dir), "iperf-all-on-latest.tsv"), "offloads+\nzerocopy")
 
-    df_offload = read_iperf(os.path.join(os.path.realpath(dir), "iperf-offload-off.tsv"), "no offloads")
+    df_offload = read_iperf(os.path.join(os.path.realpath(dir), "iperf-offload_off-latest.tsv"), "no offloads")
 
-    df_zcopy = read_iperf(os.path.join(os.path.realpath(dir), "iperf-zerocopy-off.tsv"), "no zerocopy")
+    df_zcopy = read_iperf(os.path.join(os.path.realpath(dir), "iperf-zerocopy_off-latest.tsv"), "no zerocopy")
     df = pd.concat([df_all, df_offload, df_zcopy])
     g = catplot(
         data=apply_aliases(df),

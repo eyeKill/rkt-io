@@ -9,7 +9,7 @@ if sys.version_info < (3, 7, 0):
 import socket
 import os
 import shutil
-from typing import IO, Any, Callable, List, Dict, Optional, Text
+from typing import IO, Any, Callable, List, Dict, Optional, Text 
 import subprocess
 from pathlib import Path
 
@@ -189,10 +189,42 @@ def evaluation(default_env: Dict[str, str]) -> None:
                 function(default_env)
                 break
             except subprocess.TimeoutExpired:
-                warn(f"'{figure}' took too long to run: retry ({i}/3)!")
+                warn(f"'{figure}' took too long to run: retry ({i + 1}/3)!")
             except subprocess.CalledProcessError:
-                warn(f"'{figure}' failed to run: retry ({i}/3)!")
+                warn(f"'{figure}' failed to run: retry ({i + 1}/3)!")
 
+
+def generate_graphs() -> None:
+    results = ROOT.joinpath("results")
+    if results.exists():
+        shutil.rmtree(results)
+    results.mkdir()
+    tsv_files = [
+      "aesni-latest.tsv",
+      "fio-throughput-latest.tsv",
+      "iperf-all-on-latest.tsv",
+      "iperf-latest.tsv",
+      "iperf-offload_off-latest.tsv",
+      "iperf-zerocopy_off-latest.tsv",
+      "mysql-latest.tsv",
+      "nginx-latest.tsv",
+      "redis-latest.tsv",
+      "smp-latest.tsv",
+      "sqlite-speedtest-latest.tsv",
+      "syscall-perf-latest.tsv",
+    ]
+    graph_files: List[Path] = []
+    for f in tsv_files:
+        result = APPS_PATH.joinpath(f)
+        if not result.exists():
+            warn(f"tsv file {result} does not exists! It should have been created during evaluation")
+        shutil.copyfile(result, results.joinpath(f))
+
+    run(["nix-shell", "--run", f"cd {APPS_PATH} && python graphs.py {results}/*.tsv"])
+    run(["nix-shell", "--run", f"cd {APPS_PATH} && python apps_graphs.py {results}/*.tsv"])
+    run(["nix-shell", "--run", f"cd {APPS_PATH} && python micro_bench_plots.py {results}"])
+    info(f"Result and graphs data have been written to {results}")
+    
 
 def main() -> None:
     nix_shell = shutil.which("nix-shell", mode=os.F_OK | os.X_OK)
@@ -215,6 +247,7 @@ def main() -> None:
     else:
         build(nix_shell, sudo)
     evaluation(default_env)
+    generate_graphs()
 
 
 if __name__ == "__main__":

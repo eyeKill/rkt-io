@@ -164,7 +164,7 @@ def main() -> None:
         benchmark_func(benchmark, stats)
         write_stats("iperf.json", stats)
 
-    csv = f"iperf-{NOW}.tsv"
+    csv = f"iperf-latest.tsv"
     print(csv)
     pd.DataFrame(stats).to_csv(csv, index=False, sep="\t")
 
