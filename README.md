@@ -78,6 +78,11 @@ To run the evaluation script use the following command:
 $ python reproduce.py 
 ```
 
+After the build is finished, it will start evaluations and generate graphs for each afterwards.
+The graphs will be written to ./results.
+
+The following figures are reproduced:
+
 - Figure 1. Micro-benchmarks to showcase the performance of syscalls, storage and network stacks across different systems
   - a) System call latency with sendto()
   - b) Storage stack performance with fio
