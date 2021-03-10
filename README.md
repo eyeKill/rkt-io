@@ -34,7 +34,7 @@ https://webchat.freenode.net/) or write an email for further questions.
 
 - Intel NIC supported by i40e driver: In rkt-io we performed some driver
   optimizations that required some refactorings in DPDK to reduce memory copy.
-   Hence we had to modify the low-level i40e intel NIC driver. We did not apply
+  Hence we had to modify the low-level i40e intel NIC driver. We did not apply
   those refactorings to other drivers. Hence one needs the same hardware to
   reproduce the paper results. Our NIC was [XL710](https://www.intel.com/content/www/us/en/products/docs/network-io/ethernet/network-adapters/ethernet-xl710-brief.html)
 - NVME block device: We need a free NVME block device. During evaluation this
@@ -42,16 +42,16 @@ https://webchat.freenode.net/) or write an email for further questions.
   NVME drive.
 - Intel CPU with SGX support: Most new consumer CPUs have SGX support. Some
   server xeon processors don't
-- A second machine acting as a client. This one needs a similar capable NIC (i.e. same bandwith).
+- A second machine acting as a client. This one needs a similar capable NIC (i.e. same bandwidth).
   The other machine does not need to have an NVME drive. The second machine must be reachable
   via ssh.
 
 ### Software
-- Linux
+- Operating system: Linux
 - [Nix](https://nixos.org/download.html): For reproducibility we use the nix
 package manager to download all build dependencies. We locked the package
-versions to ensure reproducibility so that. On our evaluations machines we have nix pre-installed
-- Python 3.7 or newer: We wrapped the reproduction script in a python script.
+versions to ensure reproducibility so that.
+- Python 3.7 or newer for the script that reproduces the evaluation
 
 ### Run evaluation
 
