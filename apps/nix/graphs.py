@@ -249,7 +249,7 @@ def main() -> None:
 
         if basename.startswith("fio"):
             graphs.append(("fio-read-write", fio_read_write_graph(df)))
-        if basename.startswith("syscalls-perf"):
+        if basename.startswith("syscalls-perf") or basename.startswith("syscall-perf"):
             graphs.append(("syscalls-perf", syscalls_perf_graph(df)))
         elif basename.startswith("mysql"):
             graphs.append(("MySQL-Reads", mysql_read_graph(df)))
