@@ -5,7 +5,13 @@ from typing import Any, Dict, List
 import pandas as pd
 from plot import apply_hatch, catplot, plt
 
-from graph_utils import apply_aliases, change_width, apply_to_graphs, systems_order
+from graph_utils import (
+    apply_aliases,
+    change_width,
+    apply_to_graphs,
+    systems_order,
+    PAPER_MODE,
+)
 
 
 def df_col_select(res_col: List[str], df_columns: List[str], keyword: str) -> None:
@@ -14,6 +20,7 @@ def df_col_select(res_col: List[str], df_columns: List[str], keyword: str) -> No
             continue
         if keyword in col:
             res_col.append(col)
+
 
 def apply_sqlite_rows(x: int) -> float:
     return 10000 / x
@@ -98,9 +105,9 @@ def redis_graph(df: pd.DataFrame, metric: str) -> Any:
     hue = None
     col_name = None
     legend = False
-    color=None
-    palette=None
-    n_cols=None
+    color = None
+    palette = None
+    n_cols = None
     thru_ylabel = None
     width = None
 
@@ -142,15 +149,17 @@ def redis_graph(df: pd.DataFrame, metric: str) -> Any:
         # aspect=1.2,
         legend=False,
         palette=palette,
-        color=color
+        color=color,
     )
 
     apply_to_graphs(g.ax, legend, n_cols, width)
-    g.ax.legend(ncol=2, loc='upper center', bbox_to_anchor=(0.5, 1.05), frameon=False)
+    g.ax.legend(ncol=2, loc="upper center", bbox_to_anchor=(0.5, 1.05), frameon=False)
 
     if metric == "thru":
         thru_ylabel = g.ax.get_yticklabels()
-        thru_ylabel = [str(float(float(x.get_text())/1000))+"k" for x in thru_ylabel]
+        thru_ylabel = [
+            str(float(float(x.get_text()) / 1000)) + "k" for x in thru_ylabel
+        ]
         thru_ylabel[0] = "0"
         thru_ylabel = [x.replace(".0k", "k") for x in thru_ylabel]
         g.ax.set_yticklabels(thru_ylabel)
@@ -182,9 +191,12 @@ def main() -> None:
             graphs.append(("REDIS-LAT", redis_graph(df, "lat")))
 
     for name, graph in graphs:
-        filename = f"{name}.pdf"
+        if PAPER_MODE:
+            filename = f"{name}.pdf"
+        else:
+            filename = f"{name}.png"
         print(f"write {filename}")
-        graph.savefig(filename)
+        graph.savefig(filename, dpi=600)
 
 
 if __name__ == "__main__":

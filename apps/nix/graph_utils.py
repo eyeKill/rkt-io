@@ -3,6 +3,8 @@ from typing import Dict, List, Any, Union
 import pandas as pd
 from plot import ticker
 
+PAPER_MODE = os.getenv.environ("PAPER_MODE", "1") == "1"
+
 SYSTEM_ALIASES: Dict[str, str] = {"sgx-io": "rkt-io"}
 OPERATION_ALIASES: Dict[str, str] = {
     "read-bw": "read",

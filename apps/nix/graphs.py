@@ -3,17 +3,35 @@ import sys
 import os
 
 import pandas as pd
-from typing import Any
+from typing import Any, Optional, List
 from plot import catplot, plt, apply_hatch
-from graph_utils import apply_aliases, column_alias, systems_order, change_width, apply_to_graphs
+from graph_utils import (
+    apply_aliases,
+    column_alias,
+    systems_order,
+    change_width,
+    apply_to_graphs,
+    PAPER_MODE,
+)
+
+if PAPER_MODE:
+    color: Optional[str] = "black"
+    palette: Optional[List] = ["grey", "black"]
+    out_format = ".pdf"
+else:
+    color = None
+    palette = None
+    out_format = ".png"
 
 
 def fio_read_write_graph(df: pd.DataFrame) -> Any:
-    df = pd.melt(df,
-                 id_vars=['system', 'job'],
-                 value_vars=['read-bw', 'write-bw'],
-                 var_name="operation",
-                 value_name="disk-throughput")
+    df = pd.melt(
+        df,
+        id_vars=["system", "job"],
+        value_vars=["read-bw", "write-bw"],
+        var_name="operation",
+        value_name="disk-throughput",
+    )
     df = df.groupby(["system", "operation"]).sum().reset_index()
 
     df["disk-throughput"] /= 1024
@@ -25,7 +43,7 @@ def fio_read_write_graph(df: pd.DataFrame) -> Any:
         order=systems_order(df),
         kind="bar",
         height=2.5,
-        palette=["grey", "black"],
+        palette=palette,
         legend=False,
         # aspect=1.2,
     )
@@ -40,7 +58,9 @@ def fio_read_write_graph(df: pd.DataFrame) -> Any:
 
 def syscalls_perf_graph(df: pd.DataFrame) -> Any:
     df2 = df[(df.data_size == 32) & (df.threads == 8)]
-    df2 = df2.assign(time_per_syscall=10e6 * df2.total_time / (df2.packets_per_thread * df2.threads))
+    df2 = df2.assign(
+        time_per_syscall=10e6 * df2.total_time / (df2.packets_per_thread * df2.threads)
+    )
     g = catplot(
         data=apply_aliases(df2),
         x=column_alias("system"),
@@ -49,7 +69,7 @@ def syscalls_perf_graph(df: pd.DataFrame) -> Any:
         kind="bar",
         height=2.5,
         # aspect=1.2,
-        color="black",
+        color=color,
         palette=None,
     )
     # change_width(g.ax, 0.405)
@@ -76,7 +96,7 @@ def iperf_graph(df: pd.DataFrame) -> Any:
         kind="bar",
         height=2.5,
         # aspect=1.2,
-        color="black",
+        color=color,
         palette=None,
     )
     # change_width(g.ax, 0.405)
@@ -99,9 +119,9 @@ def mysql_read_graph(df: pd.DataFrame) -> Any:
         kind="bar",
         height=2.5,
         # aspect=1.2,
-        color="black",
+        color=color,
         palette=None,
-        order=systems_order(df)
+        order=systems_order(df),
     )
     apply_to_graphs(g.ax, False, -1, 0.285)
 
@@ -118,9 +138,9 @@ def mysql_write_graph(df: pd.DataFrame) -> Any:
         kind="bar",
         height=2.5,
         # aspect=1.2,
-        color="black",
+        color=color,
         palette=None,
-        order=systems_order(df)
+        order=systems_order(df),
     )
     apply_to_graphs(g.ax, False, -1, 0.285)
     return g
@@ -136,17 +156,22 @@ def mysql_latency_graph(df: pd.DataFrame) -> Any:
         kind="bar",
         height=2.5,
         # aspect=1.2,
-        color="black",
+        color=color,
         palette=None,
-        order=systems_order(df)
+        order=systems_order(df),
     )
     apply_to_graphs(g.ax, False, -1, 0.285)
     return g
 
+
 def mysql_throughput_graph(df: pd.DataFrame) -> Any:
-    df = df[['system', "SQL statistics transactions", "General statistics total time"]]
-    df["General statistics total time"] = df["General statistics total time"].apply(lambda x: float(x.replace('s', '')))
-    df["mysql-throughput"] = df["SQL statistics transactions"]/df["General statistics total time"]
+    df = df[["system", "SQL statistics transactions", "General statistics total time"]]
+    df["General statistics total time"] = df["General statistics total time"].apply(
+        lambda x: float(x.replace("s", ""))
+    )
+    df["mysql-throughput"] = (
+        df["SQL statistics transactions"] / df["General statistics total time"]
+    )
 
     df = apply_aliases(df)
 
@@ -157,9 +182,9 @@ def mysql_throughput_graph(df: pd.DataFrame) -> Any:
         kind="bar",
         height=2.5,
         # aspect=1.2,
-        color="black",
+        color=color,
         palette=None,
-        order=systems_order(df)
+        order=systems_order(df),
     )
 
     apply_to_graphs(g.ax, False, -1, 0.285)
@@ -171,9 +196,9 @@ def preprocess_hdparm(df_col: pd.Series) -> Any:
     for i in range(len(df_col)):
         temp = df_col[i].split(" ")
         if temp[1] == "kB/s":
-            df_col[i] = float(df_col[i])/(1000 ** 2)
+            df_col[i] = float(df_col[i]) / (1000 ** 2)
         elif temp[1] == "MB/s":
-            df_col[i] = float(df_col[i])/(1000)
+            df_col[i] = float(df_col[i]) / (1000)
         elif temp[1] == "GB/s":
             df_col[i] = float(df_col[i])
 
@@ -204,7 +229,7 @@ def hdparm_graph(df: pd.DataFrame, metric: str) -> Any:
         kind="bar",
         height=2.5,
         # aspect=1.2,
-        color="black",
+        color=color,
         palette=None,
     )
     apply_to_graphs(g.ax, False, -1)
@@ -265,9 +290,9 @@ def main() -> None:
             graphs.append(("MEMCPY", memcpy_graph(df)))
 
     for name, graph in graphs:
-        filename = f"{name}.pdf"
+        filename = f"{name}.{out_format}"
         print(f"write {filename}")
-        graph.savefig(filename)
+        graph.savefig(filename, dpi=600)
 
 
 if __name__ == "__main__":
