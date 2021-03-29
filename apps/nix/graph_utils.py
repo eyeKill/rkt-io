@@ -39,7 +39,7 @@ ROW_ALIASES = dict(
     },
 )
 COLUMN_ALIASES: Dict[str, str] = {
-    "iperf-throughput": "Throughput [GiB/s]",
+    "iperf-throughput": "Throughput [Gbps]",
     "disk-throughput": "Throughput [MiB/s]",
     "hdparm-throughput": "Throughput [GiB/s]",
     "SQL statistics read": "Read",
@@ -63,7 +63,7 @@ COLUMN_ALIASES: Dict[str, str] = {
     "storage-bs-throughput": "Throughput [MiB/s]",
     "aesnithroughput": "Throughput [MiB/s]",
     "cores": "Jobs",
-    "mysql-throughput": "Throughput [eps/sec]"
+    "mysql-throughput": "Throughput [events/sec]"
 }
 
 
