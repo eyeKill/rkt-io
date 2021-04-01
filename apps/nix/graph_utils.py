@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 from typing import Dict, List, Any, Union
 import pandas as pd
+import os
 from plot import ticker
 
-PAPER_MODE = os.getenv.environ("PAPER_MODE", "1") == "1"
+PAPER_MODE = os.environ.get("PAPER_MODE", "1") == "1"
 
 SYSTEM_ALIASES: Dict[str, str] = {"sgx-io": "rkt-io"}
 OPERATION_ALIASES: Dict[str, str] = {

@@ -17,11 +17,11 @@ from graph_utils import (
 if PAPER_MODE:
     color: Optional[str] = "black"
     palette: Optional[List] = ["grey", "black"]
-    out_format = ".pdf"
+    out_format = "pdf"
 else:
     color = None
     palette = None
-    out_format = ".png"
+    out_format = "png"
 
 
 def fio_read_write_graph(df: pd.DataFrame) -> Any:
