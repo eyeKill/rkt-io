@@ -16,7 +16,7 @@ attacks.
 ## Usage
 
 rkt-io is a fork of [sgx-lkl](https://github.com/lsds/sgx-lkl). For normal usage
-see the old [README](README.old.md). For reducing the paper results read the
+see the old [README](README.old.md). For reproducing the paper results read the
 next headline.
 
 ## Reproduce paper results 
