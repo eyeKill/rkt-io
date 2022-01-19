@@ -13,6 +13,8 @@ within the TEE, thus omitting the host OS from the I/O path, rkt-io can
 transparently encrypt all I/O data and does not suffer from host interface/Iago
 attacks.
 
+Rkt-io was also published in [Eurosys 2021](https://2021.eurosys.org). See [bibtex](#bibtex) for citation.
+
 ## Usage
 
 rkt-io is a fork of [sgx-lkl](https://github.com/lsds/sgx-lkl). For normal usage
@@ -36,15 +38,17 @@ https://webchat.freenode.net/) or write an email for further questions.
   optimizations that required some refactorings in DPDK to reduce memory copy.
   Hence we had to modify the low-level i40e intel NIC driver. We did not apply
   those refactorings to other drivers. Hence one needs the same hardware to
-  reproduce the paper results. Our NIC was [XL710](https://www.intel.com/content/www/us/en/products/docs/network-io/ethernet/network-adapters/ethernet-xl710-brief.html)
+  reproduce the paper results. Our NIC was
+  [XL710](https://www.intel.com/content/www/us/en/products/docs/network-io/ethernet/network-adapters/ethernet-xl710-brief.html)
 - NVME block device: We need a free NVME block device. During evaluation this
-  device will be reformated. We used an [Intel DC P4600 2TB](https://ark.intel.com/content/www/us/en/ark/products/series/96947/intel-ssd-dc-p4600-series.html)
+  device will be reformated. We used an [Intel DC P4600
+  2TB](https://ark.intel.com/content/www/us/en/ark/products/series/96947/intel-ssd-dc-p4600-series.html)
   NVME drive.
 - Intel CPU with SGX support: Most new consumer CPUs have SGX support. Some
   server xeon processors don't
-- A second machine acting as a client. This one needs a similar capable NIC (i.e. same bandwidth).
-  The other machine does not need to have an NVME drive. The second machine must be reachable
-  via ssh.
+- A second machine acting as a client. This one needs a similar capable NIC
+  (i.e. same bandwidth).  The other machine does not need to have an NVME drive.
+  The second machine must be reachable via ssh.
 
 ### Software
 - Operating system: Linux
@@ -103,3 +107,16 @@ The following figures are reproduced:
   - d) Redis throughput w/ YCSB (A)
   - e) Redis latency w/ YCSB (A)
   - f) MySQL OLTP throughput w/ sys-bench
+
+## Bibtex
+
+We published a paper with all technical details about Rkt-IO in [Eurosys 2021](https://2021.eurosys.org)
+
+```bibtex
+@inproceedings{10.1145/3447786.3456255,
+author = {J\"{o}rg Thalheim  and Harshavardhan Unnibhavi and Christian Priebe and Pramod Bhatotia and Peter Pietzuch},
+title = {Rkt-Io: A Direct I/O Stack for Shielded Execution},
+booktitle = {Proceedings of the Sixteenth European Conference on Computer Systems},
+year = {2021},
+}
+```
