@@ -1,5 +1,6 @@
 include ../config.mak
 
+
 ARCH ?= x86_64
 
 .PHONY: clean distclean
@@ -15,8 +16,9 @@ MAKE_ROOT=$(dir $(realpath $(firstword $(MAKEFILE_LIST))))
 ${CRYPTSETUP_BUILD} ${PROTOBUFC_BUILD} ${LIBUUID_HOST_BUILD} ${CRYPTSETUP_BUILD}/libuuid:
 	@mkdir -p $@
 
+
 ${CRYPTSETUP}:
-	wget -O "${MAKE_ROOT}/cryptsetup.tar.gz" 'https://gitlab.com/cryptsetup/cryptsetup/repository/archive.tar.gz?ref=v2.0.2'
+	wget -O "${MAKE_ROOT}/cryptsetup.tar.gz" 'https://www.kernel.org/pub/linux/utils/cryptsetup/v2.0/cryptsetup-2.0.2.tar.xz'
 	mkdir -p $@ && tar -C $@ --strip 1 -xf ${MAKE_ROOT}/cryptsetup.tar.gz
 	rm ${MAKE_ROOT}/cryptsetup.tar.gz
 
