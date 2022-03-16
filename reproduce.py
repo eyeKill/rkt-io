@@ -81,6 +81,10 @@ def load_default_env() -> Dict[str, str]:
         "SGXLKL_X86_ACC": "1",
         "SGXLKL_ETHREADS": "1",
         "SGXLKL_SYSCTL": ";".join(sysctl),
+        # for git checkouts to proceed smoothly
+        "HTTP_PROXY": "http://127.0.0.1:7890",
+        "HTTPS_PROXY": "http://127.0.0.1:7890",
+        "ALL_PROXY": "socks5://127.0.0.1:7890",
     }
     local_defaults = ROOT.joinpath(socket.gethostname() + ".env")
     if not local_defaults.exists():
@@ -170,15 +174,15 @@ def evaluation(default_env: Dict[str, str]) -> None:
     info("Run evaluations")
     experiments = {
         "Figure 1 a) System call latency with sendto()": syscall_perf,
-        "Figure 1 b) Storage stack performance with fio": fio,
+        # "Figure 1 b) Storage stack performance with fio": fio,
         "Figure 1 c) Network stack performance with iPerf": iperf,
-        "Figure 5 a) Effectiveness of the SMP design w/ fio with increasing number of threads": smp,
-        "Figure 5 b) iPerf throughput w/ different optimizations": iperf_opt,
-        "Figure 5 c) Effectiveness of hardware-accelerated crypto routines": aesni,
-        "Figure 7 a) SQLite throughput w/ Speedtest (no security) and three secure systems: Scone, SGX-LKL and rkt-io": sqlite,
-        "Figure 7 b) Nginx latency w/ wrk and c) Nginx throughput w/ wrk": nginx,
-        "Figure 7 d) Redis throughput w/ YCSB (A) and e) Redis latency w/ YCSB (A)": redis,
-        "Figure 7 f) MySQL OLTP throughput w/ sys-bench": mysql,
+        # "Figure 5 a) Effectiveness of the SMP design w/ fio with increasing number of threads": smp,
+        # "Figure 5 b) iPerf throughput w/ different optimizations": iperf_opt,
+        # "Figure 5 c) Effectiveness of hardware-accelerated crypto routines": aesni,
+        # "Figure 7 a) SQLite throughput w/ Speedtest (no security) and three secure systems: Scone, SGX-LKL and rkt-io": sqlite,
+        # "Figure 7 b) Nginx latency w/ wrk and c) Nginx throughput w/ wrk": nginx,
+        # "Figure 7 d) Redis throughput w/ YCSB (A) and e) Redis latency w/ YCSB (A)": redis,
+        # "Figure 7 f) MySQL OLTP throughput w/ sys-bench": mysql,
     }
     for figure, function in experiments.items():
         info(figure)
@@ -247,11 +251,12 @@ def main() -> None:
         sys.exit(1)
     default_env = load_default_env()
     checkout_submodules(nix_shell)
-    lkl_run = ROOT.joinpath("build", "sgx-lkl-run")
-    if lkl_run.exists():
-        info(f"skip build, {lkl_run} already exists")
-    else:
-        build(nix_shell, sudo)
+    # lkl_run = ROOT.joinpath("build", "sgx-lkl-run")
+    # if lkl_run.exists():
+    #     info(f"skip build, {lkl_run} already exists")
+    # else:
+    #     build(nix_shell, sudo)
+    build(nix_shell, sudo)
     evaluation(default_env)
     generate_graphs()
 

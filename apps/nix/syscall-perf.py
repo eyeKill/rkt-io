@@ -1,8 +1,10 @@
 import os
+import sys
 import json
 from typing import Dict, List
 import subprocess
 import signal
+import shutil
 import pandas as pd
 
 from helpers import (
@@ -31,14 +33,20 @@ class Benchmark:
         env.update(extra_env)
         env["SGXLKL_ETHREADS"] = "2" if system == "sync" else "1"
         simpleio = nix_build(attribute)
-
-        cmd = [str(simpleio), "bin/udp-send", self.settings.remote_dpdk_ip, "2000000"]
+        
+        # Yijun we need root priviledge to create TAP interface
+        sudo = shutil.which("sudo", mode=os.F_OK | os.X_OK)
+        if sudo is None:
+            print("sudo not found, which is needed to create TAP interface")
+            sys.exit(1)
+    
+        cmd = [sudo, str(simpleio), "bin/udp-send", self.settings.remote_dpdk_ip, "2000000"]
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, text=True, env=env)
         assert proc.stdout is not None
         found_results = False
         for line in proc.stdout:
             line = line.rstrip()
-            print(line)
+            print("Output:", line, sep='\t')
             if found_results:
                 if line == "</results>":
                     break

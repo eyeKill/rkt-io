@@ -227,11 +227,17 @@ def create_settings() -> Settings:
     if not nic_pci_id:
         print("NIC_PCI_ID not set", file=sys.stderr)
         sys.exit(1)
+    elif nic_pci_id == "NULL":
+        print("NIC_PCI_ID is NULL, using tap device")
+        nic_pci_id = None
 
     nvme_pci_id = os.environ.get("NVME_PCI_ID")
     if not nvme_pci_id:
         print("NVME_PCI_ID not set", file=sys.stderr)
         sys.exit(1)
+    elif nvme_pci_id == "NULL":
+        print("NVME_PCI_ID is NULL, using malloc bdev")
+        nvme_pci_id = None
 
     return Settings(
         remote_ssh_host=remote_ssh_host,

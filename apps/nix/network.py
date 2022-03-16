@@ -12,7 +12,7 @@ class NetworkKind(Enum):
     CLIENT_NATIVE = 2
     TAP = 3
     DPDK = 4
-
+    DPDK_TAP = 5
 
 def ip(args: List[str]) -> None:
     run(["sudo", "ip"] + args)
@@ -41,16 +41,17 @@ class Network:
     def bind_driver(self, kind: NetworkKind) -> None:
         devbind = ROOT.joinpath("..", "..", "dpdk", "usertools", "dpdk-devbind.py")
 
-        if kind != NetworkKind.DPDK:
+        if kind not in(NetworkKind.DPDK, NetworkKind.DPDK_TAP):
             driver = self.settings.native_nic_driver
-        else:
+        elif kind == NetworkKind.DPDK:
             driver = self.settings.dpdk_nic_driver
             try:
                 ip(["link", "set", self.settings.native_nic_ifname, "down"])
             except subprocess.CalledProcessError:  # interface may not exists
                 pass
 
-        run(["sudo", "python3", str(devbind), "-b", driver, self.settings.nic_pci_id])
+        if self.settings.nic_pci_id:
+            run(["sudo", "python3", str(devbind), "-b", driver, self.settings.nic_pci_id])
 
         if kind == NetworkKind.NATIVE or kind == NetworkKind.CLIENT_NATIVE:
             ip(["link", "set", self.settings.native_nic_ifname, "up"])
@@ -64,7 +65,8 @@ class Network:
                 SGXLKL_TAP_OFFLOAD="1",
                 SGXLKL_TAP_MTU="1500",
             )
-        elif kind == NetworkKind.DPDK:
+        # TODO tune settings for DPDK_TAP
+        elif kind in (NetworkKind.DPDK, NetworkKind.DPDK_TAP):
             sysctl = "net.core.rmem_max=56623104;net.core.wmem_max=56623104;net.core.rmem_default=56623104;net.core.wmem_default=56623104;net.core.optmem_max=40960;net.ipv4.tcp_rmem=4096 87380 56623104;net.ipv4.tcp_wmem=4096 65536 56623104;net.core.somaxconn=1024;net.core.netdev_max_backlog=2000"
             return dict(SGXLKL_DPDK_MTU="1500", SGXLKL_SYSCTL=sysctl)
         else:
@@ -73,7 +75,7 @@ class Network:
     def setup(self, kind: NetworkKind) -> Dict[str, str]:
         self.bind_driver(kind)
 
-        if kind == NetworkKind.DPDK:
+        if kind in (NetworkKind.DPDK, NetworkKind.DPDK_TAP):
             setup_hugepages(StorageKind.SPDK)
         else:
             setup_hugepages(StorageKind.NATIVE)
