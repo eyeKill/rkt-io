@@ -251,11 +251,12 @@ def main() -> None:
         sys.exit(1)
     default_env = load_default_env()
     checkout_submodules(nix_shell)
-    lkl_run = ROOT.joinpath("build", "sgx-lkl-run")
-    if lkl_run.exists():
-        info(f"skip build, {lkl_run} already exists")
-    else:
-        build(nix_shell, sudo)
+    # lkl_run = ROOT.joinpath("build", "sgx-lkl-run")
+    # if lkl_run.exists():
+    #     info(f"skip build, {lkl_run} already exists")
+    # else:
+    #     build(nix_shell, sudo)
+    build(nix_shell, sudo)
     evaluation(default_env)
     generate_graphs()
 
