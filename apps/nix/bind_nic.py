@@ -12,6 +12,7 @@ def main() -> None:
         "native": NetworkKind.NATIVE,
         "client-native": NetworkKind.CLIENT_NATIVE,
         "dpdk": NetworkKind.DPDK,
+        "dpdk-tap": NetworkKind.DPDK_TAP,
         "tap": NetworkKind.TAP,
     }
     kind = kinds.get(sys.argv[1], None)

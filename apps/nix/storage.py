@@ -132,7 +132,8 @@ def setup_hugepages(kind: StorageKind) -> None:
     total_memory = get_total_memory()
     # leave 5 GB for the system
     gigabyte = 1024 * 1024 * 1024
-    spdk_memory = total_memory - 25 * gigabyte
+    # spdk_memory = total_memory - 25 * gigabyte
+    spdk_memory = 3 * gigabyte
     if spdk_memory < gigabyte:
         raise RuntimeError("Get more memory dude!")
     num = int(spdk_memory / 2048 / 1024)

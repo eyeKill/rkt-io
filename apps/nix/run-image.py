@@ -6,6 +6,7 @@ import signal
 import subprocess
 import sys
 import tempfile
+import traceback
 from datetime import datetime
 from typing import List, Dict, IO, Iterator, Any
 from contextlib import contextmanager
@@ -161,7 +162,9 @@ def run(
         complete_cmd = debugger + cmd
     else:
         tmp_fsimage = os.path.join(tmpdirname, "fs.img")
+        print("Copying file...")
         shutil.copyfile(image, tmp_fsimage)
+        print("Completed")
         complete_cmd = debugger + [sgx_lkl_run, tmp_fsimage] + cmd
 
     print(" ".join(complete_cmd), file=sys.stderr)
@@ -193,7 +196,11 @@ def main(args: List[str]) -> None:
         debugger = get_debugger(perf_data)
         with debug_mount_env(image) as env:
             try:
+                print("Running image")
                 run(sgx_lkl_run, image, debugger, cmd, env, tmpdirname)
+            except Exception as e:
+                traceback.print_exc()
+                print(e)
             finally:
                 if not enable_flamegraph() and not enable_traceshark() and not enable_perf_hw_counters():
                     return
