@@ -143,7 +143,10 @@ lkl ${LIBLKL} ${LKL_BUILD}/include: ${SPDK_BUILD_SGX}/.build ${HOST_MUSL_CC} ${L
 	+DESTDIR=${LKL_BUILD} ${MAKE} -C ${LKL}/tools/lkl -j`tools/ncore.sh` CC=${HOST_MUSL_CC} PREFIX="" \
 		TARGETS="" headers_install
 	# Bugfix, prefix symbol that collides with musl's one
-	sed -i -e 's/struct ipc_perm/struct lkl_ipc_perm/' ${LKL_BUILD}/include/lkl/linux/{ipc.h,msg.h,sem.h,shm.h}
+	sed -i -e 's/struct ipc_perm/struct lkl_ipc_perm/' ${LKL_BUILD}/include/lkl/linux/ipc.h
+	sed -i -e 's/struct ipc_perm/struct lkl_ipc_perm/' ${LKL_BUILD}/include/lkl/linux/msg.h
+	sed -i -e 's/struct ipc_perm/struct lkl_ipc_perm/' ${LKL_BUILD}/include/lkl/linux/sem.h
+	sed -i -e 's/struct ipc_perm/struct lkl_ipc_perm/' ${LKL_BUILD}/include/lkl/linux/shm.h
 	# Bugfix, lkl_host.h redefines struct iovec in older versions of LKL.
 	grep "CONFIG_AUTO_LKL_POSIX_HOST" ${LKL_BUILD}/include/lkl_host.h > /dev/null && find ${LKL_BUILD}/include/ -type f -exec sed -i 's/struct iovec/struct lkl__iovec/' {} \; || true # struct lkl_iovec already exists
 	+${MAKE} headers_install -j`tools/ncore.sh` -C ${LKL} ARCH=lkl INSTALL_HDR_PATH=${LKL_BUILD}/

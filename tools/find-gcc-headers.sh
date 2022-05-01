@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 set -e
 
 headerfile=$(echo "#include <x86intrin.h>" | \
