@@ -4,7 +4,7 @@
 , command
 , extraFiles ? {}
 , interpreter ? null
-, sgx-lkl-run ? "sgx-lkl-run"
+, sgx-lkl-run ? "/root/rkt-io/build/sgx-lkl-run"
 , extraCommands ? ""
 , debugSymbols ? true
 , diskSize ? "1G"

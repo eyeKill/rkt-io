@@ -56,7 +56,7 @@ static void panic(void) {
         // fprintf completes before we crash
         lthread_self()->attr.state & BIT(LT_ST_PINNED);
     }
-        fprintf(stderr, "[SGX-LKL] Kernel panic! Run with SGXLKL_KERNEL_VERBOSE=1 for more information. Aborting...\n");
+    fprintf(stderr, "[SGX-LKL] Kernel panic! Run with SGXLKL_KERNEL_VERBOSE=1 for more information. Aborting...\n");
     a_crash();
 }
 

@@ -41,7 +41,7 @@ class Benchmark:
             sys.exit(1)
     
         cmd = [sudo, str(simpleio), "bin/udp-send", self.settings.remote_dpdk_ip, "2000000"]
-        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, text=True, env=env)
+        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, env=env)
         assert proc.stdout is not None
         found_results = False
         for line in proc.stdout:
@@ -88,13 +88,14 @@ def benchmark_sync(benchmark: Benchmark, stats: Dict[str, List[int]]) -> None:
 
 def benchmark_direct(benchmark: Benchmark, stats: Dict[str, List[int]]) -> None:
     extra_env = benchmark.network.setup(NetworkKind.DPDK)
+    extra_env["SGXLKL_KERNEL_VERBOSE"] = "1"
     benchmark.run("simpleio-sgx-io", "direct", stats, extra_env=extra_env)
 
 
 BENCHMARKS = {
-    "native": benchmark_native,
-    "async": benchmark_async,
-    "sync": benchmark_sync,
+    # "native": benchmark_native,
+    # "async": benchmark_async,
+    # "sync": benchmark_sync,
     "direct": benchmark_direct,
 }
 

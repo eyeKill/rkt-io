@@ -261,11 +261,11 @@ int spdk_initialize(struct spdk_context *ctx, bool primary_proc) {
     opts.shm_id = 0;
     opts.mem_channel = 1;
     opts.core_mask = "1";
-    // Yijun add tap device support
     opts.proc_type = primary_proc ? PROC_TYPE_PRIMARY : PROC_TYPE_SECONDARY;
-    if(primary_proc) {
-        opts.env_context = "--vdev=net_tap,iface=br0p0";
-    }
+    fprintf(stderr, "Initializing %s SPDK instance\n", primary_proc ? "PRIMARY" : "SECONDARY");
+
+    // Yijun add tap device support
+    opts.env_context = "--vdev=net_tap0,iface=br0p0";
 
     int r = spdk_env_init(&opts);
     if (r < 0) {
@@ -301,6 +301,8 @@ int spdk_initialize(struct spdk_context *ctx, bool primary_proc) {
             return r;
         }
     }
+
+    fprintf(stderr, "Successfully initialized spdk environment.\n");
 
     return 0;
 }

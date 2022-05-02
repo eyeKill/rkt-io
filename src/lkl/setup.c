@@ -198,6 +198,7 @@ static void lkl_prestart_dpdk(enclave_config_t *encl) {
     dpdk_ifaces = encl->dpdk_ifaces;
 
     for (size_t i = 0; i < num_dpdk_ifaces; i++) {
+        fprintf(stderr, "Registering %d dpdk iface\n", i);
         struct enclave_dpdk_config *dpdk = &dpdk_ifaces[i];
         int ifindex = sgxlkl_register_dpdk_device(dpdk);
 
@@ -1121,6 +1122,7 @@ void lkl_start_init(enclave_config_t* encl) {
             lkl_strerror(res));
         exit(res);
     }
+    SGXLKL_VERBOSE("LKL kernel started\n");
 
     // Open dummy files to use LKL's 0/1/2 file descriptors
     // (otherwise they will be assigned to the app's first fopen()s
@@ -1142,8 +1144,9 @@ void lkl_start_init(enclave_config_t* encl) {
 
     // Now that our kernel is ready to handle syscalls, mount root
     lkl_mount_virtual();
-
+    SGXLKL_VERBOSE("essential mount points mounted\n");
     init_random();
+    SGXLKL_VERBOSE("random init complete\n");
 
     // Set environment variable to export SHMEM address to the application.
     // Note: Due to how putenv() works, we need to allocate the environment
@@ -1162,11 +1165,15 @@ void lkl_start_init(enclave_config_t* encl) {
 
     // Sysctl
     do_sysctl(encl);
+    SGXLKL_VERBOSE("sysctl completed\n");
 
     // Set interface status/IP/routes
-    if (!sgxlkl_use_host_network && net_dev_id != -1)
+    if (!sgxlkl_use_host_network && net_dev_id != -1) {
+        SGXLKL_VERBOSE("doing lkl_poststart_net\n");
         lkl_poststart_net(encl, net_dev_id);
+    }
 
+    SGXLKL_VERBOSE("doing spdk initialization\n");
     int rc = sgxlkl_spdk_initialize();
     if (rc < 0) {
         fprintf(stderr, "Error: unable to initialize spdk, %s\n",
@@ -1175,8 +1182,11 @@ void lkl_start_init(enclave_config_t* encl) {
     }
     // Set interface status/IP/routes
     if (!sgxlkl_use_host_network) {
+        SGXLKL_VERBOSE("setting dpdk configuration...\n");
         lkl_prestart_dpdk(encl);
+        SGXLKL_VERBOSE("prestart dpdk done\n");
         lkl_poststart_dpdk(encl);
+        SGXLKL_VERBOSE("poststart dpdk done\n");
     }
 
     spdk_context = encl->spdk_context;
@@ -1186,7 +1196,7 @@ void lkl_start_init(enclave_config_t* encl) {
 
     // Set hostname (provided through SGXLKL_HOSTNAME)
     sethostname(encl->hostname, strlen(encl->hostname));
-
+    SGXLKL_VERBOSE("lkl_start_init finished\n");
 }
 
 /* Requires starttime to be higher or equal to endtime */

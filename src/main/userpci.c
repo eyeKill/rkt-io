@@ -82,9 +82,9 @@ int spawn_lkl_userpci(int *pipe_fd)
     argv[3] = uid_arg;
 
     pid_t pid;
-    r = posix_spawnp(&pid, "sgx-lkl-userpci", NULL, NULL, argv, environ);
+    r = posix_spawnp(&pid, "/root/rkt-io/build/sgx-lkl-userpci", NULL, NULL, argv, environ);
     if (r != 0) {
-        fprintf(stderr, "[userpci] failed to spawn dpdk-setuid-helper\n");
+        fprintf(stderr, "[userpci] failed to spawn sgx-lkl-userpci\n");
         return -r;
     }
     close(finished_fds[0]);
@@ -118,5 +118,6 @@ int spawn_lkl_userpci(int *pipe_fd)
         usleep(100);
       }
     };
+    fprintf(stderr, "[userpci] sgx-lkl-userpci ready.\n");
     return 0;
 };

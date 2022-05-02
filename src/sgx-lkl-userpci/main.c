@@ -16,6 +16,7 @@ int main(int argc, char **argv) {
         fprintf(stderr, "USAGE: %s ready-fd finished-fd uid\n", argv[0]);
         return 1;
     }
+    fprintf(stderr, "Starting sgx-lkl-userpci\n");
     int ready_fd = atoi(argv[1]);
     int finished_fd = atoi(argv[2]);
     int uid = atoi(argv[3]);
@@ -40,16 +41,21 @@ int main(int argc, char **argv) {
 
     struct spdk_context ctx = {};
     if (spdk_initialize(&ctx, true) < 0) {
+        fprintf(stderr, "userpci: failed to initialize spdk\n");
         goto error;
     };
+    fprintf(stderr, "userpci: SPDK initialized.\n");
 
     size_t port_num = rte_eth_dev_count_avail();
     for (int portid = 0; portid < port_num; portid++) {
+        fprintf(stderr, "userpci: setting up iface %d\n", portid);
         int r = setup_iface(portid, mtu, rx_queues);
         if (r < 0) {
             goto error;
         }
     }
+
+    fprintf(stderr, "userpci: all ifaces ready.\n");
 
     const static char* ready_msg = "OK";
     int r = write(ready_fd, ready_msg, strlen(ready_msg) + 1);

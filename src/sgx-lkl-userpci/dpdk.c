@@ -6,7 +6,28 @@
 #include <rte_net.h>
 #include <dpdk_config.h>
 
-static struct rte_eth_conf port_conf = {
+// copied from tap_rss.h
+
+#define ETH_RSS_IP ( ETH_RSS_IPV4 | \
+	ETH_RSS_FRAG_IPV4 | \
+	ETH_RSS_NONFRAG_IPV4_OTHER | \
+	ETH_RSS_IPV6 | \
+	ETH_RSS_FRAG_IPV6 | \
+	ETH_RSS_NONFRAG_IPV6_OTHER | \
+	ETH_RSS_IPV6_EX )
+
+#define ETH_RSS_UDP ( ETH_RSS_NONFRAG_IPV4_UDP | \
+	ETH_RSS_NONFRAG_IPV6_UDP | \
+	ETH_RSS_IPV6_UDP_EX )
+
+#define ETH_RSS_TCP ( ETH_RSS_NONFRAG_IPV4_TCP | \
+	ETH_RSS_NONFRAG_IPV6_TCP | \
+	ETH_RSS_IPV6_TCP_EX )
+
+#define TAP_RSS_HF_MASK (~(ETH_RSS_IP | ETH_RSS_TCP | ETH_RSS_UDP))
+
+// for i40e port
+static struct rte_eth_conf i40e_port_conf = {
 // TODO: more optimizations:
 // if (dev_info.tx_offload_capa & DEV_RX_OFFLOAD_TCP_LRO)
 //    port_conf.txmode.offloads |= DEV_RX_OFFLOAD_TCP_LRO;
@@ -34,7 +55,22 @@ static struct rte_eth_conf port_conf = {
           | ETH_RSS_NONFRAG_IPV6_UDP \
           | ETH_RSS_NONFRAG_IPV6_SCTP,
     }
-   },
+  },
+};
+
+// for tap port
+static struct rte_eth_conf port_conf = {
+  .rxmode = {
+    .mq_mode = ETH_MQ_RX_RSS,
+    .offloads = DEV_RX_OFFLOAD_CHECKSUM
+      | DEV_RX_OFFLOAD_SCATTER,
+    .max_rx_pkt_len = ETHER_MAX_LEN,
+  },
+  .rx_adv_conf = {
+    .rss_conf = {
+      .rss_hf = ~TAP_RSS_HF_MASK
+    }
+  },
 };
 
 
@@ -154,11 +190,15 @@ int setup_iface(int portid, size_t mtu, size_t rx_queues) {
       return ret;
     }
     // https://haryachyy.wordpress.com/2019/01/18/learning-dpdk-symmetric-rss/
+    // not supported in tap device
+
+    /*
     ret = enable_symmetric_rxhash(portid);
     if (ret < 0) {
       fprintf(stderr, "dpdk: failed to set rxhash: %s\n", rte_strerror(-ret));
       return ret;
     }
+    */
 
     ret = rte_eth_dev_set_mtu(portid, mtu);
     if (ret < 0) {
@@ -207,7 +247,10 @@ int setup_iface(int portid, size_t mtu, size_t rx_queues) {
         return ret;
     }
 
+    fprintf(stderr, "userpci: created rx & tx queues\n");
+
     rte_eth_dev_set_link_up(portid);
+    fprintf(stderr, "userpci: link set up\n");
 
     rte_eth_link_get(portid, &link);
     if (!link.link_status) {

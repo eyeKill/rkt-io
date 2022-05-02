@@ -52,7 +52,7 @@ def run(
 
 def build(nix_shell: str, sudo: str) -> None:
     info("Build the project")
-    run([nix_shell, "--run", f"make DEBUG=opt SUDO={sudo}"], extra_env=dict(PATH=""))
+    run([nix_shell, "--run", f"make DEBUG=opt SUDO={sudo}"], extra_env=dict(PATH="", PERL_BADLANG="0"))
     info("Done building")
 
 
@@ -184,9 +184,10 @@ def evaluation(default_env: Dict[str, str]) -> None:
         # "Figure 7 d) Redis throughput w/ YCSB (A) and e) Redis latency w/ YCSB (A)": redis,
         # "Figure 7 f) MySQL OLTP throughput w/ sys-bench": mysql,
     }
+    RETRY_COUNT = 1
     for figure, function in experiments.items():
         info(figure)
-        for i in range(3):
+        for i in range(RETRY_COUNT):
             try:
                 function(default_env)
                 break

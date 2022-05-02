@@ -736,13 +736,12 @@ void register_spdk(enclave_config_t *encl,
  void register_dma_memory(enclave_config_t *encl) {
     int r = dpdk_allocate_dma_memory(&encl->dpdk_dma_memory);
     if (r < 0) {
-      sgxlkl_fail("failed to initialize dpdk dma memory: s\n", strerror(-r));
+        sgxlkl_fail("failed to initialize dpdk dma memory: s\n", strerror(-r));
     }
-
-     if (spdk_alloc_dma_memory(&spdk_dma_memory) < 0) {
-         sgxlkl_fail("spdk: could not setup hugetbls\n");
-     };
-     encl->spdk_dma_memory = &spdk_dma_memory;
+    if (spdk_alloc_dma_memory(&spdk_dma_memory) < 0) {
+        sgxlkl_fail("spdk: could not setup hugetbls\n");
+    };
+    encl->spdk_dma_memory = &spdk_dma_memory;
 }
 
 void register_dpdk(enclave_config_t *encl,
@@ -776,6 +775,7 @@ void register_dpdk(enclave_config_t *encl,
         sgxlkl_fail("Invalid IPv6 mask %d\n", mask6);
 
     encl->num_dpdk_ifaces = rte_eth_dev_count_avail();
+    sgxlkl_info("%d dpdk iface available\n", encl->num_dpdk_ifaces);
     if (encl->num_dpdk_ifaces) {
         encl->dpdk_ifaces = (struct enclave_dpdk_config *)malloc(
             sizeof(struct enclave_dpdk_config) * encl->num_dpdk_ifaces);
@@ -793,6 +793,7 @@ void register_dpdk(enclave_config_t *encl,
         };
     }
     encl->dpdk_context = dpdk_initialize_context();
+    sgxlkl_info("DPDK initialization completed.\n");
 }
 
 static void register_queues(enclave_config_t* encl) {
@@ -1269,7 +1270,7 @@ reenter:
     }
 }
 
-void sigill_handler(int sig, siginfo_t *si, void *unused) {
+void sgx_sigill_handler(int sig, siginfo_t *si, void *unused) {
     uint64_t low, high;
     uint64_t rsi;
     /* do rdtsc just in case */
@@ -1278,12 +1279,12 @@ void sigill_handler(int sig, siginfo_t *si, void *unused) {
     forward_signal(SIGILL, (void*) rsi);
 }
 
-void sigsegv_handler(int sig, siginfo_t *si, void *unused) {
+void sgx_sigsegv_handler(int sig, siginfo_t *si, void *unused) {
     // Just forward signal
     forward_signal(SIGSEGV, (void*) si);
 }
 
-void sigfpe_handler(int sig, siginfo_t *si, void *unused) {
+void sgx_sigfpe_handler(int sig, siginfo_t *si, void *unused) {
     // Just forward signal
     forward_signal(SIGFPE, (void*) si);
 }
@@ -1460,19 +1461,19 @@ void setup_signal_handlers(void) {
 #ifdef SGXLKL_HW
     sigemptyset(&sa.sa_mask);
     sa.sa_flags = SA_SIGINFO;
-    sa.sa_sigaction = sigill_handler;
+    sa.sa_sigaction = sgx_sigill_handler;
     if (sigaction(SIGILL, &sa, NULL) == -1)
         sgxlkl_fail("Failed to register SIGILL handler\n");
 
     sigemptyset(&sa.sa_mask);
     sa.sa_flags = SA_SIGINFO;
-    sa.sa_sigaction = sigsegv_handler;
+    sa.sa_sigaction = sgx_sigsegv_handler;
     if (sigaction(SIGSEGV, &sa, NULL) == -1)
         sgxlkl_fail("Failed to register SIGSEGV handler\n");
 
     sigemptyset(&sa.sa_mask);
     sa.sa_flags = SA_SIGINFO;
-    sa.sa_sigaction = sigfpe_handler;
+    sa.sa_sigaction = sgx_sigfpe_handler;
     if (sigaction(SIGFPE, &sa, NULL) == -1)
         sgxlkl_fail("Failed to register SIGFPE handler\n");
 #endif /* SGXLKL_HW */
@@ -1887,11 +1888,12 @@ int main(int argc, char *argv[], char *envp[]) {
     register_hds(&encl, root_hd);
 
     if (encl.enable_sgxio) {
-      register_spdk(&encl, &spdk_context, &userpci_pipe,
+        sgxlkl_info("sgxio enabled\n");
+        register_spdk(&encl, &spdk_context, &userpci_pipe,
                     sgxlkl_config_str(SGXLKL_SPDK_HD_KEY),
                     sgxlkl_config_bool(SGXLKL_SPDK_SKIP_UNMOUNT));
 
-      register_dpdk(&encl,
+        register_dpdk(&encl,
                     sgxlkl_config_str(SGXLKL_DPDK_IP4),
                     (int) sgxlkl_config_uint64(SGXLKL_DPDK_MASK4),
                     sgxlkl_config_str(SGXLKL_DPDK_GW4),
@@ -1900,8 +1902,11 @@ int main(int argc, char *argv[], char *envp[]) {
                     sgxlkl_config_str(SGXLKL_DPDK_GW6),
                     (int) sgxlkl_config_uint64(SGXLKL_DPDK_MTU));
 
-      register_dma_memory(&encl);
+        sgxlkl_info("register dma memory\n");
+        register_dma_memory(&encl);
+        sgxlkl_info("finished dpdk/spdk/dma initialization\n");
     }
+
 
     // this causes blocking syscalls. get rid of it since we have DPDK now.
     //register_net(&encl, sgxlkl_config_str(SGXLKL_TAP),
@@ -1920,6 +1925,7 @@ int main(int argc, char *argv[], char *envp[]) {
     // This has to be called after calling set_tls as set_tls registers a
     // temporary SIGILL handler.
     setup_signal_handlers();
+    sgxlkl_info("Finished setting up signal handlers\n");
 
     atexit(sgxlkl_cleanup);
 
